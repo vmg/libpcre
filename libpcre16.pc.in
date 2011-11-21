@@ -5,8 +5,8 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: libpcre
-Description: PCRE - Perl compatible regular expressions C library with 8 bit character support
+Name: libpcre16
+Description: PCRE - Perl compatible regular expressions C library with 16 bit character support
 Version: @PACKAGE_VERSION@
 Libs: -L${libdir} -lpcre
 Cflags: -I${includedir} @PCRE_STATIC_CFLAG@

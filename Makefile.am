@@ -79,7 +79,7 @@ check_SCRIPTS =
 dist_noinst_SCRIPTS =
 
 # Some of the binaries we make are to be installed, and others are
-# (non-user-visible) helper programs needed to build libpcre.
+# (non-user-visible) helper programs needed to build libpcre or libpcre16.
 bin_PROGRAMS =
 noinst_PROGRAMS =
 
@@ -170,6 +170,9 @@ endif # WITH_REBUILD_CHARTABLES
 
 
 ## The main pcre library
+
+# Build the 8 bit library if it is enabled.
+if WITH_PCRE8
 lib_LTLIBRARIES += libpcre.la
 libpcre_la_SOURCES = \
   pcre_compile.c \
@@ -199,6 +202,22 @@ libpcre_la_SOURCES = \
 nodist_libpcre_la_SOURCES = \
   pcre_chartables.c
 
+endif # WITH_PCRE8
+
+# Build the 16 bit library if it is enabled.
+if WITH_PCRE16
+lib_LTLIBRARIES += libpcre16.la
+libpcre16_la_SOURCES = \
+  pcre16_compile.c \
+  pcre16_convert_utf16.c \
+  pcre16_valid_utf16.c
+
+## This file is generated as part of the building process, so don't distribute.
+nodist_libpcre16_la_SOURCES = \
+  pcre_chartables.c
+
+endif # WITH_PCRE16
+
 # The pcre_printint.src file is #included by some source files, so it must be
 # distributed. The pcre_chartables.c.dist file is the default version of
 # pcre_chartables.c, used unless --enable-rebuild-chartables is specified.
@@ -224,7 +243,12 @@ EXTRA_DIST += \
   sljit/sljitNativeX86_common.c \
   sljit/sljitUtils.c
 
+if WITH_PCRE8
 libpcre_la_LDFLAGS = $(EXTRA_LIBPCRE_LDFLAGS)
+endif # WITH_PCRE8
+if WITH_PCRE16
+libpcre16_la_LDFLAGS = $(EXTRA_LIBPCRE_LDFLAGS)
+endif # WITH_PCRE16
 
 CLEANFILES += pcre_chartables.c
 
@@ -233,15 +257,23 @@ if WITH_JIT
 TESTS += pcre_jit_test
 noinst_PROGRAMS += pcre_jit_test
 pcre_jit_test_SOURCES = pcre_jit_test.c
-pcre_jit_test_LDADD = libpcre.la
+pcre_jit_test_LDADD =
+if WITH_PCRE8
+pcre_jit_test_LDADD += libpcre.la
+endif # WITH_PCRE8
+if WITH_PCRE16
+pcre_jit_test_LDADD += libpcre16.la
+endif # WITH_PCRE16
 endif # WITH_JIT
 
 ## A version of the main pcre library that has a posix re API.
+if WITH_PCRE8
 lib_LTLIBRARIES += libpcreposix.la
 libpcreposix_la_SOURCES = \
   pcreposix.c
 libpcreposix_la_LDFLAGS = $(EXTRA_LIBPCREPOSIX_LDFLAGS)
 libpcreposix_la_LIBADD = libpcre.la
+endif # WITH_PCRE8
 
 ## There's a C++ library as well.
 if WITH_PCRE_CPP
@@ -282,13 +314,19 @@ dist_noinst_SCRIPTS += RunTest
 EXTRA_DIST += RunTest.bat
 bin_PROGRAMS += pcretest
 pcretest_SOURCES = pcretest.c
-pcretest_LDADD = libpcreposix.la $(LIBREADLINE)
+pcretest_LDADD = $(LIBREADLINE)
+if WITH_PCRE8
+pcretest_LDADD += libpcreposix.la
+endif # WITH_PCRE8
 
 TESTS += RunGrepTest
 dist_noinst_SCRIPTS += RunGrepTest
 bin_PROGRAMS += pcregrep
 pcregrep_SOURCES = pcregrep.c
-pcregrep_LDADD = libpcreposix.la $(LIBZ) $(LIBBZ2)
+pcregrep_LDADD = $(LIBZ) $(LIBBZ2)
+if WITH_PCRE8
+pcregrep_LDADD += libpcreposix.la
+endif # WITH_PCRE8
 
 EXTRA_DIST += \
   testdata/grepinput \
@@ -378,6 +416,9 @@ pcre.dll: $(DLL_OBJS)
 # We have .pc files for pkg-config users.
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libpcre.pc libpcreposix.pc
+if WITH_PCRE16
+pkgconfig_DATA += libpcre16.pc
+endif
 if WITH_PCRE_CPP
 pkgconfig_DATA += libpcrecpp.pc
 endif

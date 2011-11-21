@@ -7213,17 +7213,33 @@ Returns:        pointer to compiled data block, or NULL on error,
                 with errorptr and erroroffset set
 */
 
+#ifndef COMPILE_PCRE16
 PCRE_EXP_DEFN pcre * PCRE_CALL_CONVENTION
 pcre_compile(const char *pattern, int options, const char **errorptr,
   int *erroroffset, const unsigned char *tables)
+#else
+PCRE_EXP_DEFN pcre * PCRE_CALL_CONVENTION
+pcre16_compile(PCRE_SPTR16 pattern, int options, const char **errorptr,
+  int *erroroffset, const unsigned char *tables)
+#endif
 {
+#ifndef COMPILE_PCRE16
 return pcre_compile2(pattern, options, NULL, errorptr, erroroffset, tables);
+#else
+return pcre16_compile2(pattern, options, NULL, errorptr, erroroffset, tables);
+#endif
 }
 
 
+#ifndef COMPILE_PCRE16
 PCRE_EXP_DEFN pcre * PCRE_CALL_CONVENTION
 pcre_compile2(const char *pattern, int options, int *errorcodeptr,
   const char **errorptr, int *erroroffset, const unsigned char *tables)
+#else
+PCRE_EXP_DEFN pcre * PCRE_CALL_CONVENTION
+pcre16_compile2(PCRE_SPTR16 pattern, int options, int *errorcodeptr,
+  const char **errorptr, int *erroroffset, const unsigned char *tables)
+#endif
 {
 real_pcre *re;
 int length = 1;  /* For final END opcode */

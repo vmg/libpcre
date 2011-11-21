@@ -51,11 +51,11 @@ functions whose names all begin with "_pcre_". */
 #define PCRE_DEBUG
 #endif
 
-/* We do not support both EBCDIC and UTF-8 at the same time. The "configure"
+/* We do not support both EBCDIC and UTF-8/16 at the same time. The "configure"
 script prevents both being selected, but not everybody uses "configure". */
 
-#if defined EBCDIC && defined SUPPORT_UTF8
-#error The use of both EBCDIC and SUPPORT_UTF8 is not supported.
+#if defined EBCDIC && (defined SUPPORT_UTF8 || defined SUPPORT_UTF16)
+#error The use of both EBCDIC and SUPPORT_UTF8/16 is not supported.
 #endif
 
 /* If SUPPORT_UCP is defined, SUPPORT_UTF8 must also be defined. The
@@ -208,10 +208,25 @@ by "configure". */
 
 /* All character handling must be done as unsigned characters. Otherwise there
 are problems with top-bit-set characters and functions such as isspace().
-However, we leave the interface to the outside world as char *, because that
-should make things easier for callers. */
+However, we leave the interface to the outside world as char * or short *,
+because that should make things easier for callers. We define a short type
+for the current character representation (either 8 or 16 bit) to save lots
+of typing. I tried "uchar", but it causes problems on Digital Unix, where
+it is defined in sys/types, so use "uschar" instead. */
 
+#ifndef COMPILE_PCRE16
 typedef unsigned char pcre_uchar;
+#else
+#if USHRT_MAX != 65535
+/* This is a warning message. Change PCRE_SCHAR16 to a 16 bit data type in
+pcre.h(.in) and disable (comment out) this message. */
+#error Warning: PCRE_SCHAR16 is not a 16 bit data type.
+#endif
+typedef pcre_uint16 uschar;
+#endif
+
+/* A 8 bit unsigned data type. */
+typedef unsigned char pcre_uint8;
 
 /* This is an unsigned int value that no character can ever have. UTF-8
 characters only go up to 0x7fffffff (though Unicode doesn't go beyond
@@ -270,9 +285,10 @@ must begin with PCRE_. */
 #define PCRE_PUCHAR CUSTOM_SUBJECT_PTR
 #else
 #define PCRE_PUCHAR const pcre_uchar *
+
+/* PCRE_SPTR is defined in pcre.h. */
+#define USPTR const uschar *
 #endif
-
-
 
 /* Include the public PCRE header and the definitions of UCP character property
 values. */
@@ -1936,7 +1952,11 @@ extern BOOL              _pcre_is_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,
 extern int               _pcre_ord2utf8(int, pcre_uint8 *);
 extern real_pcre        *_pcre_try_flipped(const real_pcre *, real_pcre *,
                            const pcre_study_data *, pcre_study_data *);
+#ifndef COMPILE_PCRE16
 extern int               _pcre_valid_utf8(PCRE_PUCHAR, int, int *);
+#else
+extern int               _pcre16_valid_utf16(PCRE_PUCHAR, int, int *);
+#endif
 extern BOOL              _pcre_was_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
 extern BOOL              _pcre_xclass(int, const pcre_uchar *);
