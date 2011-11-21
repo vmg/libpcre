@@ -266,65 +266,99 @@ substitutes must be in the order of the names, defined above, and there are
 both positive and negative cases. NULL means no substitute. */
 
 #ifdef SUPPORT_UCP
-static const pcre_uchar literal_PNd[]  = { '\\', 'P', '{', 'N', 'd', '}', '\0' };
-static const pcre_uchar literal_pNd[]  = { '\\', 'p', '{', 'N', 'd', '}', '\0' };
-static const pcre_uchar literal_PXsp[] = { '\\', 'P', '{', 'X', 's', 'p', '}', '\0' };
-static const pcre_uchar literal_pXsp[] = { '\\', 'p', '{', 'X', 's', 'p', '}', '\0' };
-static const pcre_uchar literal_PXwd[] = { '\\', 'P', '{', 'X', 'w', 'd', '}', '\0' };
-static const pcre_uchar literal_pXwd[] = { '\\', 'p', '{', 'X', 'w', 'd', '}', '\0' };
+static const pcre_uchar string_PNd[]  = {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_N, CHAR_d, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_pNd[]  = {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_N, CHAR_d, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_PXsp[] = {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_s, CHAR_p, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_pXsp[] = {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_s, CHAR_p, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_PXwd[] = {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_w, CHAR_d, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_pXwd[] = {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_w, CHAR_d, CHAR_RIGHT_CURLY_BRACKET, '\0' };
 
 static const pcre_uchar *substitutes[] = {
-  literal_PNd,           /* \D */
-  literal_pNd,           /* \d */
-  literal_PXsp,          /* \S */       /* NOTE: Xsp is Perl space */
-  literal_pXsp,          /* \s */
-  literal_PXwd,          /* \W */
-  literal_pXwd           /* \w */
+  string_PNd,           /* \D */
+  string_pNd,           /* \d */
+  string_PXsp,          /* \S */       /* NOTE: Xsp is Perl space */
+  string_pXsp,          /* \s */
+  string_PXwd,          /* \W */
+  string_pXwd           /* \w */
 };
 
-static const pcre_uchar literal_pL[] =   { '\\', 'p', '{', 'L', '}', '\0' };
-static const pcre_uchar literal_pLl[] =  { '\\', 'p', '{', 'L', 'l', '}', '\0' };
-static const pcre_uchar literal_pLu[] =  { '\\', 'p', '{', 'L', 'u', '}', '\0' };
-static const pcre_uchar literal_pXan[] = { '\\', 'p', '{', 'X', 'a', 'n', '}', '\0' };
-static const pcre_uchar literal_h[] =    { '\\', 'h', '\0' };
-static const pcre_uchar literal_pXps[] = { '\\', 'p', '{', 'X', 'p', 's', '}', '\0' };
-static const pcre_uchar literal_PL[] =   { '\\', 'P', '{', 'L', '}', '\0' };
-static const pcre_uchar literal_PLl[] =  { '\\', 'P', '{', 'L', 'l', '}', '\0' };
-static const pcre_uchar literal_PLu[] =  { '\\', 'P', '{', 'L', 'u', '}', '\0' };
-static const pcre_uchar literal_PXan[] = { '\\', 'P', '{', 'X', 'a', 'n', '}', '\0' };
-static const pcre_uchar literal_H[] =    { '\\', 'H', '\0' };
-static const pcre_uchar literal_PXps[] = { '\\', 'P', '{', 'X', 'p', 's', '}', '\0' };
+static const pcre_uchar string_pL[] =   {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_L, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_pLl[] =  {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_L, CHAR_l, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_pLu[] =  {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_L, CHAR_u, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_pXan[] = {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_a, CHAR_n, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_h[] =    {
+  CHAR_BACKSLASH, CHAR_h, '\0' };
+static const pcre_uchar string_pXps[] = {
+  CHAR_BACKSLASH, CHAR_p, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_p, CHAR_s, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_PL[] =   {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_L, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_PLl[] =  {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_L, CHAR_l, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_PLu[] =  {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_L, CHAR_u, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_PXan[] = {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_a, CHAR_n, CHAR_RIGHT_CURLY_BRACKET, '\0' };
+static const pcre_uchar string_H[] =    {
+  CHAR_BACKSLASH, CHAR_H, '\0' };
+static const pcre_uchar string_PXps[] = {
+  CHAR_BACKSLASH, CHAR_P, CHAR_LEFT_CURLY_BRACKET,
+  CHAR_X, CHAR_p, CHAR_s, CHAR_RIGHT_CURLY_BRACKET, '\0' };
 
 static const pcre_uchar *posix_substitutes[] = {
-  literal_pL,            /* alpha */
-  literal_pLl,           /* lower */
-  literal_pLu,           /* upper */
-  literal_pXan,          /* alnum */
-  NULL,                  /* ascii */
-  literal_h,             /* blank */
-  NULL,                  /* cntrl */
-  literal_pNd,           /* digit */
-  NULL,                  /* graph */
-  NULL,                  /* print */
-  NULL,                  /* punct */
-  literal_pXps,          /* space */    /* NOTE: Xps is POSIX space */
-  literal_pXwd,          /* word */
-  NULL,                  /* xdigit */
+  string_pL,            /* alpha */
+  string_pLl,           /* lower */
+  string_pLu,           /* upper */
+  string_pXan,          /* alnum */
+  NULL,                 /* ascii */
+  string_h,             /* blank */
+  NULL,                 /* cntrl */
+  string_pNd,           /* digit */
+  NULL,                 /* graph */
+  NULL,                 /* print */
+  NULL,                 /* punct */
+  string_pXps,          /* space */    /* NOTE: Xps is POSIX space */
+  string_pXwd,          /* word */
+  NULL,                 /* xdigit */
   /* Negated cases */
-  literal_PL,            /* ^alpha */
-  literal_PLl,           /* ^lower */
-  literal_PLu,           /* ^upper */
-  literal_PXan,          /* ^alnum */
-  NULL,                  /* ^ascii */
-  literal_H,             /* ^blank */
-  NULL,                  /* ^cntrl */
-  literal_PNd,           /* ^digit */
-  NULL,                  /* ^graph */
-  NULL,                  /* ^print */
-  NULL,                  /* ^punct */
-  literal_PXps,          /* ^space */   /* NOTE: Xps is POSIX space */
-  literal_PXwd,          /* ^word */
-  NULL                   /* ^xdigit */
+  string_PL,            /* ^alpha */
+  string_PLl,           /* ^lower */
+  string_PLu,           /* ^upper */
+  string_PXan,          /* ^alnum */
+  NULL,                 /* ^ascii */
+  string_H,             /* ^blank */
+  NULL,                 /* ^cntrl */
+  string_PNd,           /* ^digit */
+  NULL,                 /* ^graph */
+  NULL,                 /* ^print */
+  NULL,                 /* ^punct */
+  string_PXps,          /* ^space */   /* NOTE: Xps is POSIX space */
+  string_PXwd,          /* ^word */
+  NULL                  /* ^xdigit */
 };
 #define POSIX_SUBSIZE (sizeof(posix_substitutes) / sizeof(pcre_uchar *))
 #endif

@@ -225,9 +225,6 @@ pcre.h(.in) and disable (comment out) this message. */
 typedef pcre_uint16 uschar;
 #endif
 
-/* A 8 bit unsigned data type. */
-typedef unsigned char pcre_uint8;
-
 /* This is an unsigned int value that no character can ever have. UTF-8
 characters only go up to 0x7fffffff (though Unicode doesn't go beyond
 0x0010ffff). */
