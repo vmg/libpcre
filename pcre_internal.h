@@ -158,11 +158,13 @@ set, we ensure here that it has no effect. */
 #define PCRE_CALL_CONVENTION
 #endif
 
-/* We need to have types that specify unsigned 16-bit and 32-bit integers. We
+/* We need to have types that specify unsigned 8, 16 and 32-bit integers. We
 cannot determine these outside the compilation (e.g. by running a program as
 part of "configure") because PCRE is often cross-compiled for use on other
 systems. Instead we make use of the maximum sizes that are available at
 preprocessor time in standard C environments. */
+
+typedef unsigned char pcre_uint8;
 
 #if USHRT_MAX == 65535
   typedef unsigned short pcre_uint16;
@@ -207,11 +209,9 @@ by "configure". */
 /* All character handling must be done as unsigned characters. Otherwise there
 are problems with top-bit-set characters and functions such as isspace().
 However, we leave the interface to the outside world as char *, because that
-should make things easier for callers. We define a short type for unsigned char
-to save lots of typing. I tried "uchar", but it causes problems on Digital
-Unix, where it is defined in sys/types, so use "uschar" instead. */
+should make things easier for callers. */
 
-typedef unsigned char uschar;
+typedef unsigned char pcre_uchar;
 
 /* This is an unsigned int value that no character can ever have. UTF-8
 characters only go up to 0x7fffffff (though Unicode doesn't go beyond
@@ -267,11 +267,9 @@ used for the external interface and appears in pcre.h, which is why its name
 must begin with PCRE_. */
 
 #ifdef CUSTOM_SUBJECT_PTR
-#define PCRE_SPTR CUSTOM_SUBJECT_PTR
-#define USPTR CUSTOM_SUBJECT_PTR
+#define PCRE_PUCHAR CUSTOM_SUBJECT_PTR
 #else
-#define PCRE_SPTR const char *
-#define USPTR const unsigned char *
+#define PCRE_PUCHAR const pcre_uchar *
 #endif
 
 
@@ -1699,8 +1697,8 @@ typedef struct real_pcre {
   pcre_uint16 name_count;         /* Number of name items */
   pcre_uint16 ref_count;          /* Reference count */
 
-  const unsigned char *tables;    /* Pointer to tables or NULL for std */
-  const unsigned char *nullpad;   /* NULL padding */
+  const pcre_uint8 *tables;       /* Pointer to tables or NULL for std */
+  const pcre_uint8 *nullpad;      /* NULL padding */
 } real_pcre;
 
 /* The format of the block used to store data from pcre_study(). The same
@@ -1709,7 +1707,7 @@ remark (see NOTE above) about extending this structure applies. */
 typedef struct pcre_study_data {
   pcre_uint32 size;               /* Total that was malloced */
   pcre_uint32 flags;              /* Private flags */
-  uschar start_bits[32];          /* Starting char bits */
+  pcre_uint8 start_bits[32];      /* Starting char bits */
   pcre_uint32 minlength;          /* Minimum subject length */
 } pcre_study_data;
 
@@ -1728,32 +1726,32 @@ typedef struct open_capitem {
 doing the compiling, so that they are thread-safe. */
 
 typedef struct compile_data {
-  const uschar *lcc;            /* Points to lower casing table */
-  const uschar *fcc;            /* Points to case-flipping table */
-  const uschar *cbits;          /* Points to character type table */
-  const uschar *ctypes;         /* Points to table of type maps */
-  const uschar *start_workspace;/* The start of working space */
-  const uschar *start_code;     /* The start of the compiled code */
-  const uschar *start_pattern;  /* The start of the pattern */
-  const uschar *end_pattern;    /* The end of the pattern */
-  open_capitem *open_caps;      /* Chain of open capture items */
-  uschar *hwm;                  /* High watermark of workspace */
-  uschar *name_table;           /* The name/number table */
-  int  names_found;             /* Number of entries so far */
-  int  name_entry_size;         /* Size of each entry */
-  int  bracount;                /* Count of capturing parens as we compile */
-  int  final_bracount;          /* Saved value after first pass */
-  int  top_backref;             /* Maximum back reference */
-  unsigned int backref_map;     /* Bitmap of low back refs */
-  int  assert_depth;            /* Depth of nested assertions */
-  int  external_options;        /* External (initial) options */
-  int  external_flags;          /* External flag bits to be set */
-  int  req_varyopt;             /* "After variable item" flag for reqbyte */
-  BOOL had_accept;              /* (*ACCEPT) encountered */
-  BOOL check_lookbehind;        /* Lookbehinds need later checking */
-  int  nltype;                  /* Newline type */
-  int  nllen;                   /* Newline string length */
-  uschar nl[4];                 /* Newline string when fixed length */
+  const pcre_uint8 *lcc;            /* Points to lower casing table */
+  const pcre_uint8 *fcc;            /* Points to case-flipping table */
+  const pcre_uint8 *cbits;          /* Points to character type table */
+  const pcre_uint8 *ctypes;         /* Points to table of type maps */
+  const pcre_uchar *start_workspace;/* The start of working space */
+  const pcre_uchar *start_code;     /* The start of the compiled code */
+  const pcre_uchar *start_pattern;  /* The start of the pattern */
+  const pcre_uchar *end_pattern;    /* The end of the pattern */
+  open_capitem *open_caps;          /* Chain of open capture items */
+  pcre_uchar *hwm;                  /* High watermark of workspace */
+  pcre_uchar *name_table;           /* The name/number table */
+  int  names_found;                 /* Number of entries so far */
+  int  name_entry_size;             /* Size of each entry */
+  int  bracount;                    /* Count of capturing parens as we compile */
+  int  final_bracount;              /* Saved value after first pass */
+  int  top_backref;                 /* Maximum back reference */
+  unsigned int backref_map;         /* Bitmap of low back refs */
+  int  assert_depth;                /* Depth of nested assertions */
+  int  external_options;            /* External (initial) options */
+  int  external_flags;              /* External flag bits to be set */
+  int  req_varyopt;                 /* "After variable item" flag for reqbyte */
+  BOOL had_accept;                  /* (*ACCEPT) encountered */
+  BOOL check_lookbehind;            /* Lookbehinds need later checking */
+  int  nltype;                      /* Newline type */
+  int  nllen;                       /* Newline string length */
+  pcre_uchar nl[4];                 /* Newline string when fixed length */
 } compile_data;
 
 /* Structure for maintaining a chain of pointers to the currently incomplete
@@ -1761,7 +1759,7 @@ branches, for testing for left recursion while compiling. */
 
 typedef struct branch_chain {
   struct branch_chain *outer;
-  uschar *current_branch;
+  pcre_uchar *current_branch;
 } branch_chain;
 
 /* Structure for items in a linked list that represents an explicit recursive
@@ -1772,7 +1770,7 @@ typedef struct recursion_info {
   int group_num;                  /* Number of group that was called */
   int *offset_save;               /* Pointer to start of saved offsets */
   int saved_max;                  /* Number of saved offsets */
-  USPTR subject_position;         /* Position at start of recursion */
+  PCRE_PUCHAR subject_position;   /* Position at start of recursion */
 } recursion_info;
 
 /* A similar structure for pcre_dfa_exec(). */
@@ -1780,7 +1778,7 @@ typedef struct recursion_info {
 typedef struct dfa_recursion_info {
   struct dfa_recursion_info *prevrec;
   int group_num;
-  USPTR subject_position;
+  PCRE_PUCHAR subject_position;
 } dfa_recursion_info;
 
 /* Structure for building a chain of data for holding the values of the subject
@@ -1790,7 +1788,7 @@ pcre_exec(). */
 
 typedef struct eptrblock {
   struct eptrblock *epb_prev;
-  USPTR epb_saved_eptr;
+  PCRE_PUCHAR epb_saved_eptr;
 } eptrblock;
 
 
@@ -1801,65 +1799,65 @@ typedef struct match_data {
   unsigned long int match_call_count;      /* As it says */
   unsigned long int match_limit;           /* As it says */
   unsigned long int match_limit_recursion; /* As it says */
-  int   *offset_vector;         /* Offset vector */
-  int    offset_end;            /* One past the end */
-  int    offset_max;            /* The maximum usable for return data */
-  int    nltype;                /* Newline type */
-  int    nllen;                 /* Newline string length */
-  int    name_count;            /* Number of names in name table */
-  int    name_entry_size;       /* Size of entry in names table */
-  uschar *name_table;           /* Table of names */
-  uschar nl[4];                 /* Newline string when fixed */
-  const  uschar *lcc;           /* Points to lower casing table */
-  const  uschar *ctypes;        /* Points to table of type maps */
-  BOOL   offset_overflow;       /* Set if too many extractions */
-  BOOL   notbol;                /* NOTBOL flag */
-  BOOL   noteol;                /* NOTEOL flag */
-  BOOL   utf8;                  /* UTF8 flag */
-  BOOL   jscript_compat;        /* JAVASCRIPT_COMPAT flag */
-  BOOL   use_ucp;               /* PCRE_UCP flag */
-  BOOL   endonly;               /* Dollar not before final \n */
-  BOOL   notempty;              /* Empty string match not wanted */
-  BOOL   notempty_atstart;      /* Empty string match at start not wanted */
-  BOOL   hitend;                /* Hit the end of the subject at some point */
-  BOOL   bsr_anycrlf;           /* \R is just any CRLF, not full Unicode */
-  BOOL   hasthen;               /* Pattern contains (*THEN) */
-  const  uschar *start_code;    /* For use when recursing */
-  USPTR  start_subject;         /* Start of the subject string */
-  USPTR  end_subject;           /* End of the subject string */
-  USPTR  start_match_ptr;       /* Start of matched string */
-  USPTR  end_match_ptr;         /* Subject position at end match */
-  USPTR  start_used_ptr;        /* Earliest consulted character */
-  int    partial;               /* PARTIAL options */
-  int    end_offset_top;        /* Highwater mark at end of match */
-  int    capture_last;          /* Most recent capture number */
-  int    start_offset;          /* The start offset value */
-  int    match_function_type;   /* Set for certain special calls of MATCH() */
-  eptrblock *eptrchain;         /* Chain of eptrblocks for tail recursions */
-  int    eptrn;                 /* Next free eptrblock */
-  recursion_info *recursive;    /* Linked list of recursion data */
-  void  *callout_data;          /* To pass back to callouts */
-  const  uschar *mark;          /* Mark pointer to pass back */
-  const  uschar *once_target;   /* Where to back up to for atomic groups */
+  int   *offset_vector;           /* Offset vector */
+  int    offset_end;              /* One past the end */
+  int    offset_max;              /* The maximum usable for return data */
+  int    nltype;                  /* Newline type */
+  int    nllen;                   /* Newline string length */
+  int    name_count;              /* Number of names in name table */
+  int    name_entry_size;         /* Size of entry in names table */
+  pcre_uchar *name_table;         /* Table of names */
+  pcre_uchar nl[4];               /* Newline string when fixed */
+  const  pcre_uint8 *lcc;         /* Points to lower casing table */
+  const  pcre_uint8 *ctypes;      /* Points to table of type maps */
+  BOOL   offset_overflow;         /* Set if too many extractions */
+  BOOL   notbol;                  /* NOTBOL flag */
+  BOOL   noteol;                  /* NOTEOL flag */
+  BOOL   utf8;                    /* UTF8 flag */
+  BOOL   jscript_compat;          /* JAVASCRIPT_COMPAT flag */
+  BOOL   use_ucp;                 /* PCRE_UCP flag */
+  BOOL   endonly;                 /* Dollar not before final \n */
+  BOOL   notempty;                /* Empty string match not wanted */
+  BOOL   notempty_atstart;        /* Empty string match at start not wanted */
+  BOOL   hitend;                  /* Hit the end of the subject at some point */
+  BOOL   bsr_anycrlf;             /* \R is just any CRLF, not full Unicode */
+  BOOL   hasthen;                 /* Pattern contains (*THEN) */
+  const  pcre_uchar *start_code;  /* For use when recursing */
+  PCRE_PUCHAR start_subject;      /* Start of the subject string */
+  PCRE_PUCHAR end_subject;        /* End of the subject string */
+  PCRE_PUCHAR start_match_ptr;    /* Start of matched string */
+  PCRE_PUCHAR end_match_ptr;      /* Subject position at end match */
+  PCRE_PUCHAR start_used_ptr;     /* Earliest consulted character */
+  int    partial;                 /* PARTIAL options */
+  int    end_offset_top;          /* Highwater mark at end of match */
+  int    capture_last;            /* Most recent capture number */
+  int    start_offset;            /* The start offset value */
+  int    match_function_type;     /* Set for certain special calls of MATCH() */
+  eptrblock *eptrchain;           /* Chain of eptrblocks for tail recursions */
+  int    eptrn;                   /* Next free eptrblock */
+  recursion_info *recursive;      /* Linked list of recursion data */
+  void  *callout_data;            /* To pass back to callouts */
+  const  pcre_uchar *mark;        /* Mark pointer to pass back */
+  const  pcre_uchar *once_target; /* Where to back up to for atomic groups */
 } match_data;
 
 /* A similar structure is used for the same purpose by the DFA matching
 functions. */
 
 typedef struct dfa_match_data {
-  const uschar *start_code;      /* Start of the compiled pattern */
-  const uschar *start_subject;   /* Start of the subject string */
-  const uschar *end_subject;     /* End of subject string */
-  const uschar *start_used_ptr;  /* Earliest consulted character */
-  const uschar *tables;          /* Character tables */
-  int   start_offset;            /* The start offset value */
-  int   moptions;                /* Match options */
-  int   poptions;                /* Pattern options */
-  int    nltype;                 /* Newline type */
-  int    nllen;                  /* Newline string length */
-  uschar nl[4];                  /* Newline string when fixed */
-  void  *callout_data;           /* To pass back to callouts */
-  dfa_recursion_info *recursive; /* Linked list of recursion data */
+  const pcre_uchar *start_code;     /* Start of the compiled pattern */
+  const pcre_uchar *start_subject ; /* Start of the subject string */
+  const pcre_uchar *end_subject;    /* End of subject string */
+  const pcre_uchar *start_used_ptr; /* Earliest consulted character */
+  const pcre_uint8 *tables;         /* Character tables */
+  int   start_offset;               /* The start offset value */
+  int   moptions;                   /* Match options */
+  int   poptions;                   /* Pattern options */
+  int   nltype;                     /* Newline type */
+  int   nllen;                      /* Newline string length */
+  pcre_uchar nl[4];                 /* Newline string when fixed */
+  void *callout_data;               /* To pass back to callouts */
+  dfa_recursion_info *recursive;    /* Linked list of recursion data */
 } dfa_match_data;
 
 /* Bit definitions for entries in the pcre_ctypes table. */
@@ -1912,56 +1910,54 @@ of the exported public functions. They have to be "external" in the C sense,
 but are not part of the PCRE public API. The data for these tables is in the
 pcre_tables.c module. */
 
-extern const int    _pcre_utf8_table1[];
-extern const int    _pcre_utf8_table2[];
-extern const int    _pcre_utf8_table3[];
-extern const uschar _pcre_utf8_table4[];
+extern const int            _pcre_utf8_table1[];
+extern const int            _pcre_utf8_table2[];
+extern const int            _pcre_utf8_table3[];
+extern const pcre_uint8     _pcre_utf8_table4[];
 
-#ifdef SUPPORT_JIT
-extern const uschar _pcre_utf8_char_sizes[];
-#endif
+extern const int            _pcre_utf8_table1_size;
 
-extern const int    _pcre_utf8_table1_size;
-
-extern const char   _pcre_utt_names[];
+extern const char           _pcre_utt_names[];
 extern const ucp_type_table _pcre_utt[];
-extern const int _pcre_utt_size;
+extern const int            _pcre_utt_size;
 
-extern const uschar _pcre_default_tables[];
+extern const pcre_uint8     _pcre_default_tables[];
 
-extern const uschar _pcre_OP_lengths[];
+extern const pcre_uint8     _pcre_OP_lengths[];
 
 
 /* Internal shared functions. These are functions that are used by more than
 one of the exported public functions. They have to be "external" in the C
 sense, but are not part of the PCRE public API. */
 
-extern const uschar *_pcre_find_bracket(const uschar *, BOOL, int);
-extern BOOL          _pcre_is_newline(USPTR, int, USPTR, int *, BOOL);
-extern int           _pcre_ord2utf8(int, uschar *);
-extern real_pcre    *_pcre_try_flipped(const real_pcre *, real_pcre *,
-                       const pcre_study_data *, pcre_study_data *);
-extern int           _pcre_valid_utf8(USPTR, int, int *);
-extern BOOL          _pcre_was_newline(USPTR, int, USPTR, int *, BOOL);
-extern BOOL          _pcre_xclass(int, const uschar *);
+extern const pcre_uchar *_pcre_find_bracket(const pcre_uchar *, BOOL, int);
+extern BOOL              _pcre_is_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,
+                           int *, BOOL);
+extern int               _pcre_ord2utf8(int, pcre_uint8 *);
+extern real_pcre        *_pcre_try_flipped(const real_pcre *, real_pcre *,
+                           const pcre_study_data *, pcre_study_data *);
+extern int               _pcre_valid_utf8(PCRE_PUCHAR, int, int *);
+extern BOOL              _pcre_was_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,
+                           int *, BOOL);
+extern BOOL              _pcre_xclass(int, const pcre_uchar *);
 
 #ifdef SUPPORT_JIT
-extern void          _pcre_jit_compile(const real_pcre *, pcre_extra *);
-extern int           _pcre_jit_exec(const real_pcre *, void *, PCRE_SPTR,
-                        int, int, int, int, int *, int);
-extern void          _pcre_jit_free(void *);
+extern void              _pcre_jit_compile(const real_pcre *, pcre_extra *);
+extern int               _pcre_jit_exec(const real_pcre *, void *, PCRE_SPTR,
+                           int, int, int, int, int *, int);
+extern void              _pcre_jit_free(void *);
 #endif
 
 /* Unicode character database (UCD) */
 
 typedef struct {
-  uschar script;
-  uschar chartype;
+  pcre_uint8 script;
+  pcre_uint8 chartype;
   pcre_int32 other_case;
 } ucd_record;
 
 extern const ucd_record  _pcre_ucd_records[];
-extern const uschar      _pcre_ucd_stage1[];
+extern const pcre_uint8  _pcre_ucd_stage1[];
 extern const pcre_uint16 _pcre_ucd_stage2[];
 extern const int         _pcre_ucp_gentype[];
 #ifdef SUPPORT_JIT

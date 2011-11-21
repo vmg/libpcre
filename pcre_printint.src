@@ -72,7 +72,7 @@ static const char *OP_names[] = { OP_NAME_LIST };
 *************************************************/
 
 static int
-print_char(FILE *f, uschar *ptr, BOOL utf8)
+print_char(FILE *f, pcre_uchar *ptr, BOOL utf8)
 {
 int c = *ptr;
 
@@ -155,7 +155,7 @@ static void
 pcre_printint(pcre *external_re, FILE *f, BOOL print_lengths)
 {
 real_pcre *re = (real_pcre *)external_re;
-uschar *codestart, *code;
+pcre_uchar *codestart, *code;
 BOOL utf8;
 
 unsigned int options = re->options;
@@ -174,12 +174,12 @@ if (re->magic_number != MAGIC_NUMBER)
             ((options >> 24) & 0x000000ff);
   }
 
-code = codestart = (uschar *)re + offset + count * size;
+code = codestart = (pcre_uchar *)re + offset + count * size;
 utf8 = (options & PCRE_UTF8) != 0;
 
 for(;;)
   {
-  uschar *ccode;
+  pcre_uchar *ccode;
   const char *flag = "  ";
   int c;
   int extra = 0;

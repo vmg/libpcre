@@ -231,7 +231,7 @@ static const char posix_names[] =
   STRING_graph0 STRING_print0 STRING_punct0 STRING_space0
   STRING_word0  STRING_xdigit;
 
-static const uschar posix_name_lengths[] = {
+static const pcre_uint8 posix_name_lengths[] = {
   5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 6, 0 };
 
 /* Table of class bit maps for each POSIX class. Each class is formed from a
@@ -266,47 +266,67 @@ substitutes must be in the order of the names, defined above, and there are
 both positive and negative cases. NULL means no substitute. */
 
 #ifdef SUPPORT_UCP
-static const uschar *substitutes[] = {
-  (uschar *)"\\P{Nd}",    /* \D */
-  (uschar *)"\\p{Nd}",    /* \d */
-  (uschar *)"\\P{Xsp}",   /* \S */       /* NOTE: Xsp is Perl space */
-  (uschar *)"\\p{Xsp}",   /* \s */
-  (uschar *)"\\P{Xwd}",   /* \W */
-  (uschar *)"\\p{Xwd}"    /* \w */
+static const pcre_uchar literal_PNd[]  = { '\\', 'P', '{', 'N', 'd', '}', '\0' };
+static const pcre_uchar literal_pNd[]  = { '\\', 'p', '{', 'N', 'd', '}', '\0' };
+static const pcre_uchar literal_PXsp[] = { '\\', 'P', '{', 'X', 's', 'p', '}', '\0' };
+static const pcre_uchar literal_pXsp[] = { '\\', 'p', '{', 'X', 's', 'p', '}', '\0' };
+static const pcre_uchar literal_PXwd[] = { '\\', 'P', '{', 'X', 'w', 'd', '}', '\0' };
+static const pcre_uchar literal_pXwd[] = { '\\', 'p', '{', 'X', 'w', 'd', '}', '\0' };
+
+static const pcre_uchar *substitutes[] = {
+  literal_PNd,           /* \D */
+  literal_pNd,           /* \d */
+  literal_PXsp,          /* \S */       /* NOTE: Xsp is Perl space */
+  literal_pXsp,          /* \s */
+  literal_PXwd,          /* \W */
+  literal_pXwd           /* \w */
 };
 
-static const uschar *posix_substitutes[] = {
-  (uschar *)"\\p{L}",     /* alpha */
-  (uschar *)"\\p{Ll}",    /* lower */
-  (uschar *)"\\p{Lu}",    /* upper */
-  (uschar *)"\\p{Xan}",   /* alnum */
-  NULL,                   /* ascii */
-  (uschar *)"\\h",        /* blank */
-  NULL,                   /* cntrl */
-  (uschar *)"\\p{Nd}",    /* digit */
-  NULL,                   /* graph */
-  NULL,                   /* print */
-  NULL,                   /* punct */
-  (uschar *)"\\p{Xps}",   /* space */    /* NOTE: Xps is POSIX space */
-  (uschar *)"\\p{Xwd}",   /* word */
-  NULL,                   /* xdigit */
+static const pcre_uchar literal_pL[] =   { '\\', 'p', '{', 'L', '}', '\0' };
+static const pcre_uchar literal_pLl[] =  { '\\', 'p', '{', 'L', 'l', '}', '\0' };
+static const pcre_uchar literal_pLu[] =  { '\\', 'p', '{', 'L', 'u', '}', '\0' };
+static const pcre_uchar literal_pXan[] = { '\\', 'p', '{', 'X', 'a', 'n', '}', '\0' };
+static const pcre_uchar literal_h[] =    { '\\', 'h', '\0' };
+static const pcre_uchar literal_pXps[] = { '\\', 'p', '{', 'X', 'p', 's', '}', '\0' };
+static const pcre_uchar literal_PL[] =   { '\\', 'P', '{', 'L', '}', '\0' };
+static const pcre_uchar literal_PLl[] =  { '\\', 'P', '{', 'L', 'l', '}', '\0' };
+static const pcre_uchar literal_PLu[] =  { '\\', 'P', '{', 'L', 'u', '}', '\0' };
+static const pcre_uchar literal_PXan[] = { '\\', 'P', '{', 'X', 'a', 'n', '}', '\0' };
+static const pcre_uchar literal_H[] =    { '\\', 'H', '\0' };
+static const pcre_uchar literal_PXps[] = { '\\', 'P', '{', 'X', 'p', 's', '}', '\0' };
+
+static const pcre_uchar *posix_substitutes[] = {
+  literal_pL,            /* alpha */
+  literal_pLl,           /* lower */
+  literal_pLu,           /* upper */
+  literal_pXan,          /* alnum */
+  NULL,                  /* ascii */
+  literal_h,             /* blank */
+  NULL,                  /* cntrl */
+  literal_pNd,           /* digit */
+  NULL,                  /* graph */
+  NULL,                  /* print */
+  NULL,                  /* punct */
+  literal_pXps,          /* space */    /* NOTE: Xps is POSIX space */
+  literal_pXwd,          /* word */
+  NULL,                  /* xdigit */
   /* Negated cases */
-  (uschar *)"\\P{L}",     /* ^alpha */
-  (uschar *)"\\P{Ll}",    /* ^lower */
-  (uschar *)"\\P{Lu}",    /* ^upper */
-  (uschar *)"\\P{Xan}",   /* ^alnum */
-  NULL,                   /* ^ascii */
-  (uschar *)"\\H",        /* ^blank */
-  NULL,                   /* ^cntrl */
-  (uschar *)"\\P{Nd}",    /* ^digit */
-  NULL,                   /* ^graph */
-  NULL,                   /* ^print */
-  NULL,                   /* ^punct */
-  (uschar *)"\\P{Xps}",   /* ^space */   /* NOTE: Xps is POSIX space */
-  (uschar *)"\\P{Xwd}",   /* ^word */
-  NULL                    /* ^xdigit */
+  literal_PL,            /* ^alpha */
+  literal_PLl,           /* ^lower */
+  literal_PLu,           /* ^upper */
+  literal_PXan,          /* ^alnum */
+  NULL,                  /* ^ascii */
+  literal_H,             /* ^blank */
+  NULL,                  /* ^cntrl */
+  literal_PNd,           /* ^digit */
+  NULL,                  /* ^graph */
+  NULL,                  /* ^print */
+  NULL,                  /* ^punct */
+  literal_PXps,          /* ^space */   /* NOTE: Xps is POSIX space */
+  literal_PXwd,          /* ^word */
+  NULL                   /* ^xdigit */
 };
-#define POSIX_SUBSIZE (sizeof(posix_substitutes)/sizeof(uschar *))
+#define POSIX_SUBSIZE (sizeof(posix_substitutes) / sizeof(pcre_uchar *))
 #endif
 
 #define STRING(a)  # a
@@ -548,7 +568,7 @@ static const unsigned char ebcdic_chartab[] = { /* chartable partial dup */
 /* Definition to allow mutual recursion */
 
 static BOOL
-  compile_regex(int, uschar **, const uschar **, int *, BOOL, BOOL, int, int,
+  compile_regex(int, pcre_uchar **, const pcre_uchar **, int *, BOOL, BOOL, int, int,
     int *, int *, branch_chain *, compile_data *, int *);
 
 
@@ -595,7 +615,7 @@ Returns:    TRUE or FALSE
 */
 
 static BOOL
-is_counted_repeat(const uschar *p)
+is_counted_repeat(const pcre_uchar *p)
 {
 if ((digitab[*p++] & ctype_digit) == 0) return FALSE;
 while ((digitab[*p] & ctype_digit) != 0) p++;
@@ -637,11 +657,11 @@ Returns:         zero or positive => a data character
 */
 
 static int
-check_escape(const uschar **ptrptr, int *errorcodeptr, int bracount,
+check_escape(const pcre_uchar **ptrptr, int *errorcodeptr, int bracount,
   int options, BOOL isclass)
 {
 BOOL utf8 = (options & PCRE_UTF8) != 0;
-const uschar *ptr = *ptrptr + 1;
+const pcre_uchar *ptr = *ptrptr + 1;
 int c, i;
 
 GETCHARINCTEST(c, ptr);           /* Get character value, increment pointer */
@@ -668,7 +688,7 @@ else if ((i = escapes[c - 0x48]) != 0)  c = i;
 
 else
   {
-  const uschar *oldptr;
+  const pcre_uchar *oldptr;
   BOOL braced, negated;
 
   switch (c)
@@ -741,7 +761,7 @@ else
 
     if (ptr[1] == CHAR_LEFT_CURLY_BRACKET)
       {
-      const uschar *p;
+      const pcre_uchar *p;
       for (p = ptr+2; *p != 0 && *p != CHAR_RIGHT_CURLY_BRACKET; p++)
         if (*p != CHAR_MINUS && (digitab[*p] & ctype_digit) == 0) break;
       if (*p != 0 && *p != CHAR_RIGHT_CURLY_BRACKET)
@@ -883,7 +903,7 @@ else
 
     if (ptr[1] == CHAR_LEFT_CURLY_BRACKET)
       {
-      const uschar *pt = ptr + 2;
+      const pcre_uchar *pt = ptr + 2;
       int count = 0;
 
       c = 0;
@@ -1014,10 +1034,10 @@ Returns:         type value from ucp_type_table, or -1 for an invalid type
 */
 
 static int
-get_ucp(const uschar **ptrptr, BOOL *negptr, int *dptr, int *errorcodeptr)
+get_ucp(const pcre_uchar **ptrptr, BOOL *negptr, int *dptr, int *errorcodeptr)
 {
 int c, i, bot, top;
-const uschar *ptr = *ptrptr;
+const pcre_uchar *ptr = *ptrptr;
 char name[32];
 
 c = *(++ptr);
@@ -1106,8 +1126,8 @@ Returns:         pointer to '}' on success;
                  current ptr on error, with errorcodeptr set non-zero
 */
 
-static const uschar *
-read_repeat_counts(const uschar *p, int *minp, int *maxp, int *errorcodeptr)
+static const pcre_uchar *
+read_repeat_counts(const pcre_uchar *p, int *minp, int *maxp, int *errorcodeptr)
 {
 int min = 0;
 int max = -1;
@@ -1192,10 +1212,10 @@ Returns:       the number of the named subpattern, or -1 if not found
 */
 
 static int
-find_parens_sub(uschar **ptrptr, compile_data *cd, const uschar *name, int lorn,
+find_parens_sub(pcre_uchar **ptrptr, compile_data *cd, const pcre_uchar *name, int lorn,
   BOOL xmode, BOOL utf8, int *count)
 {
-uschar *ptr = *ptrptr;
+pcre_uchar *ptr = *ptrptr;
 int start_count = *count;
 int hwm_count = start_count;
 BOOL dup_parens = FALSE;
@@ -1262,7 +1282,7 @@ if (ptr[0] == CHAR_LEFT_PARENTHESIS)
         ptr[1] != CHAR_EQUALS_SIGN) || *ptr == CHAR_APOSTROPHE)
       {
       int term;
-      const uschar *thisname;
+      const pcre_uchar *thisname;
       *count += 1;
       if (name == NULL && *count == lorn) return *count;
       term = *ptr++;
@@ -1425,10 +1445,10 @@ Returns:       the number of the found subpattern, or -1 if not found
 */
 
 static int
-find_parens(compile_data *cd, const uschar *name, int lorn, BOOL xmode,
+find_parens(compile_data *cd, const pcre_uchar *name, int lorn, BOOL xmode,
   BOOL utf8)
 {
-uschar *ptr = (uschar *)cd->start_pattern;
+pcre_uchar *ptr = (pcre_uchar *)cd->start_pattern;
 int count = 0;
 int rc;
 
@@ -1466,8 +1486,8 @@ Arguments:
 Returns:       pointer to the first significant opcode
 */
 
-static const uschar*
-first_significant_code(const uschar *code, BOOL skipassert)
+static const pcre_uchar*
+first_significant_code(const pcre_uchar *code, BOOL skipassert)
 {
 for (;;)
   {
@@ -1534,12 +1554,12 @@ Returns:   the fixed length,
 */
 
 static int
-find_fixedlength(uschar *code, BOOL utf8, BOOL atend, compile_data *cd)
+find_fixedlength(pcre_uchar *code, BOOL utf8, BOOL atend, compile_data *cd)
 {
 int length = -1;
 
 register int branchlength = 0;
-register uschar *cc = code + 1 + LINK_SIZE;
+register pcre_uchar *cc = code + 1 + LINK_SIZE;
 
 /* Scan along the opcodes for this branch. If we get to the end of the
 branch, check the length against that of the other branches. */
@@ -1547,7 +1567,7 @@ branch, check the length against that of the other branches. */
 for (;;)
   {
   int d;
-  uschar *ce, *cs;
+  pcre_uchar *ce, *cs;
   register int op = *cc;
   switch (op)
     {
@@ -1592,9 +1612,9 @@ for (;;)
 
     case OP_RECURSE:
     if (!atend) return -3;
-    cs = ce = (uschar *)cd->start_code + GET(cc, 1);  /* Start subpattern */
-    do ce += GET(ce, 1); while (*ce == OP_ALT);       /* End subpattern */
-    if (cc > cs && cc < ce) return -1;                /* Recursion */
+    cs = ce = (pcre_uchar *)cd->start_code + GET(cc, 1);  /* Start subpattern */
+    do ce += GET(ce, 1); while (*ce == OP_ALT);           /* End subpattern */
+    if (cc > cs && cc < ce) return -1;                    /* Recursion */
     d = find_fixedlength(cs + 2, utf8, atend, cd);
     if (d < 0) return d;
     branchlength += d;
@@ -1855,8 +1875,8 @@ Arguments:
 Returns:      pointer to the opcode for the bracket, or NULL if not found
 */
 
-const uschar *
-_pcre_find_bracket(const uschar *code, BOOL utf8, int number)
+const pcre_uchar *
+_pcre_find_bracket(const pcre_uchar *code, BOOL utf8, int number)
 {
 for (;;)
   {
@@ -1874,7 +1894,7 @@ for (;;)
 
   else if (c == OP_REVERSE)
     {
-    if (number < 0) return (uschar *)code;
+    if (number < 0) return (pcre_uchar *)code;
     code += _pcre_OP_lengths[c];
     }
 
@@ -1884,7 +1904,7 @@ for (;;)
            c == OP_CBRAPOS || c == OP_SCBRAPOS)
     {
     int n = GET2(code, 1+LINK_SIZE);
-    if (n == number) return (uschar *)code;
+    if (n == number) return (pcre_uchar *)code;
     code += _pcre_OP_lengths[c];
     }
 
@@ -1992,8 +2012,8 @@ Arguments:
 Returns:      pointer to the opcode for OP_RECURSE, or NULL if not found
 */
 
-static const uschar *
-find_recurse(const uschar *code, BOOL utf8)
+static const pcre_uchar *
+find_recurse(const pcre_uchar *code, BOOL utf8)
 {
 for (;;)
   {
@@ -2119,15 +2139,15 @@ Returns:      TRUE if what is matched could be empty
 */
 
 static BOOL
-could_be_empty_branch(const uschar *code, const uschar *endcode, BOOL utf8,
-  compile_data *cd)
+could_be_empty_branch(const pcre_uchar *code, const pcre_uchar *endcode,
+  BOOL utf8, compile_data *cd)
 {
 register int c;
 for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
      code < endcode;
      code = first_significant_code(code + _pcre_OP_lengths[c], TRUE))
   {
-  const uschar *ccode;
+  const pcre_uchar *ccode;
 
   c = *code;
 
@@ -2150,7 +2170,7 @@ for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
 
   if (c == OP_RECURSE)
     {
-    const uschar *scode;
+    const pcre_uchar *scode;
     BOOL empty_branch;
 
     /* Test for forward reference */
@@ -2417,8 +2437,8 @@ Returns:      TRUE if what is matched could be empty
 */
 
 static BOOL
-could_be_empty(const uschar *code, const uschar *endcode, branch_chain *bcptr,
-  BOOL utf8, compile_data *cd)
+could_be_empty(const pcre_uchar *code, const pcre_uchar *endcode,
+  branch_chain *bcptr, BOOL utf8, compile_data *cd)
 {
 while (bcptr != NULL && bcptr->current_branch >= code)
   {
@@ -2474,7 +2494,7 @@ Returns:   TRUE or FALSE
 */
 
 static BOOL
-check_posix_syntax(const uschar *ptr, const uschar **endptr)
+check_posix_syntax(const pcre_uchar *ptr, const pcre_uchar **endptr)
 {
 int terminator;          /* Don't combine these lines; the Solaris cc */
 terminator = *(++ptr);   /* compiler warns about "non-constant" initializer. */
@@ -2518,7 +2538,7 @@ Returns:     a value representing the name, or -1 if unknown
 */
 
 static int
-check_posix_name(const uschar *ptr, int len)
+check_posix_name(const pcre_uchar *ptr, int len)
 {
 const char *pn = posix_names;
 register int yield = 0;
@@ -2565,15 +2585,15 @@ Returns:     nothing
 */
 
 static void
-adjust_recurse(uschar *group, int adjust, BOOL utf8, compile_data *cd,
-  uschar *save_hwm)
+adjust_recurse(pcre_uchar *group, int adjust, BOOL utf8, compile_data *cd,
+  pcre_uchar *save_hwm)
 {
-uschar *ptr = group;
+pcre_uchar *ptr = group;
 
-while ((ptr = (uschar *)find_recurse(ptr, utf8)) != NULL)
+while ((ptr = (pcre_uchar *)find_recurse(ptr, utf8)) != NULL)
   {
   int offset;
-  uschar *hc;
+  pcre_uchar *hc;
 
   /* See if this recursion is on the forward reference list. If so, adjust the
   reference. */
@@ -2618,14 +2638,14 @@ Arguments:
 Returns:         new code pointer
 */
 
-static uschar *
-auto_callout(uschar *code, const uschar *ptr, compile_data *cd)
+static pcre_uchar *
+auto_callout(pcre_uchar *code, const pcre_uchar *ptr, compile_data *cd)
 {
 *code++ = OP_CALLOUT;
 *code++ = 255;
 PUT(code, 0, (int)(ptr - cd->start_pattern));  /* Pattern offset */
 PUT(code, LINK_SIZE, 0);                       /* Default length */
-return code + 2*LINK_SIZE;
+return code + 2 * LINK_SIZE;
 }
 
 
@@ -2647,7 +2667,7 @@ Returns:             nothing
 */
 
 static void
-complete_callout(uschar *previous_callout, const uschar *ptr, compile_data *cd)
+complete_callout(pcre_uchar *previous_callout, const pcre_uchar *ptr, compile_data *cd)
 {
 int length = (int)(ptr - cd->start_pattern - GET(previous_callout, 2));
 PUT(previous_callout, 2 + LINK_SIZE, length);
@@ -2785,8 +2805,8 @@ Returns:        TRUE if possessifying is wanted
 */
 
 static BOOL
-check_auto_possessive(const uschar *previous, BOOL utf8, const uschar *ptr,
-  int options, compile_data *cd)
+check_auto_possessive(const pcre_uchar *previous, BOOL utf8,
+  const pcre_uchar *ptr, int options, compile_data *cd)
 {
 int c, next;
 int op_code = *previous++;
@@ -3214,9 +3234,10 @@ Returns:         TRUE on success
 */
 
 static BOOL
-compile_branch(int *optionsptr, uschar **codeptr, const uschar **ptrptr,
-  int *errorcodeptr, int *firstbyteptr, int *reqbyteptr, branch_chain *bcptr,
-  int cond_depth, compile_data *cd, int *lengthptr)
+compile_branch(int *optionsptr, pcre_uchar **codeptr,
+  const pcre_uchar **ptrptr, int *errorcodeptr, int *firstbyteptr,
+  int *reqbyteptr, branch_chain *bcptr, int cond_depth, compile_data *cd,
+  int *lengthptr)
 {
 int repeat_type, op_type;
 int repeat_min = 0, repeat_max = 0;      /* To please picky compilers */
@@ -3229,19 +3250,19 @@ int options = *optionsptr;               /* May change dynamically */
 int after_manual_callout = 0;
 int length_prevgroup = 0;
 register int c;
-register uschar *code = *codeptr;
-uschar *last_code = code;
-uschar *orig_code = code;
-uschar *tempcode;
+register pcre_uchar *code = *codeptr;
+pcre_uchar *last_code = code;
+pcre_uchar *orig_code = code;
+pcre_uchar *tempcode;
 BOOL inescq = FALSE;
 BOOL groupsetfirstbyte = FALSE;
-const uschar *ptr = *ptrptr;
-const uschar *tempptr;
-const uschar *nestptr = NULL;
-uschar *previous = NULL;
-uschar *previous_callout = NULL;
-uschar *save_hwm = NULL;
-uschar classbits[32];
+const pcre_uchar *ptr = *ptrptr;
+const pcre_uchar *tempptr;
+const pcre_uchar *nestptr = NULL;
+pcre_uchar *previous = NULL;
+pcre_uchar *previous_callout = NULL;
+pcre_uchar *save_hwm = NULL;
+pcre_uchar classbits[32];
 
 /* We can fish out the UTF-8 setting once and for all into a BOOL, but we
 must not do this for other options (e.g. PCRE_EXTENDED) because they may change
@@ -3250,9 +3271,9 @@ dynamically as we process the pattern. */
 #ifdef SUPPORT_UTF8
 BOOL class_utf8;
 BOOL utf8 = (options & PCRE_UTF8) != 0;
-uschar *class_utf8data;
-uschar *class_utf8data_base;
-uschar utf8_char[6];
+pcre_uint8 *class_utf8data;
+pcre_uint8 *class_utf8data_base;
+pcre_uint8 utf8_char[6];
 #else
 BOOL utf8 = FALSE;
 #endif
@@ -3306,7 +3327,7 @@ for (;; ptr++)
   int terminator;
   int mclength;
   int tempbracount;
-  uschar mcbuffer[8];
+  pcre_uchar mcbuffer[8];
 
   /* Get next byte in the pattern */
 
@@ -3605,7 +3626,7 @@ for (;; ptr++)
     than 256), because in that case the compiled code doesn't use the bit map.
     */
 
-    memset(classbits, 0, 32 * sizeof(uschar));
+    memset(classbits, 0, 32 * sizeof(pcre_uint8));
 
 #ifdef SUPPORT_UTF8
     class_utf8 = FALSE;                       /* No chars >= 256 */
@@ -3619,7 +3640,7 @@ for (;; ptr++)
 
     if (c != 0) do
       {
-      const uschar *oldptr;
+      const pcre_uchar *oldptr;
 
 #ifdef SUPPORT_UTF8
       if (utf8 && c > 127)
@@ -3665,8 +3686,8 @@ for (;; ptr++)
         {
         BOOL local_negate = FALSE;
         int posix_class, taboffset, tabopt;
-        register const uschar *cbits = cd->cbits;
-        uschar pbits[32];
+        register const pcre_uint8 *cbits = cd->cbits;
+        pcre_uint8 pbits[32];
 
         if (ptr[1] != CHAR_COLON)
           {
@@ -3721,7 +3742,7 @@ for (;; ptr++)
         /* Copy in the first table (always present) */
 
         memcpy(pbits, cbits + posix_class_maps[posix_class],
-          32 * sizeof(uschar));
+          32 * sizeof(pcre_uint8));
 
         /* If there is a second table, add or remove it as required. */
 
@@ -3783,7 +3804,7 @@ for (;; ptr++)
 
         if (c < 0)
           {
-          register const uschar *cbits = cd->cbits;
+          register const pcre_uint8 *cbits = cd->cbits;
           class_charcount += 2;     /* Greater than 1 is what matters */
 
           switch (-c)
@@ -4468,7 +4489,7 @@ for (;; ptr++)
 #ifdef SUPPORT_UTF8
       if (utf8 && (code[-1] & 0x80) != 0)
         {
-        uschar *lastchar = code - 1;
+        pcre_uchar *lastchar = code - 1;
         while((*lastchar & 0xc0) == 0x80) lastchar--;
         c = code - lastchar;            /* Length of UTF-8 character */
         memcpy(utf8_char, lastchar, c); /* Save the char */
@@ -4530,7 +4551,7 @@ for (;; ptr++)
 
     else if (*previous < OP_EODN)
       {
-      uschar *oldcode;
+      pcre_uchar *oldcode;
       int prop_type, prop_value;
       op_type = OP_TYPESTAR - OP_STAR;  /* Use type opcodes */
       c = *previous;
@@ -4752,8 +4773,8 @@ for (;; ptr++)
       {
       register int i;
       int len = (int)(code - previous);
-      uschar *bralink = NULL;
-      uschar *brazeroptr = NULL;
+      pcre_uchar *bralink = NULL;
+      pcre_uchar *brazeroptr = NULL;
 
       /* Repeating a DEFINE group is pointless, but Perl allows the syntax, so
       we just ignore the repeat. */
@@ -4884,8 +4905,8 @@ for (;; ptr++)
             if (groupsetfirstbyte && reqbyte < 0) reqbyte = firstbyte;
             for (i = 1; i < repeat_min; i++)
               {
-              uschar *hc;
-              uschar *this_hwm = cd->hwm;
+              pcre_uchar *hc;
+              pcre_uchar *this_hwm = cd->hwm;
               memcpy(code, previous, len);
               for (hc = save_hwm; hc < this_hwm; hc += LINK_SIZE)
                 {
@@ -4936,8 +4957,8 @@ for (;; ptr++)
 
         else for (i = repeat_max - 1; i >= 0; i--)
           {
-          uschar *hc;
-          uschar *this_hwm = cd->hwm;
+          pcre_uchar *hc;
+          pcre_uchar *this_hwm = cd->hwm;
 
           *code++ = OP_BRAZERO + repeat_type;
 
@@ -4970,7 +4991,7 @@ for (;; ptr++)
           {
           int oldlinkoffset;
           int offset = (int)(code - bralink + 1);
-          uschar *bra = code - offset;
+          pcre_uchar *bra = code - offset;
           oldlinkoffset = GET(bra, 1);
           bralink = (oldlinkoffset == 0)? NULL : bralink - oldlinkoffset;
           *code++ = OP_KET;
@@ -5006,8 +5027,8 @@ for (;; ptr++)
 
       else
         {
-        uschar *ketcode = code - 1 - LINK_SIZE;
-        uschar *bracode = ketcode - GET(ketcode, 1);
+        pcre_uchar *ketcode = code - 1 - LINK_SIZE;
+        pcre_uchar *bracode = ketcode - GET(ketcode, 1);
 
         /* Convert possessive ONCE brackets to non-capturing */
          
@@ -5029,7 +5050,7 @@ for (;; ptr++)
              
           if (lengthptr == NULL)
             {
-            uschar *scode = bracode;
+            pcre_uchar *scode = bracode;
             do
               {
               if (could_be_empty_branch(scode, ketcode, utf8, cd))
@@ -5212,8 +5233,8 @@ for (;; ptr++)
       int i, namelen;
       int arglen = 0;
       const char *vn = verbnames;
-      const uschar *name = ptr + 1;
-      const uschar *arg = NULL;
+      const pcre_uchar *name = ptr + 1;
+      const pcre_uchar *arg = NULL;
       previous = NULL;
       while ((cd->ctypes[*++ptr] & ctype_letter) != 0) {};
       namelen = (int)(ptr - name);
@@ -5311,8 +5332,8 @@ for (;; ptr++)
       {
       int i, set, unset, namelen;
       int *optset;
-      const uschar *name;
-      uschar *slot;
+      const pcre_uchar *name;
+      pcre_uchar *slot;
 
       switch (*(++ptr))
         {
@@ -5738,7 +5759,7 @@ for (;; ptr++)
 
             if (!dupname)
               {
-              uschar *cslot = cd->name_table;
+              pcre_uchar *cslot = cd->name_table;
               for (i = 0; i < cd->names_found; i++)
                 {
                 if (cslot != slot)
@@ -5794,7 +5815,7 @@ for (;; ptr++)
 
         if (lengthptr != NULL)
           {
-          const uschar *temp;
+          const pcre_uchar *temp;
 
           if (namelen == 0)
             {
@@ -5876,7 +5897,7 @@ for (;; ptr++)
         case CHAR_0: case CHAR_1: case CHAR_2: case CHAR_3: case CHAR_4:
         case CHAR_5: case CHAR_6: case CHAR_7: case CHAR_8: case CHAR_9:
           {
-          const uschar *called;
+          const pcre_uchar *called;
           terminator = CHAR_RIGHT_PARENTHESIS;
 
           /* Come here from the \g<...> and \g'...' code (Oniguruma
@@ -6164,7 +6185,7 @@ for (;; ptr++)
 
     if (bravalue == OP_COND && lengthptr == NULL)
       {
-      uschar *tc = code;
+      pcre_uchar *tc = code;
       int condcount = 0;
 
       do {
@@ -6339,7 +6360,7 @@ for (;; ptr++)
 
       if (-c == ESC_g)
         {
-        const uschar *p;
+        const pcre_uchar *p;
         save_hwm = cd->hwm;   /* Normally this is set when '(' is read */
         terminator = (*(++ptr) == CHAR_LESS_THAN_SIGN)?
           CHAR_GREATER_THAN_SIGN : CHAR_APOSTROPHE;
@@ -6618,16 +6639,16 @@ Returns:         TRUE on success
 */
 
 static BOOL
-compile_regex(int options, uschar **codeptr, const uschar **ptrptr,
+compile_regex(int options, pcre_uchar **codeptr, const pcre_uchar **ptrptr,
   int *errorcodeptr, BOOL lookbehind, BOOL reset_bracount, int skipbytes,
   int cond_depth, int *firstbyteptr, int *reqbyteptr, branch_chain *bcptr,
   compile_data *cd, int *lengthptr)
 {
-const uschar *ptr = *ptrptr;
-uschar *code = *codeptr;
-uschar *last_branch = code;
-uschar *start_bracket = code;
-uschar *reverse_count = NULL;
+const pcre_uchar *ptr = *ptrptr;
+pcre_uchar *code = *codeptr;
+pcre_uchar *last_branch = code;
+pcre_uchar *start_bracket = code;
+pcre_uchar *reverse_count = NULL;
 open_capitem capitem;
 int capnumber = 0;
 int firstbyte, reqbyte;
@@ -6924,12 +6945,12 @@ Returns:     TRUE or FALSE
 */
 
 static BOOL
-is_anchored(register const uschar *code, unsigned int bracket_map,
+is_anchored(register const pcre_uchar *code, unsigned int bracket_map,
   unsigned int backref_map)
 {
 do {
-   const uschar *scode = first_significant_code(code + _pcre_OP_lengths[*code],
-     FALSE);
+   const pcre_uchar *scode = first_significant_code(
+     code + _pcre_OP_lengths[*code], FALSE);
    register int op = *scode;
 
    /* Non-capturing brackets */
@@ -7001,12 +7022,12 @@ Returns:         TRUE or FALSE
 */
 
 static BOOL
-is_startline(const uschar *code, unsigned int bracket_map,
+is_startline(const pcre_uchar *code, unsigned int bracket_map,
   unsigned int backref_map)
 {
 do {
-   const uschar *scode = first_significant_code(code + _pcre_OP_lengths[*code],
-     FALSE);
+   const pcre_uchar *scode = first_significant_code(
+     code + _pcre_OP_lengths[*code], FALSE);
    register int op = *scode;
 
    /* If we are at the start of a conditional assertion group, *both* the
@@ -7104,14 +7125,15 @@ Returns:     -1 or the fixed first char
 */
 
 static int
-find_firstassertedchar(const uschar *code, BOOL inassert)
+find_firstassertedchar(const pcre_uchar *code, BOOL inassert)
 {
 register int c = -1;
 do {
    int d;
    int xl = (*code == OP_CBRA || *code == OP_SCBRA ||
              *code == OP_CBRAPOS || *code == OP_SCBRAPOS)? 2:0;
-   const uschar *scode = first_significant_code(code + 1+LINK_SIZE + xl, TRUE);
+   const pcre_uchar *scode = first_significant_code(code + 1+LINK_SIZE + xl,
+     TRUE);
    register int op = *scode;
 
    switch(op)
@@ -7210,9 +7232,9 @@ int errorcode = 0;
 int skipatstart = 0;
 BOOL utf8;
 size_t size;
-uschar *code;
-const uschar *codestart;
-const uschar *ptr;
+pcre_uchar *code;
+const pcre_uchar *codestart;
+const pcre_uchar *ptr;
 compile_data compile_block;
 compile_data *cd = &compile_block;
 
@@ -7222,11 +7244,11 @@ as soon as possible, so that a fairly large buffer should be sufficient for
 this purpose. The same space is used in the second phase for remembering where
 to fill in forward references to subpatterns. */
 
-uschar cworkspace[COMPILE_WORK_SIZE];
+pcre_uchar cworkspace[COMPILE_WORK_SIZE];
 
 /* Set this early so that early errors get offset 0. */
 
-ptr = (const uschar *)pattern;
+ptr = (const pcre_uchar *)pattern;
 
 /* We can't pass back an error message if errorptr is NULL; I guess the best we
 can do is just return NULL, but we can set a code value if there is a code
@@ -7315,7 +7337,7 @@ not used here. */
 
 #ifdef SUPPORT_UTF8
 if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0 &&
-     (errorcode = _pcre_valid_utf8((USPTR)pattern, -1, erroroffset)) != 0)
+     (errorcode = _pcre_valid_utf8((PCRE_PUCHAR)pattern, -1, erroroffset)) != 0)
   {
   errorcode = ERR44;
   goto PCRE_EARLY_ERROR_RETURN2;
@@ -7413,8 +7435,8 @@ cd->name_table = NULL;
 cd->start_workspace = cworkspace;
 cd->start_code = cworkspace;
 cd->hwm = cworkspace;
-cd->start_pattern = (const uschar *)pattern;
-cd->end_pattern = (const uschar *)(pattern + strlen(pattern));
+cd->start_pattern = (const pcre_uchar *)pattern;
+cd->end_pattern = (const pcre_uchar *)(pattern + strlen(pattern));
 cd->req_varyopt = 0;
 cd->external_options = options;
 cd->external_flags = 0;
@@ -7487,7 +7509,7 @@ cd->final_bracount = cd->bracount;  /* Save for checking forward references */
 cd->assert_depth = 0;
 cd->bracount = 0;
 cd->names_found = 0;
-cd->name_table = (uschar *)re + re->name_table_offset;
+cd->name_table = (pcre_uchar *)re + re->name_table_offset;
 codestart = cd->name_table + re->name_entry_size * re->name_count;
 cd->start_code = codestart;
 cd->hwm = cworkspace;
@@ -7500,8 +7522,8 @@ cd->open_caps = NULL;
 error, errorcode will be set non-zero, so we don't need to look at the result
 of the function here. */
 
-ptr = (const uschar *)pattern + skipatstart;
-code = (uschar *)codestart;
+ptr = (const pcre_uchar *)pattern + skipatstart;
+code = (pcre_uchar *)codestart;
 *code = OP_BRA;
 (void)compile_regex(re->options, &code, &ptr, &errorcode, FALSE, FALSE, 0, 0,
   &firstbyte, &reqbyte, NULL, cd, NULL);
@@ -7529,13 +7551,13 @@ if (code - codestart > length) errorcode = ERR23;
 while (errorcode == 0 && cd->hwm > cworkspace)
   {
   int offset, recno;
-  const uschar *groupptr;
+  const pcre_uchar *groupptr;
   cd->hwm -= LINK_SIZE;
   offset = GET(cd->hwm, 0);
   recno = GET(codestart, offset);
   groupptr = _pcre_find_bracket(codestart, utf8, recno);
   if (groupptr == NULL) errorcode = ERR53;
-    else PUT(((uschar *)codestart), offset, (int)(groupptr - codestart));
+    else PUT(((pcre_uchar *)codestart), offset, (int)(groupptr - codestart));
   }
 
 /* Give an error if there's back reference to a non-existent capturing
@@ -7553,21 +7575,21 @@ length, and set their lengths. */
 
 if (cd->check_lookbehind)
   {
-  uschar *cc = (uschar *)codestart;
+  pcre_uchar *cc = (pcre_uchar *)codestart;
 
   /* Loop, searching for OP_REVERSE items, and process those that do not have
   their length set. (Actually, it will also re-process any that have a length
   of zero, but that is a pathological case, and it does no harm.) When we find
   one, we temporarily terminate the branch it is in while we scan it. */
 
-  for (cc = (uschar *)_pcre_find_bracket(codestart, utf8, -1);
+  for (cc = (pcre_uchar *)_pcre_find_bracket(codestart, utf8, -1);
        cc != NULL;
-       cc = (uschar *)_pcre_find_bracket(cc, utf8, -1))
+       cc = (pcre_uchar *)_pcre_find_bracket(cc, utf8, -1))
     {
     if (GET(cc, 1) == 0)
       {
       int fixed_length;
-      uschar *be = cc - 1 - LINK_SIZE + GET(cc, -LINK_SIZE);
+      pcre_uchar *be = cc - 1 - LINK_SIZE + GET(cc, -LINK_SIZE);
       int end_op = *be;
       *be = OP_END;
       fixed_length = find_fixedlength(cc, (re->options & PCRE_UTF8) != 0, TRUE,
@@ -7592,7 +7614,7 @@ if (errorcode != 0)
   {
   (pcre_free)(re);
   PCRE_EARLY_ERROR_RETURN:
-  *erroroffset = (int)(ptr - (const uschar *)pattern);
+  *erroroffset = (int)(ptr - (const pcre_uchar *)pattern);
   PCRE_EARLY_ERROR_RETURN2:
   *errorptr = find_error_text(errorcode);
   if (errorcodeptr != NULL) *errorcodeptr = errorcode;
@@ -7678,7 +7700,7 @@ if (code - codestart > length)
   {
   (pcre_free)(re);
   *errorptr = find_error_text(ERR23);
-  *erroroffset = ptr - (uschar *)pattern;
+  *erroroffset = ptr - (pcre_uchar *)pattern;
   if (errorcodeptr != NULL) *errorcodeptr = ERR23;
   return NULL;
   }

@@ -64,7 +64,7 @@ Returns:      TRUE if character matches, else FALSE
 */
 
 BOOL
-_pcre_xclass(int c, const uschar *data)
+_pcre_xclass(int c, const pcre_uchar *data)
 {
 int t;
 BOOL negated = (*data & XCL_NOT) != 0;

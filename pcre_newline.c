@@ -73,7 +73,8 @@ Returns:       TRUE or FALSE
 */
 
 BOOL
-_pcre_is_newline(USPTR ptr, int type, USPTR endptr, int *lenptr, BOOL utf8)
+_pcre_is_newline(PCRE_PUCHAR ptr, int type, PCRE_PUCHAR endptr, int *lenptr,
+  BOOL utf8)
 {
 int c;
 if (utf8) { GETCHAR(c, ptr); } else c = *ptr;
@@ -122,7 +123,8 @@ Returns:       TRUE or FALSE
 */
 
 BOOL
-_pcre_was_newline(USPTR ptr, int type, USPTR startptr, int *lenptr, BOOL utf8)
+_pcre_was_newline(PCRE_PUCHAR ptr, int type, PCRE_PUCHAR startptr, int *lenptr,
+  BOOL utf8)
 {
 int c;
 ptr--;

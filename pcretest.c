@@ -118,7 +118,6 @@ external symbols to prevent clashes. */
 #define _pcre_utf8_table2      utf8_table2
 #define _pcre_utf8_table3      utf8_table3
 #define _pcre_utf8_table4      utf8_table4
-#define _pcre_utf8_char_sizes  utf8_char_sizes
 #define _pcre_utt              utt
 #define _pcre_utt_size         utt_size
 #define _pcre_utt_names        utt_names
@@ -196,9 +195,9 @@ static const unsigned char *last_callout_mark = NULL;
 /* The buffers grow automatically if very long input lines are encountered. */
 
 static int buffer_size = 50000;
-static uschar *buffer = NULL;
-static uschar *dbuffer = NULL;
-static uschar *pbuffer = NULL;
+static pcre_uint8 *buffer = NULL;
+static pcre_uint8 *dbuffer = NULL;
+static pcre_uint8 *pbuffer = NULL;
 
 /* Textual explanations for runtime error codes */
 
@@ -615,10 +614,10 @@ Returns:       pointer to the start of new data
                NULL if no data read and EOF reached
 */
 
-static uschar *
-extend_inputline(FILE *f, uschar *start, const char *prompt)
+static pcre_uint8 *
+extend_inputline(FILE *f, pcre_uint8 *start, const char *prompt)
 {
-uschar *here = start;
+pcre_uint8 *here = start;
 
 for (;;)
   {
@@ -665,9 +664,9 @@ for (;;)
   else
     {
     int new_buffer_size = 2*buffer_size;
-    uschar *new_buffer = (unsigned char *)malloc(new_buffer_size);
-    uschar *new_dbuffer = (unsigned char *)malloc(new_buffer_size);
-    uschar *new_pbuffer = (unsigned char *)malloc(new_buffer_size);
+    pcre_uint8 *new_buffer = (unsigned char *)malloc(new_buffer_size);
+    pcre_uint8 *new_dbuffer = (unsigned char *)malloc(new_buffer_size);
+    pcre_uint8 *new_pbuffer = (unsigned char *)malloc(new_buffer_size);
 
     if (new_buffer == NULL || new_dbuffer == NULL || new_pbuffer == NULL)
       {
@@ -809,7 +808,7 @@ Returns:     number of characters placed in the buffer
 #if !defined NOUTF8
 
 static int
-ord2utf8(int cvalue, uschar *utf8bytes)
+ord2utf8(int cvalue, pcre_uint8 *utf8bytes)
 {
 register int i, j;
 for (i = 0; i < utf8_table1_size; i++)
@@ -1072,7 +1071,7 @@ return ((value & 0x000000ff) << 24) |
 *************************************************/
 
 static int
-check_match_limit(pcre *re, pcre_extra *extra, uschar *bptr, int len,
+check_match_limit(pcre *re, pcre_extra *extra, pcre_uint8 *bptr, int len,
   int start_offset, int options, int *use_offsets, int use_size_offsets,
   int flag, unsigned long int *limit, int errnumber, const char *msg)
 {
@@ -1132,7 +1131,7 @@ Returns:    < 0, = 0, or > 0, according to the comparison
 */
 
 static int
-strncmpic(uschar *s, uschar *t, int n)
+strncmpic(pcre_uint8 *s, pcre_uint8 *t, int n)
 {
 while (n--)
   {
@@ -1159,15 +1158,15 @@ Returns:      appropriate PCRE_NEWLINE_xxx flags, or 0
 */
 
 static int
-check_newline(uschar *p, FILE *f)
+check_newline(pcre_uint8 *p, FILE *f)
 {
-if (strncmpic(p, (uschar *)"cr>", 3) == 0) return PCRE_NEWLINE_CR;
-if (strncmpic(p, (uschar *)"lf>", 3) == 0) return PCRE_NEWLINE_LF;
-if (strncmpic(p, (uschar *)"crlf>", 5) == 0) return PCRE_NEWLINE_CRLF;
-if (strncmpic(p, (uschar *)"anycrlf>", 8) == 0) return PCRE_NEWLINE_ANYCRLF;
-if (strncmpic(p, (uschar *)"any>", 4) == 0) return PCRE_NEWLINE_ANY;
-if (strncmpic(p, (uschar *)"bsr_anycrlf>", 12) == 0) return PCRE_BSR_ANYCRLF;
-if (strncmpic(p, (uschar *)"bsr_unicode>", 12) == 0) return PCRE_BSR_UNICODE;
+if (strncmpic(p, (pcre_uint8 *)"cr>", 3) == 0) return PCRE_NEWLINE_CR;
+if (strncmpic(p, (pcre_uint8 *)"lf>", 3) == 0) return PCRE_NEWLINE_LF;
+if (strncmpic(p, (pcre_uint8 *)"crlf>", 5) == 0) return PCRE_NEWLINE_CRLF;
+if (strncmpic(p, (pcre_uint8 *)"anycrlf>", 8) == 0) return PCRE_NEWLINE_ANYCRLF;
+if (strncmpic(p, (pcre_uint8 *)"any>", 4) == 0) return PCRE_NEWLINE_ANY;
+if (strncmpic(p, (pcre_uint8 *)"bsr_anycrlf>", 12) == 0) return PCRE_BSR_ANYCRLF;
+if (strncmpic(p, (pcre_uint8 *)"bsr_unicode>", 12) == 0) return PCRE_BSR_UNICODE;
 fprintf(f, "Unknown newline type at: <%s\n", p);
 return 0;
 }
@@ -1255,18 +1254,18 @@ pcre_jit_stack *jit_stack = NULL;
 /* These vectors store, end-to-end, a list of captured substring names. Assume
 that 1024 is plenty long enough for the few names we'll be testing. */
 
-uschar copynames[1024];
-uschar getnames[1024];
+pcre_uchar copynames[1024];
+pcre_uchar getnames[1024];
 
-uschar *copynamesptr;
-uschar *getnamesptr;
+pcre_uchar *copynamesptr;
+pcre_uchar *getnamesptr;
 
 /* Get buffers from malloc() so that Electric Fence will check their misuse
 when I am debugging. They grow automatically when very long lines are read. */
 
-buffer = (unsigned char *)malloc(buffer_size);
-dbuffer = (unsigned char *)malloc(buffer_size);
-pbuffer = (unsigned char *)malloc(buffer_size);
+buffer = (pcre_uint8 *)malloc(buffer_size);
+dbuffer = (pcre_uint8 *)malloc(buffer_size);
+pbuffer = (pcre_uint8 *)malloc(buffer_size);
 
 /* The outfile variable is static so that new_malloc can use it. */
 
@@ -1497,7 +1496,7 @@ while (!done)
   if (*p == '<' && strchr((char *)(p+1), '<') == NULL)
     {
     unsigned long int magic, get_options;
-    uschar sbuf[8];
+    pcre_uint8 sbuf[8];
     FILE *f;
 
     p++;
@@ -1733,7 +1732,7 @@ while (!done)
 
       case '<':
         {
-        if (strncmpic(pp, (uschar *)"JS>", 3) == 0)
+        if (strncmpic(pp, (pcre_uint8 *)"JS>", 3) == 0)
           {
           options |= PCRE_JAVASCRIPT_COMPAT;
           pp += 3;
@@ -1962,7 +1961,7 @@ while (!done)
       int count, backrefmax, first_char, need_char, okpartial, jchanged,
         hascrorlf;
       int nameentrysize, namecount;
-      const uschar *nametable;
+      const pcre_uchar *nametable;
 
       new_info(re, NULL, PCRE_INFO_SIZE, &size);
       new_info(re, NULL, PCRE_INFO_CAPTURECOUNT, &count);
@@ -2118,7 +2117,7 @@ while (!done)
           fprintf(outfile, "Study returned NULL\n");
         else
           {
-          uschar *start_bits = NULL;
+          pcre_uint8 *start_bits = NULL;
           int minlength;
 
           new_info(re, extra, PCRE_INFO_MINLENGTH, &minlength);
@@ -2188,16 +2187,16 @@ while (!done)
         }
       else
         {
-        uschar sbuf[8];
-        sbuf[0] = (uschar)((true_size >> 24) & 255);
-        sbuf[1] = (uschar)((true_size >> 16) & 255);
-        sbuf[2] = (uschar)((true_size >>  8) & 255);
-        sbuf[3] = (uschar)((true_size) & 255);
+        pcre_uint8 sbuf[8];
+        sbuf[0] = (pcre_uint8)((true_size >> 24) & 255);
+        sbuf[1] = (pcre_uint8)((true_size >> 16) & 255);
+        sbuf[2] = (pcre_uint8)((true_size >>  8) & 255);
+        sbuf[3] = (pcre_uint8)((true_size) & 255);
 
-        sbuf[4] = (uschar)((true_study_size >> 24) & 255);
-        sbuf[5] = (uschar)((true_study_size >> 16) & 255);
-        sbuf[6] = (uschar)((true_study_size >>  8) & 255);
-        sbuf[7] = (uschar)((true_study_size) & 255);
+        sbuf[4] = (pcre_uint8)((true_study_size >> 24) & 255);
+        sbuf[5] = (pcre_uint8)((true_study_size >> 16) & 255);
+        sbuf[6] = (pcre_uint8)((true_study_size >>  8) & 255);
+        sbuf[7] = (pcre_uint8)((true_study_size) & 255);
 
         if (fwrite(sbuf, 1, 8, f) < 8 ||
             fwrite(re, 1, true_size, f) < true_size)
@@ -2240,8 +2239,8 @@ while (!done)
 
   for (;;)
     {
-    uschar *q;
-    uschar *bptr;
+    pcre_uint8 *q;
+    pcre_uint8 *bptr;
     int *use_offsets = offsets;
     int use_size_offsets = size_offsets;
     int callout_data = 0;
@@ -2418,7 +2417,7 @@ while (!done)
           }
         else if (isalnum(*p))
           {
-          uschar *npp = copynamesptr;
+          pcre_uchar *npp = copynamesptr;
           while (isalnum(*p)) *npp++ = *p++;
           *npp++ = 0;
           *npp = 0;
@@ -2488,7 +2487,7 @@ while (!done)
           }
         else if (isalnum(*p))
           {
-          uschar *npp = getnamesptr;
+          pcre_uchar *npp = getnamesptr;
           while (isalnum(*p)) *npp++ = *p++;
           *npp++ = 0;
           *npp = 0;

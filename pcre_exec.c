@@ -121,7 +121,7 @@ Returns:     nothing
 */
 
 static void
-pchars(const uschar *p, int length, BOOL is_subject, match_data *md)
+pchars(const pcre_uchar *p, int length, BOOL is_subject, match_data *md)
 {
 unsigned int c;
 if (is_subject && length > md->end_subject - p) length = md->end_subject - p;
@@ -152,11 +152,11 @@ Returns:      < 0 if not matched, otherwise the number of subject bytes matched
 */
 
 static int
-match_ref(int offset, register USPTR eptr, int length, match_data *md,
+match_ref(int offset, register PCRE_PUCHAR eptr, int length, match_data *md,
   BOOL caseless)
 {
-USPTR eptr_start = eptr;
-register USPTR p = md->start_subject + md->offset_vector[offset];
+PCRE_PUCHAR eptr_start = eptr;
+register PCRE_PUCHAR p = md->start_subject + md->offset_vector[offset];
 
 #ifdef PCRE_DEBUG
 if (eptr >= md->end_subject)
@@ -193,7 +193,7 @@ if (caseless)
     the latter. It is important, therefore, to check the length along the
     reference, not along the subject (earlier code did this wrong). */
 
-    USPTR endptr = p + length;
+    PCRE_PUCHAR endptr = p + length;
     while (p < endptr)
       {
       int c, d;
@@ -354,25 +354,25 @@ typedef struct heapframe {
 
   /* Function arguments that may change */
 
-  USPTR Xeptr;
-  const uschar *Xecode;
-  USPTR Xmstart;
-  USPTR Xmarkptr;
+  PCRE_PUCHAR Xeptr;
+  const pcre_uchar *Xecode;
+  PCRE_PUCHAR Xmstart;
+  PCRE_PUCHAR Xmarkptr;
   int Xoffset_top;
   eptrblock *Xeptrb;
   unsigned int Xrdepth;
 
   /* Function local variables */
 
-  USPTR Xcallpat;
+  PCRE_PUCHAR Xcallpat;
 #ifdef SUPPORT_UTF8
-  USPTR Xcharptr;
+  PCRE_PUCHAR Xcharptr;
 #endif
-  USPTR Xdata;
-  USPTR Xnext;
-  USPTR Xpp;
-  USPTR Xprev;
-  USPTR Xsaved_eptr;
+  PCRE_PUCHAR Xdata;
+  PCRE_PUCHAR Xnext;
+  PCRE_PUCHAR Xpp;
+  PCRE_PUCHAR Xprev;
+  PCRE_PUCHAR Xsaved_eptr;
 
   recursion_info Xnew_recursive;
 
@@ -385,7 +385,7 @@ typedef struct heapframe {
   int Xprop_value;
   int Xprop_fail_result;
   int Xoclength;
-  uschar Xocchars[8];
+  pcre_uint8 Xocchars[8];
 #endif
 
   int Xcodelink;
@@ -474,9 +474,9 @@ Returns:       MATCH_MATCH if matched            )  these values are >= 0
 */
 
 static int
-match(REGISTER USPTR eptr, REGISTER const uschar *ecode, USPTR mstart,
-  const uschar *markptr, int offset_top, match_data *md, eptrblock *eptrb,
-  unsigned int rdepth)
+match(REGISTER PCRE_PUCHAR eptr, REGISTER const pcre_uchar *ecode,
+  PCRE_PUCHAR mstart, const pcre_uchar *markptr, int offset_top,
+  match_data *md, eptrblock *eptrb, unsigned int rdepth)
 {
 /* These variables do not need to be preserved over recursion in this function,
 so they can be ordinary variables in all cases. Mark some of them with
@@ -586,14 +586,14 @@ below are for variables that do not have to be preserved over a recursive call
 to RMATCH(). */
 
 #ifdef SUPPORT_UTF8
-const uschar *charptr;
+const pcre_uchar *charptr;
 #endif
-const uschar *callpat;
-const uschar *data;
-const uschar *next;
-USPTR         pp;
-const uschar *prev;
-USPTR         saved_eptr;
+const pcre_uchar *callpat;
+const pcre_uchar *data;
+const pcre_uchar *next;
+PCRE_PUCHAR       pp;
+const pcre_uchar *prev;
+PCRE_PUCHAR       saved_eptr;
 
 recursion_info new_recursive;
 
@@ -606,7 +606,7 @@ int prop_type;
 int prop_value;
 int prop_fail_result;
 int oclength;
-uschar occhars[8];
+pcre_uint8 occhars[8];
 #endif
 
 int codelink;
@@ -1028,7 +1028,7 @@ for (;;)
         {
         if (rrc == MATCH_ONCE)
           {
-          const uschar *scode = ecode;
+          const pcre_uchar *scode = ecode;
           if (*scode != OP_ONCE)           /* If not at start, find it */
             {
             while (*scode == OP_ALT) scode += GET(scode, 1);
@@ -1262,7 +1262,7 @@ for (;;)
 
         if (!condition && condcode == OP_NRREF)
           {
-          uschar *slotA = md->name_table;
+          pcre_uchar *slotA = md->name_table;
           for (i = 0; i < md->name_count; i++)
             {
             if (GET2(slotA, 0) == recno) break;
@@ -1275,7 +1275,7 @@ for (;;)
 
           if (i < md->name_count)
             {
-            uschar *slotB = slotA;
+            pcre_uchar *slotB = slotA;
             while (slotB > md->name_table)
               {
               slotB -= md->name_entry_size;
@@ -1325,7 +1325,7 @@ for (;;)
       if (!condition && condcode == OP_NCREF)
         {
         int refno = offset >> 1;
-        uschar *slotA = md->name_table;
+        pcre_uchar *slotA = md->name_table;
 
         for (i = 0; i < md->name_count; i++)
           {
@@ -1339,7 +1339,7 @@ for (;;)
 
         if (i < md->name_count)
           {
-          uschar *slotB = slotA;
+          pcre_uchar *slotB = slotA;
           while (slotB > md->name_table)
             {
             slotB -= md->name_entry_size;
@@ -2076,7 +2076,7 @@ for (;;)
 
         if (eptr == md->start_subject) prev_is_word = FALSE; else
           {
-          USPTR lastptr = eptr - 1;
+          PCRE_PUCHAR lastptr = eptr - 1;
           while((*lastptr & 0xc0) == 0x80) lastptr--;
           if (lastptr < md->start_used_ptr) md->start_used_ptr = lastptr;
           GETCHAR(c, lastptr);
@@ -5945,12 +5945,12 @@ BOOL req_byte_caseless = FALSE;
 BOOL utf8;
 match_data match_block;
 match_data *md = &match_block;
-const uschar *tables;
-const uschar *start_bits = NULL;
-USPTR start_match = (USPTR)subject + start_offset;
-USPTR end_subject;
-USPTR start_partial = NULL;
-USPTR req_byte_ptr = start_match - 1;
+const pcre_uint8 *tables;
+const pcre_uint8 *start_bits = NULL;
+PCRE_PUCHAR start_match = (PCRE_PUCHAR)subject + start_offset;
+PCRE_PUCHAR end_subject;
+PCRE_PUCHAR start_partial = NULL;
+PCRE_PUCHAR req_byte_ptr = start_match - 1;
 
 pcre_study_data internal_study;
 const pcre_study_data *study;
@@ -5983,7 +5983,7 @@ code for an invalid string if a results vector is available. */
 if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
-  int errorcode = _pcre_valid_utf8((USPTR)subject, length, &erroroffset);
+  int errorcode = _pcre_valid_utf8((PCRE_PUCHAR)subject, length, &erroroffset);
   if (errorcode != 0)
     {
     if (offsetcount >= 2)
@@ -5997,7 +5997,7 @@ if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
 
   /* Check that a start_offset points to the start of a UTF-8 character. */
   if (start_offset > 0 && start_offset < length &&
-      (((USPTR)subject)[start_offset] & 0xc0) == 0x80)
+      (((PCRE_PUCHAR)subject)[start_offset] & 0xc0) == 0x80)
     return PCRE_ERROR_BADUTF8_OFFSET;
   }
 #endif
@@ -6023,7 +6023,7 @@ if (extra_data != NULL
 /* Carry on with non-JIT matching. This information is for finding all the
 numbers associated with a given name, for condition testing. */
 
-md->name_table = (uschar *)re + re->name_table_offset;
+md->name_table = (pcre_uchar *)re + re->name_table_offset;
 md->name_count = re->name_count;
 md->name_entry_size = re->name_entry_size;
 
@@ -6079,10 +6079,10 @@ firstline = (re->options & PCRE_FIRSTLINE) != 0;
 
 /* The code starts after the real_pcre block and the capture name table. */
 
-md->start_code = (const uschar *)external_re + re->name_table_offset +
+md->start_code = (const pcre_uchar *)external_re + re->name_table_offset +
   re->name_count * re->name_entry_size;
 
-md->start_subject = (USPTR)subject;
+md->start_subject = (PCRE_PUCHAR)subject;
 md->start_offset = start_offset;
 md->end_subject = md->start_subject + length;
 end_subject = md->end_subject;
@@ -6259,8 +6259,8 @@ the loop runs just once. */
 
 for(;;)
   {
-  USPTR save_end_subject = end_subject;
-  USPTR new_start_match;
+  PCRE_PUCHAR save_end_subject = end_subject;
+  PCRE_PUCHAR new_start_match;
 
   /* If firstline is TRUE, the start of the match is constrained to the first
   line of a multiline string. That is, the match must be before or at the first
@@ -6270,7 +6270,7 @@ for(;;)
 
   if (firstline)
     {
-    USPTR t = start_match;
+    PCRE_PUCHAR t = start_match;
 #ifdef SUPPORT_UTF8
     if (utf8)
       {
@@ -6397,7 +6397,7 @@ for(;;)
 
     if (req_byte >= 0 && end_subject - start_match < REQ_BYTE_MAX)
       {
-      register USPTR p = start_match + ((first_byte >= 0)? 1 : 0);
+      register PCRE_PUCHAR p = start_match + ((first_byte >= 0)? 1 : 0);
 
       /* We don't need to repeat the search if we haven't yet reached the
       place we found it at last time. */
@@ -6637,8 +6637,8 @@ if (start_partial != NULL)
   md->mark = NULL;
   if (offsetcount > 1)
     {
-    offsets[0] = (int)(start_partial - (USPTR)subject);
-    offsets[1] = (int)(end_subject - (USPTR)subject);
+    offsets[0] = (int)(start_partial - (PCRE_PUCHAR)subject);
+    offsets[1] = (int)(end_subject - (PCRE_PUCHAR)subject);
     }
   rc = PCRE_ERROR_PARTIAL;
   }

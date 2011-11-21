@@ -63,7 +63,7 @@ Returns:     number of characters placed in the buffer
 */
 
 int
-_pcre_ord2utf8(int cvalue, uschar *buffer)
+_pcre_ord2utf8(int cvalue, pcre_uint8 *buffer)
 {
 #ifdef SUPPORT_UTF8
 register int i, j;

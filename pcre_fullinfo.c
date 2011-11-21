@@ -118,7 +118,7 @@ switch (what)
   block, not the internal copy (with flipped integer fields). */
 
   case PCRE_INFO_FIRSTTABLE:
-  *((const uschar **)where) =
+  *((const pcre_uint8 **)where) =
     (study != NULL && (study->flags & PCRE_STUDY_MAPPED) != 0)?
       ((const pcre_study_data *)extra_data->study_data)->start_bits : NULL;
   break;
@@ -149,11 +149,11 @@ switch (what)
   break;
 
   case PCRE_INFO_NAMETABLE:
-  *((const uschar **)where) = (const uschar *)re + re->name_table_offset;
+  *((const pcre_uchar **)where) = (const pcre_uchar *)re + re->name_table_offset;
   break;
 
   case PCRE_INFO_DEFAULT_TABLES:
-  *((const uschar **)where) = (const uschar *)(_pcre_default_tables);
+  *((const pcre_uint8 **)where) = (const pcre_uint8 *)(_pcre_default_tables);
   break;
 
   /* From release 8.00 this will always return TRUE because NOPARTIAL is

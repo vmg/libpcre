@@ -54,7 +54,7 @@ clashes with the library. */
 /* Table of sizes for the fixed-length opcodes. It's defined in a macro so that
 the definition is next to the definition of the opcodes in pcre_internal.h. */
 
-const uschar _pcre_OP_lengths[] = { OP_LENGTHS };
+const pcre_uint8 _pcre_OP_lengths[] = { OP_LENGTHS };
 
 
 
@@ -81,24 +81,11 @@ const int _pcre_utf8_table3[] = { 0xff, 0x1f, 0x0f, 0x07, 0x03, 0x01};
 /* Table of the number of extra bytes, indexed by the first byte masked with
 0x3f. The highest number for a valid UTF-8 first byte is in fact 0x3d. */
 
-const uschar _pcre_utf8_table4[] = {
+const pcre_uint8 _pcre_utf8_table4[] = {
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
   2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
   3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5 };
-
-#ifdef SUPPORT_JIT
-/* Full table of the number of extra bytes when the
-character code is greater or equal than 0xc0.
-See _pcre_utf8_table4 above. */
-
-const uschar _pcre_utf8_char_sizes[] = {
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
-  3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,
-};
-#endif
 
 /* Table to translate from particular type value to the general value. */
 

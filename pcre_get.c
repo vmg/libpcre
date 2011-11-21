@@ -71,7 +71,7 @@ pcre_get_stringnumber(const pcre *code, const char *stringname)
 int rc;
 int entrysize;
 int top, bot;
-uschar *nametable;
+pcre_uchar *nametable;
 
 if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMECOUNT, &top)) != 0)
   return rc;
@@ -86,7 +86,7 @@ bot = 0;
 while (top > bot)
   {
   int mid = (top + bot) / 2;
-  uschar *entry = nametable + entrysize*mid;
+  pcre_uchar *entry = nametable + entrysize*mid;
   int c = strcmp(stringname, (char *)(entry + 2));
   if (c == 0) return (entry[0] << 8) + entry[1];
   if (c > 0) bot = mid + 1; else top = mid;
@@ -121,7 +121,7 @@ pcre_get_stringtable_entries(const pcre *code, const char *stringname,
 int rc;
 int entrysize;
 int top, bot;
-uschar *nametable, *lastentry;
+pcre_uchar *nametable, *lastentry;
 
 if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMECOUNT, &top)) != 0)
   return rc;
@@ -137,12 +137,12 @@ bot = 0;
 while (top > bot)
   {
   int mid = (top + bot) / 2;
-  uschar *entry = nametable + entrysize*mid;
+  pcre_uchar *entry = nametable + entrysize*mid;
   int c = strcmp(stringname, (char *)(entry + 2));
   if (c == 0)
     {
-    uschar *first = entry;
-    uschar *last = entry;
+    pcre_uchar *first = entry;
+    pcre_uchar *last = entry;
     while (first > nametable)
       {
       if (strcmp(stringname, (char *)(first - entrysize + 2)) != 0) break;
@@ -188,12 +188,12 @@ get_first_set(const pcre *code, const char *stringname, int *ovector)
 const real_pcre *re = (const real_pcre *)code;
 int entrysize;
 char *first, *last;
-uschar *entry;
+pcre_uchar *entry;
 if ((re->options & PCRE_DUPNAMES) == 0 && (re->flags & PCRE_JCHANGED) == 0)
   return pcre_get_stringnumber(code, stringname);
 entrysize = pcre_get_stringtable_entries(code, stringname, &first, &last);
 if (entrysize <= 0) return entrysize;
-for (entry = (uschar *)first; entry <= (uschar *)last; entry += entrysize)
+for (entry = (pcre_uchar *)first; entry <= (pcre_uchar *)last; entry += entrysize)
   {
   int n = (entry[0] << 8) + entry[1];
   if (ovector[n*2] >= 0) return n;

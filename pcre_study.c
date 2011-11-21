@@ -78,14 +78,14 @@ Returns:   the minimum length
 */
 
 static int
-find_minlength(const uschar *code, const uschar *startcode, int options,
+find_minlength(const pcre_uchar *code, const pcre_uchar *startcode, int options,
   int recurse_depth)
 {
 int length = -1;
 BOOL utf8 = (options & PCRE_UTF8) != 0;
 BOOL had_recurse = FALSE;
 register int branchlength = 0;
-register uschar *cc = (uschar *)code + 1 + LINK_SIZE;
+register pcre_uchar *cc = (pcre_uchar *)code + 1 + LINK_SIZE;
 
 if (*code == OP_CBRA || *code == OP_SCBRA ||
     *code == OP_CBRAPOS || *code == OP_SCBRAPOS) cc += 2;
@@ -96,7 +96,7 @@ branch, check the length against that of the other branches. */
 for (;;)
   {
   int d, min;
-  uschar *cs, *ce;
+  pcre_uchar *cs, *ce;
   register int op = *cc;
 
   switch (op)
@@ -372,7 +372,7 @@ for (;;)
     case OP_REFI:
     if ((options & PCRE_JAVASCRIPT_COMPAT) == 0)
       {
-      ce = cs = (uschar *)_pcre_find_bracket(startcode, utf8, GET2(cc, 1));
+      ce = cs = (pcre_uchar *)_pcre_find_bracket(startcode, utf8, GET2(cc, 1));
       if (cs == NULL) return -2;
       do ce += GET(ce, 1); while (*ce == OP_ALT);
       if (cc > cs && cc < ce)
@@ -424,7 +424,7 @@ for (;;)
     caught by a recursion depth count. */
 
     case OP_RECURSE:
-    cs = ce = (uschar *)startcode + GET(cc, 1);
+    cs = ce = (pcre_uchar *)startcode + GET(cc, 1);
     do ce += GET(ce, 1); while (*ce == OP_ALT);
     if ((cc > cs && cc < ce) || recurse_depth > 10)
       had_recurse = TRUE;
@@ -540,8 +540,8 @@ Arguments:
 Returns:        pointer after the character
 */
 
-static const uschar *
-set_table_bit(uschar *start_bits, const uschar *p, BOOL caseless,
+static const pcre_uchar *
+set_table_bit(pcre_uint8 *start_bits, const pcre_uchar *p, BOOL caseless,
   compile_data *cd, BOOL utf8)
 {
 unsigned int c = *p;
@@ -555,7 +555,7 @@ if (utf8 && c > 127)
 #ifdef SUPPORT_UCP
   if (caseless)
     {
-    uschar buff[8];
+    pcre_uint8 buff[8];
     c = UCD_OTHERCASE(c);
     (void)_pcre_ord2utf8(c, buff);
     SET_BIT(buff[0]);
@@ -594,7 +594,7 @@ Returns:         nothing
 */
 
 static void
-set_type_bits(uschar *start_bits, int cbit_type, int table_limit,
+set_type_bits(pcre_uint8 *start_bits, int cbit_type, int table_limit,
   compile_data *cd)
 {
 register int c;
@@ -604,7 +604,7 @@ for (c = 128; c < 256; c++)
   {
   if ((cd->cbits[c/8] & (1 << (c&7))) != 0)
     {
-    uschar buff[8];
+    pcre_uint8 buff[8];
     (void)_pcre_ord2utf8(c, buff);
     SET_BIT(buff[0]);
     }
@@ -634,7 +634,7 @@ Returns:         nothing
 */
 
 static void
-set_nottype_bits(uschar *start_bits, int cbit_type, int table_limit,
+set_nottype_bits(pcre_uint8 *start_bits, int cbit_type, int table_limit,
   compile_data *cd)
 {
 register int c;
@@ -669,7 +669,7 @@ Returns:       SSB_FAIL     => Failed to find any starting bytes
 */
 
 static int
-set_start_bits(const uschar *code, uschar *start_bits, BOOL utf8,
+set_start_bits(const pcre_uchar *code, pcre_uint8 *start_bits, BOOL utf8,
   compile_data *cd)
 {
 register int c;
@@ -696,7 +696,7 @@ volatile int dummy;
 do
   {
   BOOL try_next = TRUE;
-  const uschar *tcode = code + 1 + LINK_SIZE;
+  const pcre_uchar *tcode = code + 1 + LINK_SIZE;
 
   if (*code == OP_CBRA || *code == OP_SCBRA ||
       *code == OP_CBRAPOS || *code == OP_SCBRAPOS) tcode += 2;
@@ -1224,11 +1224,11 @@ pcre_study(const pcre *external_re, int options, const char **errorptr)
 {
 int min;
 BOOL bits_set = FALSE;
-uschar start_bits[32];
+pcre_uint8 start_bits[32];
 pcre_extra *extra = NULL;
 pcre_study_data *study;
-const uschar *tables;
-uschar *code;
+const pcre_uint8 *tables;
+pcre_uchar *code;
 compile_data compile_block;
 const real_pcre *re = (const real_pcre *)external_re;
 
@@ -1246,7 +1246,7 @@ if ((options & ~PUBLIC_STUDY_OPTIONS) != 0)
   return NULL;
   }
 
-code = (uschar *)re + re->name_table_offset +
+code = (pcre_uchar *)re + re->name_table_offset +
   (re->name_count * re->name_entry_size);
 
 /* For an anchored pattern, or an unanchored pattern that has a first char, or
@@ -1272,7 +1272,7 @@ if ((re->options & PCRE_ANCHORED) == 0 &&
 
   /* See if we can find a fixed set of initial characters for the pattern. */
 
-  memset(start_bits, 0, 32 * sizeof(uschar));
+  memset(start_bits, 0, 32 * sizeof(pcre_uint8));
   rc = set_start_bits(code, start_bits, (re->options & PCRE_UTF8) != 0,
     &compile_block);
   bits_set = rc == SSB_DONE;

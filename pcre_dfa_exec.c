@@ -113,7 +113,7 @@ small value. Non-zero values in the table are the offsets from the opcode where
 the character is to be found. ***NOTE*** If the start of this table is
 modified, the three tables that follow must also be modified. */
 
-static const uschar coptable[] = {
+static const pcre_uint8 coptable[] = {
   0,                             /* End                                    */
   0, 0, 0, 0, 0,                 /* \A, \G, \K, \B, \b                     */
   0, 0, 0, 0, 0, 0,              /* \D, \d, \S, \s, \W, \w                 */
@@ -182,7 +182,7 @@ remember the fact that a character could have been inspected when the end of
 the subject is reached. ***NOTE*** If the start of this table is modified, the
 two tables that follow must also be modified. */
 
-static const uschar poptable[] = {
+static const pcre_uint8 poptable[] = {
   0,                             /* End                                    */
   0, 0, 0, 1, 1,                 /* \A, \G, \K, \B, \b                     */
   1, 1, 1, 1, 1, 1,              /* \D, \d, \S, \s, \W, \w                 */
@@ -249,7 +249,7 @@ static const uschar poptable[] = {
 /* These 2 tables allow for compact code for testing for \D, \d, \S, \s, \W,
 and \w */
 
-static const uschar toptable1[] = {
+static const pcre_uint8 toptable1[] = {
   0, 0, 0, 0, 0, 0,
   ctype_digit, ctype_digit,
   ctype_space, ctype_space,
@@ -257,7 +257,7 @@ static const uschar toptable1[] = {
   0, 0                            /* OP_ANY, OP_ALLANY */
 };
 
-static const uschar toptable2[] = {
+static const pcre_uint8 toptable2[] = {
   0, 0, 0, 0, 0, 0,
   ctype_digit, 0,
   ctype_space, 0,
@@ -386,8 +386,8 @@ for the current character, one for the following character). */
 static int
 internal_dfa_exec(
   dfa_match_data *md,
-  const uschar *this_start_code,
-  const uschar *current_subject,
+  const pcre_uchar *this_start_code,
+  const pcre_uchar *current_subject,
   int start_offset,
   int *offsets,
   int offsetcount,
@@ -398,9 +398,9 @@ internal_dfa_exec(
 stateblock *active_states, *new_states, *temp_states;
 stateblock *next_active_state, *next_new_state;
 
-const uschar *ctypes, *lcc, *fcc;
-const uschar *ptr;
-const uschar *end_code, *first_op;
+const pcre_uint8 *ctypes, *lcc, *fcc;
+const pcre_uchar *ptr;
+const pcre_uchar *end_code, *first_op;
 
 dfa_recursion_info new_recursive;
 
@@ -409,9 +409,9 @@ int active_count, new_count, match_count;
 /* Some fields in the md block are frequently referenced, so we load them into
 independent variables in the hope that this will perform better. */
 
-const uschar *start_subject = md->start_subject;
-const uschar *end_subject = md->end_subject;
-const uschar *start_code = md->start_code;
+const pcre_uchar *start_subject = md->start_subject;
+const pcre_uchar *end_subject = md->end_subject;
+const pcre_uchar *start_code = md->start_code;
 
 #ifdef SUPPORT_UTF8
 BOOL utf8 = (md->poptions & PCRE_UTF8) != 0;
@@ -583,7 +583,7 @@ for (;;)
 
 #ifdef PCRE_DEBUG
   printf("%.*sNext character: rest of subject = \"", rlevel*2-2, SP);
-  pchars((uschar *)ptr, strlen((char *)ptr), stdout);
+  pchars((pcre_uchar *)ptr, strlen((char *)ptr), stdout);
   printf("\"\n");
 
   printf("%.*sActive states: ", rlevel*2-2, SP);
@@ -624,7 +624,7 @@ for (;;)
     {
     stateblock *current_state = active_states + i;
     BOOL caseless = FALSE;
-    const uschar *code;
+    const pcre_uchar *code;
     int state_offset = current_state->offset;
     int count, codevalue, rrc;
 
@@ -956,7 +956,7 @@ for (;;)
 
         if (ptr > start_subject)
           {
-          const uschar *temp = ptr - 1;
+          const pcre_uchar *temp = ptr - 1;
           if (temp < md->start_used_ptr) md->start_used_ptr = temp;
 #ifdef SUPPORT_UTF8
           if (utf8) BACKCHAR(temp);
@@ -1281,7 +1281,7 @@ for (;;)
       if (count > 0) { ADD_ACTIVE(state_offset + 2, 0); }
       if (clen > 0 && UCD_CATEGORY(c) != ucp_M)
         {
-        const uschar *nptr = ptr + clen;
+        const pcre_uchar *nptr = ptr + clen;
         int ncount = 0;
         if (count > 0 && codevalue == OP_EXTUNI_EXTRA + OP_TYPEPOSPLUS)
           {
@@ -1537,7 +1537,7 @@ for (;;)
       ADD_ACTIVE(state_offset + 2, 0);
       if (clen > 0 && UCD_CATEGORY(c) != ucp_M)
         {
-        const uschar *nptr = ptr + clen;
+        const pcre_uchar *nptr = ptr + clen;
         int ncount = 0;
         if (codevalue == OP_EXTUNI_EXTRA + OP_TYPEPOSSTAR ||
             codevalue == OP_EXTUNI_EXTRA + OP_TYPEPOSQUERY)
@@ -1804,7 +1804,7 @@ for (;;)
       count = current_state->count;  /* Number already matched */
       if (clen > 0 && UCD_CATEGORY(c) != ucp_M)
         {
-        const uschar *nptr = ptr + clen;
+        const pcre_uchar *nptr = ptr + clen;
         int ncount = 0;
         if (codevalue == OP_EXTUNI_EXTRA + OP_TYPEPOSUPTO)
           {
@@ -2023,7 +2023,7 @@ for (;;)
       case OP_EXTUNI:
       if (clen > 0 && UCD_CATEGORY(c) != ucp_M)
         {
-        const uschar *nptr = ptr + clen;
+        const pcre_uchar *nptr = ptr + clen;
         int ncount = 0;
         while (nptr < end_subject)
           {
@@ -2418,7 +2418,7 @@ for (;;)
         {
         BOOL isinclass = FALSE;
         int next_state_offset;
-        const uschar *ecode;
+        const pcre_uchar *ecode;
 
         /* For a simple class, there is always just a 32-byte table, and we
         can set isinclass from it. */
@@ -2510,7 +2510,7 @@ for (;;)
         int rc;
         int local_offsets[2];
         int local_workspace[1000];
-        const uschar *endasscode = code + GET(code, 1);
+        const pcre_uchar *endasscode = code + GET(code, 1);
 
         while (*endasscode == OP_ALT) endasscode += GET(endasscode, 1);
 
@@ -2599,8 +2599,8 @@ for (;;)
         else
           {
           int rc;
-          const uschar *asscode = code + LINK_SIZE + 1;
-          const uschar *endasscode = asscode + GET(asscode, 1);
+          const pcre_uchar *asscode = code + LINK_SIZE + 1;
+          const pcre_uchar *endasscode = asscode + GET(asscode, 1);
 
           while (*endasscode == OP_ALT) endasscode += GET(endasscode, 1);
 
@@ -2631,7 +2631,7 @@ for (;;)
         dfa_recursion_info *ri;
         int local_offsets[1000];
         int local_workspace[1000];
-        const uschar *callpat = start_code + GET(code, 1);
+        const pcre_uchar *callpat = start_code + GET(code, 1);
         int recno = (callpat == md->start_code)? 0 :
           GET2(callpat, 1 + LINK_SIZE);
         int rc;
@@ -2682,8 +2682,8 @@ for (;;)
           {
           for (rc = rc*2 - 2; rc >= 0; rc -= 2)
             {
-            const uschar *p = start_subject + local_offsets[rc];
-            const uschar *pp = start_subject + local_offsets[rc+1];
+            const pcre_uchar *p = start_subject + local_offsets[rc];
+            const pcre_uchar *pp = start_subject + local_offsets[rc+1];
             int charcount = local_offsets[rc+1] - local_offsets[rc];
             while (p < pp) if ((*p++ & 0xc0) == 0x80) charcount--;
             if (charcount > 0)
@@ -2708,7 +2708,7 @@ for (;;)
       case OP_BRAPOSZERO:
         {
         int charcount, matched_count;
-        const uschar *local_ptr = ptr;
+        const pcre_uchar *local_ptr = ptr;
         BOOL allow_zero;
 
         if (codevalue == OP_BRAPOSZERO)
@@ -2758,7 +2758,7 @@ for (;;)
 
         if (matched_count > 0 || allow_zero)
           {
-          const uschar *end_subpattern = code;
+          const pcre_uchar *end_subpattern = code;
           int next_state_offset;
 
           do { end_subpattern += GET(end_subpattern, 1); }
@@ -2779,8 +2779,8 @@ for (;;)
             }
           else
             {
-            const uschar *p = ptr;
-            const uschar *pp = local_ptr;
+            const pcre_uchar *p = ptr;
+            const pcre_uchar *pp = local_ptr;
             charcount = pp - p;
             while (p < pp) if ((*p++ & 0xc0) == 0x80) charcount--;
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
@@ -2809,7 +2809,7 @@ for (;;)
 
         if (rc >= 0)
           {
-          const uschar *end_subpattern = code;
+          const pcre_uchar *end_subpattern = code;
           int charcount = local_offsets[1] - local_offsets[0];
           int next_state_offset, repeat_state_offset;
 
@@ -2862,8 +2862,8 @@ for (;;)
             }
           else
             {
-            const uschar *p = start_subject + local_offsets[0];
-            const uschar *pp = start_subject + local_offsets[1];
+            const pcre_uchar *p = start_subject + local_offsets[0];
+            const pcre_uchar *pp = start_subject + local_offsets[1];
             while (p < pp) if ((*p++ & 0xc0) == 0x80) charcount--;
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
             if (repeat_state_offset >= 0)
@@ -3005,14 +3005,15 @@ real_pcre *re = (real_pcre *)argument_re;
 dfa_match_data match_block;
 dfa_match_data *md = &match_block;
 BOOL utf8, anchored, startline, firstline;
-const uschar *current_subject, *end_subject, *lcc;
+const pcre_uchar *current_subject, *end_subject;
+const pcre_uint8 *lcc;
 
 pcre_study_data internal_study;
 const pcre_study_data *study = NULL;
 real_pcre internal_re;
 
-const uschar *req_byte_ptr;
-const uschar *start_bits = NULL;
+const pcre_uint8 *req_byte_ptr;
+const pcre_uint8 *start_bits = NULL;
 BOOL first_byte_caseless = FALSE;
 BOOL req_byte_caseless = FALSE;
 int first_byte = -1;
@@ -3080,7 +3081,7 @@ anchored = (options & (PCRE_ANCHORED|PCRE_DFA_RESTART)) != 0 ||
 
 /* The remaining fixed data for passing around. */
 
-md->start_code = (const uschar *)argument_re +
+md->start_code = (const pcre_uchar *)argument_re +
     re->name_table_offset + re->name_count * re->name_entry_size;
 md->start_subject = (const unsigned char *)subject;
 md->end_subject = end_subject;
@@ -3147,7 +3148,7 @@ back the character offset. */
 if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
-  int errorcode = _pcre_valid_utf8((uschar *)subject, length, &erroroffset);
+  int errorcode = _pcre_valid_utf8((pcre_uchar *)subject, length, &erroroffset);
   if (errorcode != 0)
     {
     if (offsetcount >= 2)
@@ -3159,7 +3160,7 @@ if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
       PCRE_ERROR_SHORTUTF8 : PCRE_ERROR_BADUTF8;
     }
   if (start_offset > 0 && start_offset < length &&
-        (((USPTR)subject)[start_offset] & 0xc0) == 0x80)
+        (((PCRE_PUCHAR)subject)[start_offset] & 0xc0) == 0x80)
     return PCRE_ERROR_BADUTF8_OFFSET;
   }
 #endif
@@ -3219,7 +3220,7 @@ for (;;)
 
   if ((options & PCRE_DFA_RESTART) == 0)
     {
-    const uschar *save_end_subject = end_subject;
+    const pcre_uchar *save_end_subject = end_subject;
 
     /* If firstline is TRUE, the start of the match is constrained to the first
     line of a multiline string. Implement this by temporarily adjusting
@@ -3228,7 +3229,7 @@ for (;;)
 
     if (firstline)
       {
-      USPTR t = current_subject;
+      PCRE_PUCHAR t = current_subject;
 #ifdef SUPPORT_UTF8
       if (utf8)
         {
@@ -3357,7 +3358,7 @@ for (;;)
 
       if (req_byte >= 0 && end_subject - current_subject < REQ_BYTE_MAX)
         {
-        register const uschar *p = current_subject + ((first_byte >= 0)? 1 : 0);
+        register const pcre_uchar *p = current_subject + ((first_byte >= 0)? 1 : 0);
 
         /* We don't need to repeat the search if we haven't yet reached the
         place we found it at last time. */
