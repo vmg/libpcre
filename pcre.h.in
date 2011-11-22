@@ -350,7 +350,7 @@ PCRE_EXP_DECL pcre *pcre16_compile(PCRE_SPTR16, int, const char **, int *,
                   const unsigned char *);
 PCRE_EXP_DECL pcre *pcre_compile2(const char *, int, int *, const char **,
                   int *, const unsigned char *);
-PCRE_EXP_DECL pcre *pcre16_compile2(PCRE_SPTR16, int, int *, const short **,
+PCRE_EXP_DECL pcre *pcre16_compile2(PCRE_SPTR16, int, int *, const char **,
                   int *, const unsigned char *);
 PCRE_EXP_DECL int  pcre_config(int, void *);
 PCRE_EXP_DECL int  pcre_copy_named_substring(const pcre *, const char *,

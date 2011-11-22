@@ -713,7 +713,7 @@ for (;;)
     unaltered. */
 
     if (rrc == MATCH_SKIP_ARG &&
-        strcmp((char *)markptr, (char *)(md->start_match_ptr)) == 0)
+        STRCMP_UC_UC(markptr, md->start_match_ptr) == 0)
       {
       md->start_match_ptr = eptr;
       RRETURN(MATCH_SKIP);
@@ -1279,7 +1279,7 @@ for (;;)
             while (slotB > md->name_table)
               {
               slotB -= md->name_entry_size;
-              if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+              if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
                 {
                 condition = GET2(slotB, 0) == md->recursive->group_num;
                 if (condition) break;
@@ -1295,7 +1295,7 @@ for (;;)
               for (i++; i < md->name_count; i++)
                 {
                 slotB += md->name_entry_size;
-                if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+                if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
                   {
                   condition = GET2(slotB, 0) == md->recursive->group_num;
                   if (condition) break;
@@ -1343,7 +1343,7 @@ for (;;)
           while (slotB > md->name_table)
             {
             slotB -= md->name_entry_size;
-            if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+            if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
               {
               offset = GET2(slotB, 0) << 1;
               condition = offset < offset_top &&
@@ -1361,7 +1361,7 @@ for (;;)
             for (i++; i < md->name_count; i++)
               {
               slotB += md->name_entry_size;
-              if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+              if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
                 {
                 offset = GET2(slotB, 0) << 1;
                 condition = offset < offset_top &&

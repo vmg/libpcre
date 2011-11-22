@@ -189,6 +189,7 @@ libpcre_la_SOURCES = \
   pcre_newline.c \
   pcre_ord2utf8.c \
   pcre_refcount.c \
+  pcre_str_utils.c \
   pcre_study.c \
   pcre_tables.c \
   pcre_try_flipped.c \
@@ -208,6 +209,7 @@ endif # WITH_PCRE8
 if WITH_PCRE16
 lib_LTLIBRARIES += libpcre16.la
 libpcre16_la_SOURCES = \
+  pcre_str_utils.c \
   pcre16_compile.c \
   pcre16_convert_utf16.c \
   pcre16_valid_utf16.c

@@ -3832,7 +3832,7 @@ if (i < name_count)
   while (slotB > name_table)
     {
     slotB -= name_entry_size;
-    if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+    if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
       {
       condition = locals[GET2(slotB, 0) << 1] != no_capture;
       if (condition) break;
@@ -3847,7 +3847,7 @@ if (i < name_count)
     for (i++; i < name_count; i++)
       {
       slotB += name_entry_size;
-      if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+      if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
         {
         condition = locals[GET2(slotB, 0) << 1] != no_capture;
         if (condition) break;
@@ -3885,7 +3885,7 @@ if (i < name_count)
   while (slotB > name_table)
     {
     slotB -= name_entry_size;
-    if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+    if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
       {
       condition = GET2(slotB, 0) == group_num;
       if (condition) break;
@@ -3900,7 +3900,7 @@ if (i < name_count)
     for (i++; i < name_count; i++)
       {
       slotB += name_entry_size;
-      if (strcmp((char *)slotA + 2, (char *)slotB + 2) == 0)
+      if (STRCMP_UC_UC(slotA + IMM2_SIZE, slotB + IMM2_SIZE) == 0)
         {
         condition = GET2(slotB, 0) == group_num;
         if (condition) break;

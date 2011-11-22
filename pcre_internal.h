@@ -51,6 +51,11 @@ functions whose names all begin with "_pcre_". */
 #define PCRE_DEBUG
 #endif
 
+/* PCRE is compiled as an 8 bit library if it is not requested otherwise. */
+#ifndef COMPILE_PCRE16
+#define COMPILE_PCRE8
+#endif
+
 /* We do not support both EBCDIC and UTF-8/16 at the same time. The "configure"
 script prevents both being selected, but not everybody uses "configure". */
 
@@ -222,7 +227,7 @@ typedef unsigned char pcre_uchar;
 pcre.h(.in) and disable (comment out) this message. */
 #error Warning: PCRE_SCHAR16 is not a 16 bit data type.
 #endif
-typedef pcre_uint16 uschar;
+typedef pcre_uint16 pcre_uchar;
 #endif
 
 /* This is an unsigned int value that no character can ever have. UTF-8
@@ -407,6 +412,10 @@ is automated on Unix systems via the "configure" command. */
 offsets changes. There are used for repeat counts and for other things such as
 capturing parenthesis numbers in back references. */
 
+#ifdef COMPILE_PCRE8
+
+#define IMM2_SIZE 2
+
 #define PUT2(a,n,d)   \
   a[n] = (d) >> 8; \
   a[(n)+1] = (d) & 255
@@ -414,8 +423,22 @@ capturing parenthesis numbers in back references. */
 #define GET2(a,n) \
   (((a)[n] << 8) | (a)[(n)+1])
 
-#define PUT2INC(a,n,d)  PUT2(a,n,d), a += 2
 
+#elif defined(COMPILE_PCRE16)
+
+#define IMM2_SIZE 1
+
+#define PUT2(a,n,d)   \
+   a[n] = d
+
+#define GET2(a,n) \
+   a[n]
+
+#else
+#error Unsupported compiling mode
+#endif /* COMPILE_PCRE8 */
+
+#define PUT2INC(a,n,d)  PUT2(a,n,d), a += IMM2_SIZE
 
 /* When UTF-8 encoding is being used, a character is no longer just a single
 byte. The macros for character handling generate simple sequences when used in
@@ -1942,6 +1965,43 @@ extern const pcre_uint8     _pcre_OP_lengths[];
 /* Internal shared functions. These are functions that are used by more than
 one of the exported public functions. They have to be "external" in the C
 sense, but are not part of the PCRE public API. */
+
+/* String comparison functions. */
+#ifdef COMPILE_PCRE8
+
+#define STRCMP_UC_UC(str1, str2) \
+  strcmp((char *)(str1), (char *)(str2))
+#define STRCMP_UC_C8(str1, str2) \
+  strcmp((char *)(str1), (str2))
+#define STRNCMP_UC_UC(str1, str2, num) \
+  strncmp((char *)(str1), (char *)(str2), (num))
+#define STRNCMP_UC_C8(str1, str2, num) \
+  strncmp((char *)(str1), (str2), (num))
+#define STRLEN_UC(str) strlen(str)
+
+#else
+
+extern int               _pcre_strcmp_uc_uc(const pcre_uchar *,
+                           const pcre_uchar *);
+extern int               _pcre_strcmp_uc_c8(const pcre_uchar *,
+                           const char *);
+extern int               _pcre_strncmp_uc_uc(const pcre_uchar *,
+                           const pcre_uchar *, unsigned int num);
+extern int               _pcre_strncmp_uc_c8(const pcre_uchar *,
+                           const char *, unsigned int num);
+extern unsigned int      _pcre_strlen_uc(const pcre_uchar *str);
+
+#define STRCMP_UC_UC(str1, str2) \
+  _pcre_strcmp_uc_uc((str1), (str2))
+#define STRCMP_UC_C8(str1, str2) \
+  _pcre_strcmp_uc_c8((str1), (str2))
+#define STRNCMP_UC_UC(str1, str2, num) \
+  _pcre_strncmp_uc_uc((str1), (str2), (num))
+#define STRNCMP_UC_C8(str1, str2, num) \
+  _pcre_strncmp_uc_c8((str1), (str2), (num))
+#define STRLEN_UC(str) _pcre_strlen_uc(str)
+
+#endif /* COMPILE_PCRE8 */
 
 extern const pcre_uchar *_pcre_find_bracket(const pcre_uchar *, BOOL, int);
 extern BOOL              _pcre_is_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,

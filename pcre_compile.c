@@ -1072,7 +1072,7 @@ get_ucp(const pcre_uchar **ptrptr, BOOL *negptr, int *dptr, int *errorcodeptr)
 {
 int c, i, bot, top;
 const pcre_uchar *ptr = *ptrptr;
-char name[32];
+pcre_uchar name[32];
 
 c = *(++ptr);
 if (c == 0) goto ERROR_RETURN;
@@ -1118,7 +1118,7 @@ top = _pcre_utt_size;
 while (bot < top)
   {
   i = (bot + top) >> 1;
-  c = strcmp(name, _pcre_utt_names + _pcre_utt[i].name_offset);
+  c = STRCMP_UC_C8(name, _pcre_utt_names + _pcre_utt[i].name_offset);
   if (c == 0)
     {
     *dptr = _pcre_utt[i].value;
@@ -1324,7 +1324,7 @@ if (ptr[0] == CHAR_LEFT_PARENTHESIS)
       thisname = ptr;
       while (*ptr != term) ptr++;
       if (name != NULL && lorn == ptr - thisname &&
-          strncmp((const char *)name, (const char *)thisname, lorn) == 0)
+          STRNCMP_UC_UC(name, thisname, lorn) == 0)
         return *count;
       term++;
       }
@@ -1367,7 +1367,7 @@ for (; ptr < cd->end_pattern; ptr++)
         {
         if (ptr[2] == CHAR_E)
           ptr+= 2;
-        else if (strncmp((const char *)ptr+2,
+        else if (STRNCMP_UC_C8(ptr + 2,
                  STR_Q STR_BACKSLASH STR_E, 3) == 0)
           ptr += 4;
         else
@@ -2579,7 +2579,7 @@ register int yield = 0;
 while (posix_name_lengths[yield] != 0)
   {
   if (len == posix_name_lengths[yield] &&
-    strncmp((const char *)ptr, pn, len) == 0) return yield;
+    STRNCMP_UC_C8(ptr, pn, len) == 0) return yield;
   pn += posix_name_lengths[yield] + 1;
   yield++;
   }
@@ -2915,7 +2915,7 @@ if ((options & PCRE_EXTENDED) != 0)
 /* If the next thing is itself optional, we have to give up. */
 
 if (*ptr == CHAR_ASTERISK || *ptr == CHAR_QUESTION_MARK ||
-  strncmp((char *)ptr, STR_LEFT_CURLY_BRACKET STR_0 STR_COMMA, 3) == 0)
+  STRNCMP_UC_C8(ptr, STR_LEFT_CURLY_BRACKET STR_0 STR_COMMA, 3) == 0)
     return FALSE;
 
 /* Now compare the next item with the previous opcode. First, handle cases when
@@ -3177,7 +3177,7 @@ switch(op_code)
       to the original \d etc. At this point, ptr will point to a zero byte. */
 
       if (*ptr == CHAR_ASTERISK || *ptr == CHAR_QUESTION_MARK ||
-        strncmp((char *)ptr, STR_LEFT_CURLY_BRACKET STR_0 STR_COMMA, 3) == 0)
+        STRNCMP_UC_C8(ptr, STR_LEFT_CURLY_BRACKET STR_0 STR_COMMA, 3) == 0)
           return FALSE;
 
       /* Do the property check. */
@@ -3617,7 +3617,7 @@ for (;; ptr++)
         {
         if (ptr[1] == CHAR_E)
           ptr++;
-        else if (strncmp((const char *)ptr+1,
+        else if (STRNCMP_UC_C8(ptr + 1,
                           STR_Q STR_BACKSLASH STR_E, 3) == 0)
           ptr += 3;
         else
@@ -5295,7 +5295,7 @@ for (;; ptr++)
       for (i = 0; i < verbcount; i++)
         {
         if (namelen == verbs[i].len &&
-            strncmp((char *)name, vn, namelen) == 0)
+            STRNCMP_UC_C8(name, vn, namelen) == 0)
           {
           /* Check for open captures before ACCEPT and convert it to
           ASSERT_ACCEPT if in an assertion. */
@@ -5519,7 +5519,7 @@ for (;; ptr++)
         slot = cd->name_table;
         for (i = 0; i < cd->names_found; i++)
           {
-          if (strncmp((char *)name, (char *)slot+2, namelen) == 0) break;
+          if (STRNCMP_UC_UC(name, slot+IMM2_SIZE, namelen) == 0) break;
           slot += cd->name_entry_size;
           }
 
@@ -5576,7 +5576,7 @@ for (;; ptr++)
         /* Similarly, check for the (?(DEFINE) "condition", which is always
         false. */
 
-        else if (namelen == 6 && strncmp((char *)name, STRING_DEFINE, 6) == 0)
+        else if (namelen == 6 && STRNCMP_UC_C8(name, STRING_DEFINE, 6) == 0)
           {
           code[1+LINK_SIZE] = OP_DEF;
           skipbytes = 1;
@@ -5894,7 +5894,7 @@ for (;; ptr++)
           slot = cd->name_table;
           for (i = 0; i < cd->names_found; i++)
             {
-            if (strncmp((char *)name, (char *)slot+2, namelen) == 0 &&
+            if (STRNCMP_UC_UC(name, slot+IMM2_SIZE, namelen) == 0 &&
                 slot[2+namelen] == 0)
               break;
             slot += cd->name_entry_size;
@@ -7348,27 +7348,27 @@ while (ptr[skipatstart] == CHAR_LEFT_PARENTHESIS &&
   int newnl = 0;
   int newbsr = 0;
 
-  if (strncmp((char *)(ptr+skipatstart+2), STRING_UTF8_RIGHTPAR, 5) == 0)
+  if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UTF8_RIGHTPAR, 5) == 0)
     { skipatstart += 7; options |= PCRE_UTF8; continue; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_UCP_RIGHTPAR, 4) == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UCP_RIGHTPAR, 4) == 0)
     { skipatstart += 6; options |= PCRE_UCP; continue; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_NO_START_OPT_RIGHTPAR, 13) == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_NO_START_OPT_RIGHTPAR, 13) == 0)
     { skipatstart += 15; options |= PCRE_NO_START_OPTIMIZE; continue; }
 
-  if (strncmp((char *)(ptr+skipatstart+2), STRING_CR_RIGHTPAR, 3) == 0)
+  if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_CR_RIGHTPAR, 3) == 0)
     { skipatstart += 5; newnl = PCRE_NEWLINE_CR; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_LF_RIGHTPAR, 3)  == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_LF_RIGHTPAR, 3)  == 0)
     { skipatstart += 5; newnl = PCRE_NEWLINE_LF; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_CRLF_RIGHTPAR, 5)  == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_CRLF_RIGHTPAR, 5)  == 0)
     { skipatstart += 7; newnl = PCRE_NEWLINE_CR + PCRE_NEWLINE_LF; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_ANY_RIGHTPAR, 4) == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_ANY_RIGHTPAR, 4) == 0)
     { skipatstart += 6; newnl = PCRE_NEWLINE_ANY; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_ANYCRLF_RIGHTPAR, 8) == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_ANYCRLF_RIGHTPAR, 8) == 0)
     { skipatstart += 10; newnl = PCRE_NEWLINE_ANYCRLF; }
 
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_BSR_ANYCRLF_RIGHTPAR, 12) == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_BSR_ANYCRLF_RIGHTPAR, 12) == 0)
     { skipatstart += 14; newbsr = PCRE_BSR_ANYCRLF; }
-  else if (strncmp((char *)(ptr+skipatstart+2), STRING_BSR_UNICODE_RIGHTPAR, 12) == 0)
+  else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_BSR_UNICODE_RIGHTPAR, 12) == 0)
     { skipatstart += 14; newbsr = PCRE_BSR_UNICODE; }
 
   if (newnl != 0)
@@ -7486,7 +7486,7 @@ cd->start_workspace = cworkspace;
 cd->start_code = cworkspace;
 cd->hwm = cworkspace;
 cd->start_pattern = (const pcre_uchar *)pattern;
-cd->end_pattern = (const pcre_uchar *)(pattern + strlen(pattern));
+cd->end_pattern = (const pcre_uchar *)(pattern + STRLEN_UC(pattern));
 cd->req_varyopt = 0;
 cd->external_options = options;
 cd->external_flags = 0;
