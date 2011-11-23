@@ -64,7 +64,7 @@ Returns:      TRUE if character matches, else FALSE
 */
 
 BOOL
-_pcre_xclass(int c, const pcre_uchar *data)
+PRIV(xclass)(int c, const pcre_uchar *data)
 {
 int t;
 BOOL negated = (*data & XCL_NOT) != 0;
@@ -117,7 +117,7 @@ while ((t = *data++) != XCL_END)
       break;
 
       case PT_GC:
-      if ((data[1] == _pcre_ucp_gentype[prop->chartype]) == (t == XCL_PROP))
+      if ((data[1] == PRIV(ucp_gentype)[prop->chartype]) == (t == XCL_PROP))
         return !negated;
       break;
 
@@ -130,28 +130,28 @@ while ((t = *data++) != XCL_END)
       break;
 
       case PT_ALNUM:
-      if ((_pcre_ucp_gentype[prop->chartype] == ucp_L ||
-           _pcre_ucp_gentype[prop->chartype] == ucp_N) == (t == XCL_PROP))
+      if ((PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+           PRIV(ucp_gentype)[prop->chartype] == ucp_N) == (t == XCL_PROP))
         return !negated;
       break;
 
       case PT_SPACE:    /* Perl space */
-      if ((_pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+      if ((PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
            c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR)
              == (t == XCL_PROP))
         return !negated;
       break;
 
       case PT_PXSPACE:  /* POSIX space */
-      if ((_pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+      if ((PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
            c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
            c == CHAR_FF || c == CHAR_CR) == (t == XCL_PROP))
         return !negated;
       break;
 
       case PT_WORD:
-      if ((_pcre_ucp_gentype[prop->chartype] == ucp_L ||
-           _pcre_ucp_gentype[prop->chartype] == ucp_N || c == CHAR_UNDERSCORE)
+      if ((PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+           PRIV(ucp_gentype)[prop->chartype] == ucp_N || c == CHAR_UNDERSCORE)
              == (t == XCL_PROP))
         return !negated;
       break;

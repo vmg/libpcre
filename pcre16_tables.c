@@ -6,7 +6,7 @@
 and semantics are as close as possible to those of the Perl 5 language.
 
                        Written by Philip Hazel
-           Copyright (c) 1997-2009 University of Cambridge
+           Copyright (c) 1997-2011 University of Cambridge
 
 -----------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
@@ -37,51 +37,9 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------------
 */
 
+/* Generate code with 16 bit character support. */
+#define COMPILE_PCRE16
 
-/* This module contains a function for converting any UTF-16 character
-strings to host byte order. */
+#include "pcre_tables.c"
 
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "pcre_internal.h"
-
-int
-pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input, int length, int keep_boms)
-{
-#ifdef SUPPORT_UTF16
-/* This function converts any UTF-16 string to host byte order and optionally removes
-any Byte Order Marks (BOMS). Returns with the remainig length. */
-BOOL same_bo = TRUE;
-PCRE_SPTR16 end = input + length;
-/* The c variable must be unsigned. */
-register uschar c;
-
-while (input < end)
-  {
-  c = *input++;
-  if (c == 0xfeff || c == 0xfffe)
-    {
-    /* Detecting the byte order of the machine is unnecessary, it is
-    enough to know that the UTF-16 string has the same byte order or not. */
-    same_bo = c == 0xfeff;
-    if (keep_boms != 0)
-      *output++ = 0xfeff;
-    else
-      length--;
-    }
-  else
-    *output++ = same_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
-  }
-
-#else
-(void)(output);  /* Keep picky compilers happy */
-(void)(input);
-(void)(keep_boms);
-#endif
-return length;
-}
-
-/* End of pcre16_convert_utf16.c */
+/* End of pcre16_tables.c */

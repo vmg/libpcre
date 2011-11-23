@@ -99,7 +99,7 @@ Returns:           the new block if is is indeed a byte-flipped regex
 */
 
 real_pcre *
-_pcre_try_flipped(const real_pcre *re, real_pcre *internal_re,
+PRIV(try_flipped)(const real_pcre *re, real_pcre *internal_re,
   const pcre_study_data *study, pcre_study_data *internal_study)
 {
 if (byteflip(re->magic_number, sizeof(re->magic_number)) != MAGIC_NUMBER)

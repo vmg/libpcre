@@ -65,7 +65,7 @@ Returns:      0 if both string are equal (like strcmp), 1 otherwise
 */
 
 int
-_pcre_strcmp_uc_uc(const pcre_uchar *str1, const pcre_uchar *str2)
+PRIV(strcmp_uc_uc)(const pcre_uchar *str1, const pcre_uchar *str2)
 {
 pcre_uchar c1;
 pcre_uchar c2;
@@ -82,7 +82,7 @@ return 0;
 }
 
 int
-_pcre_strcmp_uc_c8(const pcre_uchar *str1, const char *str2)
+PRIV(strcmp_uc_c8)(const pcre_uchar *str1, const char *str2)
 {
 const pcre_uint8 *ustr2 = (pcre_uint8 *)str2;
 pcre_uchar c1;
@@ -111,7 +111,7 @@ Returns:      0 if both string are equal (like strcmp), 1 otherwise
 */
 
 int
-_pcre_strncmp_uc_uc(const pcre_uchar *str1, const pcre_uchar *str2, unsigned int num)
+PRIV(strncmp_uc_uc)(const pcre_uchar *str1, const pcre_uchar *str2, unsigned int num)
 {
 pcre_uchar c1;
 pcre_uchar c2;
@@ -128,7 +128,7 @@ return 0;
 }
 
 int
-_pcre_strncmp_uc_c8(const pcre_uchar *str1, const char *str2, unsigned int num)
+PRIV(strncmp_uc_c8)(const pcre_uchar *str1, const char *str2, unsigned int num)
 {
 const pcre_uint8 *ustr2 = (pcre_uint8 *)str2;
 pcre_uchar c1;
@@ -155,7 +155,7 @@ Returns:      length of the string
 */
 
 unsigned int
-_pcre_strlen_uc(const pcre_uchar *str)
+PRIV(strlen_uc)(const pcre_uchar *str)
 {
 unsigned int len = 0;
 while (*str++ != 0)
@@ -165,4 +165,4 @@ return len;
 
 #endif /* COMPILE_PCRE8 */
 
-/* End of pcre_str_utils.c */
+/* End of pcre_string_utils.c */

@@ -1113,16 +1113,16 @@ else
 /* Search for a recognized property name using binary chop */
 
 bot = 0;
-top = _pcre_utt_size;
+top = PRIV(utt_size);
 
 while (bot < top)
   {
   i = (bot + top) >> 1;
-  c = STRCMP_UC_C8(name, _pcre_utt_names + _pcre_utt[i].name_offset);
+  c = STRCMP_UC_C8(name, PRIV(utt_names) + PRIV(utt)[i].name_offset);
   if (c == 0)
     {
-    *dptr = _pcre_utt[i].value;
-    return _pcre_utt[i].type;
+    *dptr = PRIV(utt)[i].value;
+    return PRIV(utt)[i].type;
     }
   if (c > 0) bot = i + 1; else top = i;
   }
@@ -1532,7 +1532,7 @@ for (;;)
     case OP_ASSERTBACK_NOT:
     if (!skipassert) return code;
     do code += GET(code, 1); while (*code == OP_ALT);
-    code += _pcre_OP_lengths[*code];
+    code += PRIV(OP_lengths)[*code];
     break;
 
     case OP_WORD_BOUNDARY:
@@ -1546,7 +1546,7 @@ for (;;)
     case OP_RREF:
     case OP_NRREF:
     case OP_DEF:
-    code += _pcre_OP_lengths[*code];
+    code += PRIV(OP_lengths)[*code];
     break;
 
     default:
@@ -1670,7 +1670,7 @@ for (;;)
     case OP_PRUNE_ARG:
     case OP_SKIP_ARG:
     case OP_THEN_ARG:
-    cc += cc[1] + _pcre_OP_lengths[*cc];
+    cc += cc[1] + PRIV(OP_lengths)[*cc];
     break;
 
     case OP_CALLOUT:
@@ -1697,7 +1697,7 @@ for (;;)
     case OP_SOM:
     case OP_THEN:
     case OP_WORD_BOUNDARY:
-    cc += _pcre_OP_lengths[*cc];
+    cc += PRIV(OP_lengths)[*cc];
     break;
 
     /* Handle literal characters */
@@ -1709,7 +1709,7 @@ for (;;)
     branchlength++;
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -1723,7 +1723,7 @@ for (;;)
     branchlength += GET2(cc,1);
     cc += 4;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -1910,7 +1910,7 @@ Returns:      pointer to the opcode for the bracket, or NULL if not found
 */
 
 const pcre_uchar *
-_pcre_find_bracket(const pcre_uchar *code, BOOL utf8, int number)
+PRIV(find_bracket)(const pcre_uchar *code, BOOL utf8, int number)
 {
 for (;;)
   {
@@ -1929,7 +1929,7 @@ for (;;)
   else if (c == OP_REVERSE)
     {
     if (number < 0) return (pcre_uchar *)code;
-    code += _pcre_OP_lengths[c];
+    code += PRIV(OP_lengths)[c];
     }
 
   /* Handle capturing bracket */
@@ -1939,7 +1939,7 @@ for (;;)
     {
     int n = GET2(code, 1+LINK_SIZE);
     if (n == number) return (pcre_uchar *)code;
-    code += _pcre_OP_lengths[c];
+    code += PRIV(OP_lengths)[c];
     }
 
   /* Otherwise, we can get the item's length from the table, except that for
@@ -1983,7 +1983,7 @@ for (;;)
 
     /* Add in the fixed length from the table */
 
-    code += _pcre_OP_lengths[c];
+    code += PRIV(OP_lengths)[c];
 
   /* In UTF-8 mode, opcodes that are followed by a character may be followed by
   a multi-byte character. The length in the table is a minimum, so we have to
@@ -2020,7 +2020,7 @@ for (;;)
       case OP_MINQUERYI:
       case OP_POSQUERY:
       case OP_POSQUERYI:
-      if (code[-1] >= 0xc0) code += _pcre_utf8_table4[code[-1] & 0x3f];
+      if (code[-1] >= 0xc0) code += PRIV(utf8_table4)[code[-1] & 0x3f];
       break;
       }
 #else
@@ -2102,7 +2102,7 @@ for (;;)
 
     /* Add in the fixed length from the table */
 
-    code += _pcre_OP_lengths[c];
+    code += PRIV(OP_lengths)[c];
 
     /* In UTF-8 mode, opcodes that are followed by a character may be followed
     by a multi-byte character. The length in the table is a minimum, so we have
@@ -2139,7 +2139,7 @@ for (;;)
       case OP_MINQUERYI:
       case OP_POSQUERY:
       case OP_POSQUERYI:
-      if (code[-1] >= 0xc0) code += _pcre_utf8_table4[code[-1] & 0x3f];
+      if (code[-1] >= 0xc0) code += PRIV(utf8_table4)[code[-1] & 0x3f];
       break;
       }
 #else
@@ -2177,9 +2177,9 @@ could_be_empty_branch(const pcre_uchar *code, const pcre_uchar *endcode,
   BOOL utf8, compile_data *cd)
 {
 register int c;
-for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
+for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
      code < endcode;
-     code = first_significant_code(code + _pcre_OP_lengths[c], TRUE))
+     code = first_significant_code(code + PRIV(OP_lengths)[c], TRUE))
   {
   const pcre_uchar *ccode;
 
@@ -2240,7 +2240,7 @@ for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
   if (c == OP_BRAZERO || c == OP_BRAMINZERO || c == OP_SKIPZERO ||
       c == OP_BRAPOSZERO)
     {
-    code += _pcre_OP_lengths[c];
+    code += PRIV(OP_lengths)[c];
     do code += GET(code, 1); while (*code == OP_ALT);
     c = *code;
     continue;
@@ -2296,7 +2296,7 @@ for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
     {
     /* Check for quantifiers after a class. XCLASS is used for classes that
     cannot be represented just by a bit map. This includes negated single
-    high-valued characters. The length in _pcre_OP_lengths[] is zero; the
+    high-valued characters. The length in PRIV(OP_lengths)[] is zero; the
     actual length is stored in the compiled code, so we must update "code"
     here. */
 
@@ -2411,7 +2411,7 @@ for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
     case OP_MINQUERYI:
     case OP_POSQUERY:
     case OP_POSQUERYI:
-    if (utf8 && code[1] >= 0xc0) code += _pcre_utf8_table4[code[1] & 0x3f];
+    if (utf8 && code[1] >= 0xc0) code += PRIV(utf8_table4)[code[1] & 0x3f];
     break;
 
     case OP_UPTO:
@@ -2420,7 +2420,7 @@ for (code = first_significant_code(code + _pcre_OP_lengths[*code], TRUE);
     case OP_MINUPTOI:
     case OP_POSUPTO:
     case OP_POSUPTOI:
-    if (utf8 && code[3] >= 0xc0) code += _pcre_utf8_table4[code[3] & 0x3f];
+    if (utf8 && code[3] >= 0xc0) code += PRIV(utf8_table4)[code[3] & 0x3f];
     break;
 #endif
 
@@ -2784,7 +2784,7 @@ switch(ptype)
           prop->chartype == ucp_Lt) == negated;
 
   case PT_GC:
-  return (pdata == _pcre_ucp_gentype[prop->chartype]) == negated;
+  return (pdata == PRIV(ucp_gentype)[prop->chartype]) == negated;
 
   case PT_PC:
   return (pdata == prop->chartype) == negated;
@@ -2795,23 +2795,23 @@ switch(ptype)
   /* These are specials */
 
   case PT_ALNUM:
-  return (_pcre_ucp_gentype[prop->chartype] == ucp_L ||
-          _pcre_ucp_gentype[prop->chartype] == ucp_N) == negated;
+  return (PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+          PRIV(ucp_gentype)[prop->chartype] == ucp_N) == negated;
 
   case PT_SPACE:    /* Perl space */
-  return (_pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+  return (PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
           c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR)
           == negated;
 
   case PT_PXSPACE:  /* POSIX space */
-  return (_pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+  return (PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
           c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
           c == CHAR_FF || c == CHAR_CR)
           == negated;
 
   case PT_WORD:
-  return (_pcre_ucp_gentype[prop->chartype] == ucp_L ||
-          _pcre_ucp_gentype[prop->chartype] == ucp_N ||
+  return (PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+          PRIV(ucp_gentype)[prop->chartype] == ucp_N ||
           c == CHAR_UNDERSCORE) == negated;
   }
 return FALSE;
@@ -3898,18 +3898,18 @@ for (;; ptr++)
               {
               class_utf8 = TRUE;
               *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += _pcre_ord2utf8(0x1680, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x1680, class_utf8data);
               *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += _pcre_ord2utf8(0x180e, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x180e, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x2000, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x200A, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2000, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x200A, class_utf8data);
               *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += _pcre_ord2utf8(0x202f, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x202f, class_utf8data);
               *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += _pcre_ord2utf8(0x205f, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x205f, class_utf8data);
               *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += _pcre_ord2utf8(0x3000, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x3000, class_utf8data);
               }
 #endif
             continue;
@@ -3933,26 +3933,26 @@ for (;; ptr++)
               {
               class_utf8 = TRUE;
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x0100, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x167f, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x0100, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x167f, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x1681, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x180d, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x1681, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x180d, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x180f, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x1fff, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x180f, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x1fff, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x200B, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x202e, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x200B, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x202e, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x2030, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x205e, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2030, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x205e, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x2060, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x2fff, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2060, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2fff, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x3001, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x7fffffff, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x3001, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x7fffffff, class_utf8data);
               }
 #endif
             continue;
@@ -3968,8 +3968,8 @@ for (;; ptr++)
               {
               class_utf8 = TRUE;
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x2028, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x2029, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2028, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2029, class_utf8data);
               }
 #endif
             continue;
@@ -3996,11 +3996,11 @@ for (;; ptr++)
               {
               class_utf8 = TRUE;
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x0100, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x2027, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x0100, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2027, class_utf8data);
               *class_utf8data++ = XCL_RANGE;
-              class_utf8data += _pcre_ord2utf8(0x2029, class_utf8data);
-              class_utf8data += _pcre_ord2utf8(0x7fffffff, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x2029, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(0x7fffffff, class_utf8data);
               }
 #endif
             continue;
@@ -4178,9 +4178,9 @@ for (;; ptr++)
               else
                 {
                 *class_utf8data++ = XCL_RANGE;
-                class_utf8data += _pcre_ord2utf8(occ, class_utf8data);
+                class_utf8data += PRIV(ord2utf8)(occ, class_utf8data);
                 }
-              class_utf8data += _pcre_ord2utf8(ocd, class_utf8data);
+              class_utf8data += PRIV(ord2utf8)(ocd, class_utf8data);
               }
             }
 #endif  /* SUPPORT_UCP */
@@ -4189,8 +4189,8 @@ for (;; ptr++)
           overlapping ranges. */
 
           *class_utf8data++ = XCL_RANGE;
-          class_utf8data += _pcre_ord2utf8(c, class_utf8data);
-          class_utf8data += _pcre_ord2utf8(d, class_utf8data);
+          class_utf8data += PRIV(ord2utf8)(c, class_utf8data);
+          class_utf8data += PRIV(ord2utf8)(d, class_utf8data);
 
           /* With UCP support, we are done. Without UCP support, there is no
           caseless matching for UTF-8 characters > 127; we can use the bit map
@@ -4244,7 +4244,7 @@ for (;; ptr++)
         {
         class_utf8 = TRUE;
         *class_utf8data++ = XCL_SINGLE;
-        class_utf8data += _pcre_ord2utf8(c, class_utf8data);
+        class_utf8data += PRIV(ord2utf8)(c, class_utf8data);
 
 #ifdef SUPPORT_UCP
         if ((options & PCRE_CASELESS) != 0)
@@ -4253,7 +4253,7 @@ for (;; ptr++)
           if ((othercase = UCD_OTHERCASE(c)) != c)
             {
             *class_utf8data++ = XCL_SINGLE;
-            class_utf8data += _pcre_ord2utf8(othercase, class_utf8data);
+            class_utf8data += PRIV(ord2utf8)(othercase, class_utf8data);
             }
           }
 #endif  /* SUPPORT_UCP */
@@ -4334,7 +4334,7 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF8
       if (utf8 && class_lastchar > 127)
-        mclength = _pcre_ord2utf8(class_lastchar, mcbuffer);
+        mclength = PRIV(ord2utf8)(class_lastchar, mcbuffer);
       else
 #endif
         {
@@ -5180,15 +5180,15 @@ for (;; ptr++)
       int len;
 
       if (*tempcode == OP_TYPEEXACT)
-        tempcode += _pcre_OP_lengths[*tempcode] +
+        tempcode += PRIV(OP_lengths)[*tempcode] +
           ((tempcode[3] == OP_PROP || tempcode[3] == OP_NOTPROP)? 2 : 0);
 
       else if (*tempcode == OP_EXACT || *tempcode == OP_NOTEXACT)
         {
-        tempcode += _pcre_OP_lengths[*tempcode];
+        tempcode += PRIV(OP_lengths)[*tempcode];
 #ifdef SUPPORT_UTF8
         if (utf8 && tempcode[-1] >= 0xc0)
-          tempcode += _pcre_utf8_table4[tempcode[-1] & 0x3f];
+          tempcode += PRIV(utf8_table4)[tempcode[-1] & 0x3f];
 #endif
         }
 
@@ -6010,7 +6010,7 @@ for (;; ptr++)
             {
             *code = OP_END;
             if (recno != 0)
-              called = _pcre_find_bracket(cd->start_code, utf8, recno);
+              called = PRIV(find_bracket)(cd->start_code, utf8, recno);
 
             /* Forward reference */
 
@@ -6551,7 +6551,7 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF8
     if (utf8 && c > 127)
-      mclength = _pcre_ord2utf8(c, mcbuffer);
+      mclength = PRIV(ord2utf8)(c, mcbuffer);
     else
 #endif
 
@@ -6984,7 +6984,7 @@ is_anchored(register const pcre_uchar *code, unsigned int bracket_map,
 {
 do {
    const pcre_uchar *scode = first_significant_code(
-     code + _pcre_OP_lengths[*code], FALSE);
+     code + PRIV(OP_lengths)[*code], FALSE);
    register int op = *scode;
 
    /* Non-capturing brackets */
@@ -7061,7 +7061,7 @@ is_startline(const pcre_uchar *code, unsigned int bracket_map,
 {
 do {
    const pcre_uchar *scode = first_significant_code(
-     code + _pcre_OP_lengths[*code], FALSE);
+     code + PRIV(OP_lengths)[*code], FALSE);
    register int op = *scode;
 
    /* If we are at the start of a conditional assertion group, *both* the
@@ -7072,7 +7072,7 @@ do {
    if (op == OP_COND)
      {
      scode += 1 + LINK_SIZE;
-     if (*scode == OP_CALLOUT) scode += _pcre_OP_lengths[OP_CALLOUT];
+     if (*scode == OP_CALLOUT) scode += PRIV(OP_lengths)[OP_CALLOUT];
      switch (*scode)
        {
        case OP_CREF:
@@ -7325,7 +7325,7 @@ if (erroroffset == NULL)
 
 /* Set up pointers to the individual character tables */
 
-if (tables == NULL) tables = _pcre_default_tables;
+if (tables == NULL) tables = PRIV(default_tables);
 cd->lcc = tables + lcc_offset;
 cd->fcc = tables + fcc_offset;
 cd->cbits = tables + cbits_offset;
@@ -7381,13 +7381,13 @@ while (ptr[skipatstart] == CHAR_LEFT_PARENTHESIS &&
 utf8 = (options & PCRE_UTF8) != 0;
 
 /* Can't support UTF8 unless PCRE has been compiled to include the code. The
-return of an error code from _pcre_valid_utf8() is a new feature, introduced in
+return of an error code from PRIV(valid_utf8)() is a new feature, introduced in
 release 8.13. It is passed back from pcre_[dfa_]exec(), but at the moment is
 not used here. */
 
 #ifdef SUPPORT_UTF8
 if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0 &&
-     (errorcode = _pcre_valid_utf8((PCRE_PUCHAR)pattern, -1, erroroffset)) != 0)
+     (errorcode = PRIV(valid_utf8)((PCRE_PUCHAR)pattern, -1, erroroffset)) != 0)
   {
   errorcode = ERR44;
   goto PCRE_EARLY_ERROR_RETURN2;
@@ -7545,7 +7545,7 @@ re->name_table_offset = sizeof(real_pcre);
 re->name_entry_size = cd->name_entry_size;
 re->name_count = cd->names_found;
 re->ref_count = 0;
-re->tables = (tables == _pcre_default_tables)? NULL : tables;
+re->tables = (tables == PRIV(default_tables))? NULL : tables;
 re->nullpad = NULL;
 
 /* The starting points of the name/number translation table and of the code are
@@ -7605,7 +7605,7 @@ while (errorcode == 0 && cd->hwm > cworkspace)
   cd->hwm -= LINK_SIZE;
   offset = GET(cd->hwm, 0);
   recno = GET(codestart, offset);
-  groupptr = _pcre_find_bracket(codestart, utf8, recno);
+  groupptr = PRIV(find_bracket)(codestart, utf8, recno);
   if (groupptr == NULL) errorcode = ERR53;
     else PUT(((pcre_uchar *)codestart), offset, (int)(groupptr - codestart));
   }
@@ -7632,9 +7632,9 @@ if (cd->check_lookbehind)
   of zero, but that is a pathological case, and it does no harm.) When we find
   one, we temporarily terminate the branch it is in while we scan it. */
 
-  for (cc = (pcre_uchar *)_pcre_find_bracket(codestart, utf8, -1);
+  for (cc = (pcre_uchar *)PRIV(find_bracket)(codestart, utf8, -1);
        cc != NULL;
-       cc = (pcre_uchar *)_pcre_find_bracket(cc, utf8, -1))
+       cc = (pcre_uchar *)PRIV(find_bracket)(cc, utf8, -1))
     {
     if (GET(cc, 1) == 0)
       {

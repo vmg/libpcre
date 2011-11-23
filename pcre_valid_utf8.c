@@ -103,7 +103,7 @@ Returns:       = 0    if the string is a valid UTF-8 string
 */
 
 int
-_pcre_valid_utf8(PCRE_PUCHAR string, int length, int *erroroffset)
+PRIV(valid_utf8)(PCRE_PUCHAR string, int length, int *erroroffset)
 {
 #ifdef SUPPORT_UTF8
 register PCRE_PUCHAR p;
@@ -133,7 +133,7 @@ for (p = string; length-- > 0; p++)
     return PCRE_UTF8_ERR21;
     }
 
-  ab = _pcre_utf8_table4[c & 0x3f];     /* Number of additional bytes */
+  ab = PRIV(utf8_table4)[c & 0x3f];     /* Number of additional bytes */
   if (length < ab)
     {
     *erroroffset = p - string;          /* Missing bytes */

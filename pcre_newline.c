@@ -73,7 +73,7 @@ Returns:       TRUE or FALSE
 */
 
 BOOL
-_pcre_is_newline(PCRE_PUCHAR ptr, int type, PCRE_PUCHAR endptr, int *lenptr,
+PRIV(is_newline)(PCRE_PUCHAR ptr, int type, PCRE_PUCHAR endptr, int *lenptr,
   BOOL utf8)
 {
 int c;
@@ -123,7 +123,7 @@ Returns:       TRUE or FALSE
 */
 
 BOOL
-_pcre_was_newline(PCRE_PUCHAR ptr, int type, PCRE_PUCHAR startptr, int *lenptr,
+PRIV(was_newline)(PCRE_PUCHAR ptr, int type, PCRE_PUCHAR startptr, int *lenptr,
   BOOL utf8)
 {
 int c;

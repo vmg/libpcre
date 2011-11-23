@@ -189,7 +189,7 @@ libpcre_la_SOURCES = \
   pcre_newline.c \
   pcre_ord2utf8.c \
   pcre_refcount.c \
-  pcre_str_utils.c \
+  pcre_string_utils.c \
   pcre_study.c \
   pcre_tables.c \
   pcre_try_flipped.c \
@@ -209,9 +209,16 @@ endif # WITH_PCRE8
 if WITH_PCRE16
 lib_LTLIBRARIES += libpcre16.la
 libpcre16_la_SOURCES = \
-  pcre_str_utils.c \
+  pcre16_chartables.c \
   pcre16_compile.c \
-  pcre16_convert_utf16.c \
+  pcre16_exec.c \
+  pcre16_jit_compile.c \
+  pcre16_newline.c \
+  pcre16_string_utils.c \
+  pcre16_study.c \
+  pcre16_tables.c \
+  pcre16_try_flipped.c \
+  pcre16_utf16_utils.c \
   pcre16_valid_utf16.c
 
 ## This file is generated as part of the building process, so don't distribute.

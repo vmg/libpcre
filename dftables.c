@@ -114,7 +114,7 @@ fprintf(f,
   "#endif\n\n"
   "#include \"pcre_internal.h\"\n\n");
 fprintf(f,
-  "const unsigned char _pcre_default_tables[] = {\n\n"
+  "const pcre_uint8 PRIV(default_tables)[] = {\n\n"
   "/* This table is a lower casing table. */\n\n");
 
 fprintf(f, "  ");

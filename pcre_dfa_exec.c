@@ -1024,7 +1024,7 @@ for (;;)
           break;
 
           case PT_GC:
-          OK = _pcre_ucp_gentype[prop->chartype] == code[2];
+          OK = PRIV(ucp_gentype)[prop->chartype] == code[2];
           break;
 
           case PT_PC:
@@ -1038,24 +1038,24 @@ for (;;)
           /* These are specials for combination cases. */
 
           case PT_ALNUM:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N;
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N;
           break;
 
           case PT_SPACE:    /* Perl space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_PXSPACE:  /* POSIX space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
                c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_WORD:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N ||
                c == CHAR_UNDERSCORE;
           break;
 
@@ -1218,7 +1218,7 @@ for (;;)
           break;
 
           case PT_GC:
-          OK = _pcre_ucp_gentype[prop->chartype] == code[3];
+          OK = PRIV(ucp_gentype)[prop->chartype] == code[3];
           break;
 
           case PT_PC:
@@ -1232,24 +1232,24 @@ for (;;)
           /* These are specials for combination cases. */
 
           case PT_ALNUM:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N;
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N;
           break;
 
           case PT_SPACE:    /* Perl space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_PXSPACE:  /* POSIX space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
                c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_WORD:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N ||
                c == CHAR_UNDERSCORE;
           break;
 
@@ -1465,7 +1465,7 @@ for (;;)
           break;
 
           case PT_GC:
-          OK = _pcre_ucp_gentype[prop->chartype] == code[3];
+          OK = PRIV(ucp_gentype)[prop->chartype] == code[3];
           break;
 
           case PT_PC:
@@ -1479,24 +1479,24 @@ for (;;)
           /* These are specials for combination cases. */
 
           case PT_ALNUM:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N;
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N;
           break;
 
           case PT_SPACE:    /* Perl space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_PXSPACE:  /* POSIX space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
                c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_WORD:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N ||
                c == CHAR_UNDERSCORE;
           break;
 
@@ -1737,7 +1737,7 @@ for (;;)
           break;
 
           case PT_GC:
-          OK = _pcre_ucp_gentype[prop->chartype] == code[5];
+          OK = PRIV(ucp_gentype)[prop->chartype] == code[5];
           break;
 
           case PT_PC:
@@ -1751,24 +1751,24 @@ for (;;)
           /* These are specials for combination cases. */
 
           case PT_ALNUM:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N;
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N;
           break;
 
           case PT_SPACE:    /* Perl space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_PXSPACE:  /* POSIX space */
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
                c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
                c == CHAR_FF || c == CHAR_CR;
           break;
 
           case PT_WORD:
-          OK = _pcre_ucp_gentype[prop->chartype] == ucp_L ||
-               _pcre_ucp_gentype[prop->chartype] == ucp_N ||
+          OK = PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+               PRIV(ucp_gentype)[prop->chartype] == ucp_N ||
                c == CHAR_UNDERSCORE;
           break;
 
@@ -2440,7 +2440,7 @@ for (;;)
         else
          {
          ecode = code + GET(code, 1);
-         if (clen > 0) isinclass = _pcre_xclass(c, code + 1 + LINK_SIZE);
+         if (clen > 0) isinclass = PRIV(xclass)(c, code + 1 + LINK_SIZE);
          }
 
         /* At this point, isinclass is set for all kinds of class, and ecode
@@ -2566,7 +2566,7 @@ for (;;)
             if ((rrc = (*pcre_callout)(&cb)) < 0) return rrc;   /* Abandon */
             }
           if (rrc > 0) break;                      /* Fail this thread */
-          code += _pcre_OP_lengths[OP_CALLOUT];    /* Skip callout data */
+          code += PRIV(OP_lengths)[OP_CALLOUT];    /* Skip callout data */
           }
 
         condcode = code[LINK_SIZE+1];
@@ -2899,7 +2899,7 @@ for (;;)
         if ((rrc = (*pcre_callout)(&cb)) < 0) return rrc;   /* Abandon */
         }
       if (rrc == 0)
-        { ADD_ACTIVE(state_offset + _pcre_OP_lengths[OP_CALLOUT], 0); }
+        { ADD_ACTIVE(state_offset + PRIV(OP_lengths)[OP_CALLOUT], 0); }
       break;
 
 
@@ -3059,7 +3059,7 @@ study data too. */
 
 if (re->magic_number != MAGIC_NUMBER)
   {
-  re = _pcre_try_flipped(re, &internal_re, study, &internal_study);
+  re = PRIV(try_flipped)(re, &internal_re, study, &internal_study);
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   if (study != NULL) study = &internal_study;
   }
@@ -3148,7 +3148,7 @@ back the character offset. */
 if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
-  int errorcode = _pcre_valid_utf8((pcre_uchar *)subject, length, &erroroffset);
+  int errorcode = PRIV(valid_utf8)((pcre_uchar *)subject, length, &erroroffset);
   if (errorcode != 0)
     {
     if (offsetcount >= 2)
@@ -3169,7 +3169,7 @@ if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
 is a feature that makes it possible to save compiled regex and re-use them
 in other programs later. */
 
-if (md->tables == NULL) md->tables = _pcre_default_tables;
+if (md->tables == NULL) md->tables = PRIV(default_tables);
 
 /* The lower casing table and the "must be at the start of a line" flag are
 used in a loop when finding where to start. */

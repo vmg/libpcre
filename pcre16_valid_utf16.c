@@ -66,7 +66,7 @@ PCRE_UTF16_ERR0  No error
 PCRE_UTF16_ERR1  Missing low surrogate at the end of the string
 PCRE_UTF16_ERR2  Invalid low surrogate
 PCRE_UTF16_ERR3  Isolated low surrogate
-PCRE_UTF16_ERR4  Not allowed character.
+PCRE_UTF16_ERR4  Not allowed character
 
 Arguments:
   string       points to the string
@@ -78,7 +78,7 @@ Returns:       = 0    if the string is a valid UTF-16 string
 */
 
 int
-_pcre16_valid_utf16(PCRE_PUCHAR string, int length, int *erroroffset)
+PRIV(valid_utf16)(PCRE_PUCHAR string, int length, int *erroroffset)
 {
 #ifdef SUPPORT_UTF16
 register PCRE_PUCHAR p;

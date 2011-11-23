@@ -90,9 +90,9 @@ if (!utf8 || (c & 0xc0) != 0xc0)
 else
   {
   int i;
-  int a = _pcre_utf8_table4[c & 0x3f];  /* Number of additional bytes */
+  int a = PRIV(utf8_table4)[c & 0x3f];  /* Number of additional bytes */
   int s = 6*a;
-  c = (c & _pcre_utf8_table3[a]) << s;
+  c = (c & PRIV(utf8_table3)[a]) << s;
   for (i = 1; i <= a; i++)
     {
     /* This is a check for malformed UTF-8; it should only occur if the sanity
@@ -127,11 +127,11 @@ get_ucpname(int ptype, int pvalue)
 {
 #ifdef SUPPORT_UCP
 int i;
-for (i = _pcre_utt_size - 1; i >= 0; i--)
+for (i = PRIV(utt_size) - 1; i >= 0; i--)
   {
-  if (ptype == _pcre_utt[i].type && pvalue == _pcre_utt[i].value) break;
+  if (ptype == PRIV(utt)[i].type && pvalue == PRIV(utt)[i].value) break;
   }
-return (i >= 0)? _pcre_utt_names + _pcre_utt[i].name_offset : "??";
+return (i >= 0)? PRIV(utt_names) + PRIV(utt)[i].name_offset : "??";
 #else
 /* It gets harder and harder to shut off unwanted compiler warnings. */
 ptype = ptype * pvalue;
@@ -193,19 +193,19 @@ for(;;)
     {
 /* ========================================================================== */
       /* These cases are never obeyed. This is a fudge that causes a compile-
-      time error if the vectors OP_names or _pcre_OP_lengths, which are indexed
+      time error if the vectors OP_names or PRIV(OP_lengths), which are indexed
       by opcode, are not the correct length. It seems to be the only way to do
       such a check at compile time, as the sizeof() operator does not work in
       the C preprocessor. We do this while compiling pcretest, because that
-      #includes pcre_tables.c, which holds _pcre_OP_lengths. We can't do this
+      #includes pcre_tables.c, which holds PRIV(OP_lengths). We can't do this
       when building pcre_compile.c with PCRE_DEBUG set, because it doesn't then
-      know the size of _pcre_OP_lengths. */
+      know the size of PRIV(OP_lengths). */
 
 #ifdef COMPILING_PCRETEST
       case OP_TABLE_LENGTH:
       case OP_TABLE_LENGTH +
         ((sizeof(OP_names)/sizeof(const char *) == OP_TABLE_LENGTH) &&
-        (sizeof(_pcre_OP_lengths) == OP_TABLE_LENGTH)):
+        (sizeof(PRIV(OP_lengths)) == OP_TABLE_LENGTH)):
       break;
 #endif
 /* ========================================================================== */
@@ -445,7 +445,7 @@ for(;;)
     /* Fall through */
     case OP_REF:
     fprintf(f, " %s \\%d", flag, GET2(code,1));
-    ccode = code + _pcre_OP_lengths[*code];
+    ccode = code + PRIV(OP_lengths)[*code];
     goto CLASS_REF_REPEAT;
 
     case OP_CALLOUT:
@@ -558,7 +558,7 @@ for(;;)
         case OP_CRQUERY:
         case OP_CRMINQUERY:
         fprintf(f, "%s", OP_names[*ccode]);
-        extra += _pcre_OP_lengths[*ccode];
+        extra += PRIV(OP_lengths)[*ccode];
         break;
 
         case OP_CRRANGE:
@@ -568,7 +568,7 @@ for(;;)
         if (max == 0) fprintf(f, "{%d,}", min);
         else fprintf(f, "{%d,%d}", min, max);
         if (*ccode == OP_CRMINRANGE) fprintf(f, "?");
-        extra += _pcre_OP_lengths[*ccode];
+        extra += PRIV(OP_lengths)[*ccode];
         break;
 
         /* Do nothing if it's not a repeat; this code stops picky compilers
@@ -608,7 +608,7 @@ for(;;)
     break;
     }
 
-  code += _pcre_OP_lengths[*code] + extra;
+  code += PRIV(OP_lengths)[*code] + extra;
   fprintf(f, "\n");
   }
 }

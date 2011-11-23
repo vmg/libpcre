@@ -40,7 +40,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /* This header contains definitions that are shared between the different
 modules, but which are not relevant to the exported API. This includes some
-functions whose names all begin with "_pcre_". */
+functions whose names all begin with "_pcre_" or "_pcre16_" depending on
+the PRIV macro. */
 
 #ifndef PCRE_INTERNAL_H
 #define PCRE_INTERNAL_H
@@ -251,7 +252,7 @@ start/end of string field names are. */
 #define IS_NEWLINE(p) \
   ((NLBLOCK->nltype != NLTYPE_FIXED)? \
     ((p) < NLBLOCK->PSEND && \
-     _pcre_is_newline((p), NLBLOCK->nltype, NLBLOCK->PSEND, &(NLBLOCK->nllen),\
+     PRIV(is_newline)((p), NLBLOCK->nltype, NLBLOCK->PSEND, &(NLBLOCK->nllen),\
        utf8)) \
     : \
     ((p) <= NLBLOCK->PSEND - NLBLOCK->nllen && \
@@ -265,7 +266,7 @@ start/end of string field names are. */
 #define WAS_NEWLINE(p) \
   ((NLBLOCK->nltype != NLTYPE_FIXED)? \
     ((p) > NLBLOCK->PSSTART && \
-     _pcre_was_newline((p), NLBLOCK->nltype, NLBLOCK->PSSTART, \
+     PRIV(was_newline)((p), NLBLOCK->nltype, NLBLOCK->PSSTART, \
        &(NLBLOCK->nllen), utf8)) \
     : \
     ((p) >= NLBLOCK->PSSTART + NLBLOCK->nllen && \
@@ -359,6 +360,8 @@ The macros are controlled by the value of LINK_SIZE. This defaults to 2 in
 the config.h file, but can be overridden by using -D on the command line. This
 is automated on Unix systems via the "configure" command. */
 
+#ifdef COMPILE_PCRE8
+
 #if LINK_SIZE == 2
 
 #define PUT(a,n,d)   \
@@ -395,13 +398,51 @@ is automated on Unix systems via the "configure" command. */
 #define GET(a,n) \
   (((a)[n] << 24) | ((a)[(n)+1] << 16) | ((a)[(n)+2] << 8) | (a)[(n)+3])
 
-#define MAX_PATTERN_SIZE (1 << 30)   /* Keep it positive */
-
+/* Keep it positive */
+#define MAX_PATTERN_SIZE (1 << 30)
 
 #else
 #error LINK_SIZE must be either 2, 3, or 4
 #endif
 
+#else /* COMPILE_PCRE8 */
+
+#ifdef COMPILE_PCRE16
+
+#if LINK_SIZE == 2
+
+#undef LINK_SIZE
+#define LINK_SIZE 1
+
+#define PUT(a,n,d)   \
+  (a[n] = (d))
+
+#define GET(a,n) \
+  (a[n])
+
+#define MAX_PATTERN_SIZE (1 << 16)
+
+#elif LINK_SIZE == 3 || LINK_SIZE == 4
+
+#define PUT(a,n,d)   \
+  (a[n] = (d) >> 16), \
+  (a[(n)+1] = (d) & 65536)
+
+#define GET(a,n) \
+  (((a)[n] << 16) | (a)[(n)+1])
+
+/* Keep it positive */
+#define MAX_PATTERN_SIZE (1 << 30)
+
+#else
+#error LINK_SIZE must be either 2, 3, or 4
+#endif
+
+#else
+#error Unsupported compiling mode
+#endif /* COMPILE_PCRE16 */
+
+#endif /* COMPILE_PCRE8 */
 
 /* Convenience macro defined in terms of the others */
 
@@ -423,8 +464,9 @@ capturing parenthesis numbers in back references. */
 #define GET2(a,n) \
   (((a)[n] << 8) | (a)[(n)+1])
 
+#else /* COMPILE_PCRE8 */
 
-#elif defined(COMPILE_PCRE16)
+#ifdef COMPILE_PCRE16
 
 #define IMM2_SIZE 1
 
@@ -436,6 +478,8 @@ capturing parenthesis numbers in back references. */
 
 #else
 #error Unsupported compiling mode
+#endif /* COMPILE_PCRE16 */
+
 #endif /* COMPILE_PCRE8 */
 
 #define PUT2INC(a,n,d)  PUT2(a,n,d), a += IMM2_SIZE
@@ -459,7 +503,7 @@ UTF-8 support is omitted, we don't even define them. */
 #else   /* SUPPORT_UTF8 */
 
 /* These macros were originally written in the form of loops that used data
-from the tables whose names start with _pcre_utf8_table. They were rewritten by
+from the tables whose names start with PRIV(utf8_table). They were rewritten by
 a user so as not to use loops, because in some environments this gives a
 significant performance advantage, and it seems never to do any harm. */
 
@@ -1929,6 +1973,18 @@ total length. */
 #define ctypes_offset (cbits_offset + cbit_length)
 #define tables_length (ctypes_offset + 256)
 
+/* Internal function prefix */
+
+#ifdef COMPILE_PCRE8
+#define PRIV(name) _pcre_##name
+#else
+#ifdef COMPILE_PCRE16
+#define PRIV(name) _pcre16_##name
+#else
+#error Unsupported compiling mode
+#endif /* COMPILE_PCRE16 */
+#endif /* COMPILE_PCRE8 */
+
 /* Layout of the UCP type table that translates property names into types and
 codes. Each entry used to point directly to a name, but to reduce the number of
 relocations in shared libraries, it now has an offset into a single string
@@ -1946,20 +2002,20 @@ of the exported public functions. They have to be "external" in the C sense,
 but are not part of the PCRE public API. The data for these tables is in the
 pcre_tables.c module. */
 
-extern const int            _pcre_utf8_table1[];
-extern const int            _pcre_utf8_table2[];
-extern const int            _pcre_utf8_table3[];
-extern const pcre_uint8     _pcre_utf8_table4[];
+extern const int            PRIV(utf8_table1)[];
+extern const int            PRIV(utf8_table2)[];
+extern const int            PRIV(utf8_table3)[];
+extern const pcre_uint8     PRIV(utf8_table4)[];
 
-extern const int            _pcre_utf8_table1_size;
+extern const int            PRIV(utf8_table1_size);
 
-extern const char           _pcre_utt_names[];
-extern const ucp_type_table _pcre_utt[];
-extern const int            _pcre_utt_size;
+extern const char           PRIV(utt_names)[];
+extern const ucp_type_table PRIV(utt)[];
+extern const int            PRIV(utt_size);
 
-extern const pcre_uint8     _pcre_default_tables[];
+extern const pcre_uint8     PRIV(default_tables)[];
 
-extern const pcre_uint8     _pcre_OP_lengths[];
+extern const pcre_uint8     PRIV(OP_lengths)[];
 
 
 /* Internal shared functions. These are functions that are used by more than
@@ -1981,48 +2037,48 @@ sense, but are not part of the PCRE public API. */
 
 #else
 
-extern int               _pcre_strcmp_uc_uc(const pcre_uchar *,
+extern int               PRIV(strcmp_uc_uc)(const pcre_uchar *,
                            const pcre_uchar *);
-extern int               _pcre_strcmp_uc_c8(const pcre_uchar *,
+extern int               PRIV(strcmp_uc_c8)(const pcre_uchar *,
                            const char *);
-extern int               _pcre_strncmp_uc_uc(const pcre_uchar *,
+extern int               PRIV(strncmp_uc_uc)(const pcre_uchar *,
                            const pcre_uchar *, unsigned int num);
-extern int               _pcre_strncmp_uc_c8(const pcre_uchar *,
+extern int               PRIV(strncmp_uc_c8)(const pcre_uchar *,
                            const char *, unsigned int num);
-extern unsigned int      _pcre_strlen_uc(const pcre_uchar *str);
+extern unsigned int      PRIV(strlen_uc)(const pcre_uchar *str);
 
 #define STRCMP_UC_UC(str1, str2) \
-  _pcre_strcmp_uc_uc((str1), (str2))
+  PRIV(strcmp_uc_uc)((str1), (str2))
 #define STRCMP_UC_C8(str1, str2) \
-  _pcre_strcmp_uc_c8((str1), (str2))
+  PRIV(strcmp_uc_c8)((str1), (str2))
 #define STRNCMP_UC_UC(str1, str2, num) \
-  _pcre_strncmp_uc_uc((str1), (str2), (num))
+  PRIV(strncmp_uc_uc)((str1), (str2), (num))
 #define STRNCMP_UC_C8(str1, str2, num) \
-  _pcre_strncmp_uc_c8((str1), (str2), (num))
-#define STRLEN_UC(str) _pcre_strlen_uc(str)
+  PRIV(strncmp_uc_c8)((str1), (str2), (num))
+#define STRLEN_UC(str) PRIV(strlen_uc)(str)
 
 #endif /* COMPILE_PCRE8 */
 
-extern const pcre_uchar *_pcre_find_bracket(const pcre_uchar *, BOOL, int);
-extern BOOL              _pcre_is_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,
+extern const pcre_uchar *PRIV(find_bracket)(const pcre_uchar *, BOOL, int);
+extern BOOL              PRIV(is_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
-extern int               _pcre_ord2utf8(int, pcre_uint8 *);
-extern real_pcre        *_pcre_try_flipped(const real_pcre *, real_pcre *,
+extern int               PRIV(ord2utf8)(int, pcre_uint8 *);
+extern real_pcre        *PRIV(try_flipped)(const real_pcre *, real_pcre *,
                            const pcre_study_data *, pcre_study_data *);
 #ifndef COMPILE_PCRE16
-extern int               _pcre_valid_utf8(PCRE_PUCHAR, int, int *);
+extern int               PRIV(valid_utf8)(PCRE_PUCHAR, int, int *);
 #else
-extern int               _pcre16_valid_utf16(PCRE_PUCHAR, int, int *);
+extern int               PRIV(valid_utf16)(PCRE_PUCHAR, int, int *);
 #endif
-extern BOOL              _pcre_was_newline(PCRE_PUCHAR, int, PCRE_PUCHAR,
+extern BOOL              PRIV(was_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
-extern BOOL              _pcre_xclass(int, const pcre_uchar *);
+extern BOOL              PRIV(xclass)(int, const pcre_uchar *);
 
 #ifdef SUPPORT_JIT
-extern void              _pcre_jit_compile(const real_pcre *, pcre_extra *);
-extern int               _pcre_jit_exec(const real_pcre *, void *, PCRE_SPTR,
+extern void              PRIV(jit_compile)(const real_pcre *, pcre_extra *);
+extern int               PRIV(jit_exec)(const real_pcre *, void *, PCRE_SPTR,
                            int, int, int, int, int *, int);
-extern void              _pcre_jit_free(void *);
+extern void              PRIV(jit_free)(void *);
 #endif
 
 /* Unicode character database (UCD) */
@@ -2033,24 +2089,24 @@ typedef struct {
   pcre_int32 other_case;
 } ucd_record;
 
-extern const ucd_record  _pcre_ucd_records[];
-extern const pcre_uint8  _pcre_ucd_stage1[];
-extern const pcre_uint16 _pcre_ucd_stage2[];
-extern const int         _pcre_ucp_gentype[];
+extern const ucd_record  PRIV(ucd_records)[];
+extern const pcre_uint8  PRIV(ucd_stage1)[];
+extern const pcre_uint16 PRIV(ucd_stage2)[];
+extern const int         PRIV(ucp_gentype)[];
 #ifdef SUPPORT_JIT
-extern const int         _pcre_ucp_typerange[];
+extern const int         PRIV(ucp_typerange)[];
 #endif
 
 /* UCD access macros */
 
 #define UCD_BLOCK_SIZE 128
-#define GET_UCD(ch) (_pcre_ucd_records + \
-        _pcre_ucd_stage2[_pcre_ucd_stage1[(ch) / UCD_BLOCK_SIZE] * \
+#define GET_UCD(ch) (PRIV(ucd_records) + \
+        PRIV(ucd_stage2)[PRIV(ucd_stage1)[(ch) / UCD_BLOCK_SIZE] * \
         UCD_BLOCK_SIZE + (ch) % UCD_BLOCK_SIZE])
 
 #define UCD_CHARTYPE(ch)  GET_UCD(ch)->chartype
 #define UCD_SCRIPT(ch)    GET_UCD(ch)->script
-#define UCD_CATEGORY(ch)  _pcre_ucp_gentype[UCD_CHARTYPE(ch)]
+#define UCD_CATEGORY(ch)  PRIV(ucp_gentype)[UCD_CHARTYPE(ch)]
 #define UCD_OTHERCASE(ch) (ch + GET_UCD(ch)->other_case)
 
 #endif

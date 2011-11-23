@@ -373,7 +373,7 @@ the start pointers when the end of the capturing group has not yet reached. */
 #define OVECTOR_START    (8 * sizeof(sljit_w))
 #define OVECTOR(i)       (OVECTOR_START + (i) * sizeof(sljit_w))
 #define OVECTOR_PRIV(i)  (common->cbraptr + (i) * sizeof(sljit_w))
-#define PRIV(cc)         (common->localptrs[(cc) - common->start])
+#define PRIV_DATA(cc)    (common->localptrs[(cc) - common->start])
 
 /* Shortcuts. */
 #define DEFINE_COMPILER \
@@ -522,7 +522,7 @@ switch(*cc)
   case OP_NOTPOSQUERYI:
   cc += 2;
 #ifdef SUPPORT_UTF8
-  if (common->utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+  if (common->utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
   return cc;
 
@@ -544,7 +544,7 @@ switch(*cc)
   case OP_NOTPOSUPTOI:
   cc += 4;
 #ifdef SUPPORT_UTF8
-  if (common->utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+  if (common->utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
   return cc;
 
@@ -938,7 +938,7 @@ while (status != end)
       case OP_SBRAPOS:
       case OP_SCOND:
       count = 1;
-      srcw[0] = PRIV(cc);
+      srcw[0] = PRIV_DATA(cc);
       SLJIT_ASSERT(srcw[0] != 0);
       cc += 1 + LINK_SIZE;
       break;
@@ -954,7 +954,7 @@ while (status != end)
       case OP_SCBRAPOS:
       count = 2;
       srcw[1] = OVECTOR_PRIV(GET2(cc, 1 + LINK_SIZE));
-      srcw[0] = PRIV(cc);
+      srcw[0] = PRIV_DATA(cc);
       SLJIT_ASSERT(srcw[0] != 0);
       cc += 1 + LINK_SIZE + 2;
       break;
@@ -965,7 +965,7 @@ while (status != end)
       if (*alternative == OP_KETRMAX || *alternative == OP_KETRMIN)
         {
         count = 1;
-        srcw[0] = PRIV(cc);
+        srcw[0] = PRIV_DATA(cc);
         SLJIT_ASSERT(srcw[0] != 0);
         }
       cc += 1 + LINK_SIZE;
@@ -1320,7 +1320,7 @@ if (!ispowerof2(bit))
 #ifdef SUPPORT_UTF8
 if (common->utf8 && c > 127)
   {
-  n = _pcre_utf8_table4[*cc & 0x3f];
+  n = PRIV(utf8_table4)[*cc & 0x3f];
   while ((bit & 0x3f) == 0)
     {
     n--;
@@ -1565,7 +1565,7 @@ sljit_emit_fast_return(compiler, RETURN_ADDR, 0);
 JUMPHERE(jump);
 
 /* We only have types for characters less than 256. */
-OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP2), (sljit_w)_pcre_utf8_table4 - 0xc0);
+OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP2), (sljit_w)PRIV(utf8_table4) - 0xc0);
 OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
 OP1(SLJIT_MOV, TMP1, 0, SLJIT_IMM, 0);
 sljit_emit_fast_return(compiler, RETURN_ADDR, 0);
@@ -1589,13 +1589,13 @@ SLJIT_ASSERT(UCD_BLOCK_SIZE == 128 && sizeof(ucd_record) == 8);
 
 sljit_emit_fast_enter(compiler, RETURN_ADDR, 0, 1, 5, 5, common->localsize);
 OP2(SLJIT_LSHR, TMP2, 0, TMP1, 0, SLJIT_IMM, UCD_BLOCK_SHIFT);
-OP1(SLJIT_MOV_UB, TMP2, 0, SLJIT_MEM1(TMP2), (sljit_w)_pcre_ucd_stage1);
+OP1(SLJIT_MOV_UB, TMP2, 0, SLJIT_MEM1(TMP2), (sljit_w)PRIV(ucd_stage1));
 OP2(SLJIT_AND, TMP1, 0, TMP1, 0, SLJIT_IMM, UCD_BLOCK_MASK);
 OP2(SLJIT_SHL, TMP2, 0, TMP2, 0, SLJIT_IMM, UCD_BLOCK_SHIFT);
 OP2(SLJIT_ADD, TMP1, 0, TMP1, 0, TMP2, 0);
-OP1(SLJIT_MOV, TMP2, 0, SLJIT_IMM, (sljit_w)_pcre_ucd_stage2);
+OP1(SLJIT_MOV, TMP2, 0, SLJIT_IMM, (sljit_w)PRIV(ucd_stage2));
 OP1(SLJIT_MOV_UH, TMP2, 0, SLJIT_MEM2(TMP2, TMP1), 1);
-OP1(SLJIT_MOV, TMP1, 0, SLJIT_IMM, (sljit_w)_pcre_ucd_records + SLJIT_OFFSETOF(ucd_record, chartype));
+OP1(SLJIT_MOV, TMP1, 0, SLJIT_IMM, (sljit_w)PRIV(ucd_records) + SLJIT_OFFSETOF(ucd_record, chartype));
 OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM2(TMP1, TMP2), 3);
 sljit_emit_fast_return(compiler, RETURN_ADDR, 0);
 }
@@ -1687,7 +1687,7 @@ OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
 if (common->utf8)
   {
   singlebyte = CMP(SLJIT_C_LESS, TMP1, 0, SLJIT_IMM, 0xc0);
-  OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)_pcre_utf8_table4 - 0xc0);
+  OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
   OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
   JUMPHERE(singlebyte);
   }
@@ -1748,7 +1748,7 @@ OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
 if (common->utf8)
   {
   CMPTO(SLJIT_C_LESS, TMP1, 0, SLJIT_IMM, 0xc0, start);
-  OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)_pcre_utf8_table4 - 0xc0);
+  OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
   OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
   }
 #endif
@@ -1875,7 +1875,7 @@ OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
 if (common->utf8)
   {
   CMPTO(SLJIT_C_LESS, TMP1, 0, SLJIT_IMM, 0xc0, start);
-  OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)_pcre_utf8_table4 - 0xc0);
+  OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
   OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
   }
 #endif
@@ -2287,7 +2287,7 @@ if (context->sourcereg == -1)
 #ifdef SUPPORT_UTF8
 utf8length = 1;
 if (common->utf8 && *cc >= 0xc0)
-  utf8length += _pcre_utf8_table4[*cc & 0x3f];
+  utf8length += PRIV(utf8_table4)[*cc & 0x3f];
 
 do
   {
@@ -2449,7 +2449,7 @@ while (*cc != XCL_END)
     {
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (common->utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (common->utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
 #ifdef SUPPORT_UCP
     needschar = TRUE;
@@ -2459,11 +2459,11 @@ while (*cc != XCL_END)
     {
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (common->utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (common->utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     cc++;
 #ifdef SUPPORT_UTF8
-    if (common->utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (common->utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
 #ifdef SUPPORT_UCP
     needschar = TRUE;
@@ -2533,13 +2533,13 @@ if (needstype || needsscript)
     {
     if (scriptreg == TMP1)
       {
-      OP1(SLJIT_MOV, scriptreg, 0, SLJIT_IMM, (sljit_w)_pcre_ucd_records + SLJIT_OFFSETOF(ucd_record, script));
+      OP1(SLJIT_MOV, scriptreg, 0, SLJIT_IMM, (sljit_w)PRIV(ucd_records) + SLJIT_OFFSETOF(ucd_record, script));
       OP1(SLJIT_MOV_UB, scriptreg, 0, SLJIT_MEM2(scriptreg, TMP2), 3);
       }
     else
       {
       OP2(SLJIT_SHL, TMP2, 0, TMP2, 0, SLJIT_IMM, 3);
-      OP2(SLJIT_ADD, TMP2, 0, TMP2, 0, SLJIT_IMM, (sljit_w)_pcre_ucd_records + SLJIT_OFFSETOF(ucd_record, script));
+      OP2(SLJIT_ADD, TMP2, 0, TMP2, 0, SLJIT_IMM, (sljit_w)PRIV(ucd_records) + SLJIT_OFFSETOF(ucd_record, script));
       OP1(SLJIT_MOV_UB, scriptreg, 0, SLJIT_MEM1(TMP2), 0);
       }
     }
@@ -2660,9 +2660,9 @@ while (*cc != XCL_END)
       break;
 
       case PT_GC:
-      c = _pcre_ucp_typerange[(int)cc[1] * 2];
+      c = PRIV(ucp_typerange)[(int)cc[1] * 2];
       SET_TYPE_OFFSET(c);
-      jump = CMP(SLJIT_C_LESS_EQUAL ^ invertcmp, typereg, 0, SLJIT_IMM, _pcre_ucp_typerange[(int)cc[1] * 2 + 1] - c);
+      jump = CMP(SLJIT_C_LESS_EQUAL ^ invertcmp, typereg, 0, SLJIT_IMM, PRIV(ucp_typerange)[(int)cc[1] * 2 + 1] - c);
       break;
 
       case PT_PC:
@@ -2806,7 +2806,7 @@ switch(type)
     OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
     OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
     jump[0] = CMP(SLJIT_C_LESS, TMP1, 0, SLJIT_IMM, 0xc0);
-    OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)_pcre_utf8_table4 - 0xc0);
+    OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
     OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
     JUMPHERE(jump[0]);
     return cc;
@@ -3021,7 +3021,7 @@ switch(type)
   case OP_CHARI:
   length = 1;
 #ifdef SUPPORT_UTF8
-  if (common->utf8 && *cc >= 0xc0) length += _pcre_utf8_table4[*cc & 0x3f];
+  if (common->utf8 && *cc >= 0xc0) length += PRIV(utf8_table4)[*cc & 0x3f];
 #endif
   if (type == OP_CHAR || !char_has_othercase(common, cc) || char_get_othercase_bit(common, cc) != 0)
     {
@@ -3058,7 +3058,7 @@ switch(type)
 #ifdef SUPPORT_UTF8
   if (common->utf8)
     {
-    if (*cc >= 0xc0) length += _pcre_utf8_table4[*cc & 0x3f];
+    if (*cc >= 0xc0) length += PRIV(utf8_table4)[*cc & 0x3f];
 
     check_input_end(common, fallbacks);
     GETCHAR(c, cc);
@@ -3077,7 +3077,7 @@ switch(type)
       /* Skip the variable-length character. */
       OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
       jump[0] = CMP(SLJIT_C_LESS, TMP1, 0, SLJIT_IMM, 0xc0);
-      OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)_pcre_utf8_table4 - 0xc0);
+      OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
       OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
       JUMPHERE(jump[0]);
       return cc + length;
@@ -3192,7 +3192,7 @@ do
     size = 1;
 #ifdef SUPPORT_UTF8
     if (common->utf8 && cc[1] >= 0xc0)
-      size += _pcre_utf8_table4[cc[1] & 0x3f];
+      size += PRIV(utf8_table4)[cc[1] & 0x3f];
 #endif
     }
   else if (*cc == OP_CHARI)
@@ -3204,7 +3204,7 @@ do
       if (char_has_othercase(common, cc + 1) && char_get_othercase_bit(common, cc + 1) == 0)
         size = 0;
       else if (cc[1] >= 0xc0)
-        size += _pcre_utf8_table4[cc[1] & 0x3f];
+        size += PRIV(utf8_table4)[cc[1] & 0x3f];
       }
     else
 #endif
@@ -3557,7 +3557,7 @@ if (*cc == OP_BRAZERO || *cc == OP_BRAMINZERO)
   bra = *cc;
   cc++;
   }
-localptr = PRIV(cc);
+localptr = PRIV_DATA(cc);
 SLJIT_ASSERT(localptr != 0);
 framesize = get_framesize(common, cc, FALSE);
 fallback->framesize = framesize;
@@ -4043,7 +4043,7 @@ if (opcode == OP_CBRA || opcode == OP_SCBRA)
 else if (opcode == OP_ONCE || opcode == OP_SBRA || opcode == OP_SCOND)
   {
   /* Other brackets simply allocate the next entry. */
-  localptr = PRIV(ccbegin);
+  localptr = PRIV_DATA(ccbegin);
   SLJIT_ASSERT(localptr != 0);
   FALLBACK_AS(bracket_fallback)->localptr = localptr;
   if (opcode == OP_ONCE)
@@ -4429,7 +4429,7 @@ if (*cc == OP_BRAPOSZERO)
   }
 
 opcode = *cc;
-localptr = PRIV(cc);
+localptr = PRIV_DATA(cc);
 SLJIT_ASSERT(localptr != 0);
 FALLBACK_AS(bracketpos_fallback)->localptr = localptr;
 switch(opcode)
@@ -4709,7 +4709,7 @@ if (end != NULL)
   {
   *end = cc + 1;
 #ifdef SUPPORT_UTF8
-  if (common->utf8 && *cc >= 0xc0) *end += _pcre_utf8_table4[*cc & 0x3f];
+  if (common->utf8 && *cc >= 0xc0) *end += PRIV(utf8_table4)[*cc & 0x3f];
 #endif
   }
 return cc;
@@ -6088,7 +6088,7 @@ sljit_emit_fast_return(compiler, SLJIT_MEM1(STACK_TOP), 0);
 #undef CURRENT_AS
 
 void
-_pcre_jit_compile(const real_pcre *re, pcre_extra *extra)
+PRIV(jit_compile)(const real_pcre *re, pcre_extra *extra)
 {
 struct sljit_compiler *compiler;
 fallback_common rootfallback;
@@ -6111,7 +6111,7 @@ SLJIT_ASSERT((extra->flags & PCRE_EXTRA_STUDY_DATA) != 0);
 study = extra->study_data;
 
 if (!tables)
-  tables = _pcre_default_tables;
+  tables = PRIV(default_tables);
 
 memset(&rootfallback, 0, sizeof(fallback_common));
 rootfallback.cc = (pcre_uchar *)re + re->name_table_offset + re->name_count * re->name_entry_size;
@@ -6467,7 +6467,7 @@ return convert_executable_func.call_executable_func(arguments);
 }
 
 int
-_pcre_jit_exec(const real_pcre *re, void *executable_func,
+PRIV(jit_exec)(const real_pcre *re, void *executable_func,
   PCRE_SPTR subject, int length, int start_offset, int options,
   int match_limit, int *offsets, int offsetcount)
 {
@@ -6523,7 +6523,7 @@ return retval;
 }
 
 void
-_pcre_jit_free(void *executable_func)
+PRIV(jit_free)(void *executable_func)
 {
 executable_function *function = (executable_function*)executable_func;
 sljit_free_code(function->executable_func);

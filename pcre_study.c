@@ -189,7 +189,7 @@ for (;;)
     case OP_DOLLM:
     case OP_NOT_WORD_BOUNDARY:
     case OP_WORD_BOUNDARY:
-    cc += _pcre_OP_lengths[*cc];
+    cc += PRIV(OP_lengths)[*cc];
     break;
 
     /* Skip over a subpattern that has a {0} or {0,x} quantifier */
@@ -198,7 +198,7 @@ for (;;)
     case OP_BRAMINZERO:
     case OP_BRAPOSZERO:
     case OP_SKIPZERO:
-    cc += _pcre_OP_lengths[*cc];
+    cc += PRIV(OP_lengths)[*cc];
     do cc += GET(cc, 1); while (*cc == OP_ALT);
     cc += 1 + LINK_SIZE;
     break;
@@ -224,7 +224,7 @@ for (;;)
     branchlength++;
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -245,7 +245,7 @@ for (;;)
     branchlength += GET2(cc,1);
     cc += 4;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -308,14 +308,14 @@ for (;;)
     case OP_TYPEPOSSTAR:
     case OP_TYPEPOSQUERY:
     if (cc[1] == OP_PROP || cc[1] == OP_NOTPROP) cc += 2;
-    cc += _pcre_OP_lengths[op];
+    cc += PRIV(OP_lengths)[op];
     break;
 
     case OP_TYPEUPTO:
     case OP_TYPEMINUPTO:
     case OP_TYPEPOSUPTO:
     if (cc[3] == OP_PROP || cc[3] == OP_NOTPROP) cc += 2;
-    cc += _pcre_OP_lengths[op];
+    cc += PRIV(OP_lengths)[op];
     break;
 
     /* Check a class for variable quantification */
@@ -372,7 +372,7 @@ for (;;)
     case OP_REFI:
     if ((options & PCRE_JAVASCRIPT_COMPAT) == 0)
       {
-      ce = cs = (pcre_uchar *)_pcre_find_bracket(startcode, utf8, GET2(cc, 1));
+      ce = cs = (pcre_uchar *)PRIV(find_bracket)(startcode, utf8, GET2(cc, 1));
       if (cs == NULL) return -2;
       do ce += GET(ce, 1); while (*ce == OP_ALT);
       if (cc > cs && cc < ce)
@@ -482,9 +482,9 @@ for (;;)
     case OP_NOTPOSQUERY:
     case OP_NOTPOSQUERYI:
 
-    cc += _pcre_OP_lengths[op];
+    cc += PRIV(OP_lengths)[op];
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += _pcre_utf8_table4[cc[-1] & 0x3f];
+    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -494,7 +494,7 @@ for (;;)
     case OP_PRUNE_ARG:
     case OP_SKIP_ARG:
     case OP_THEN_ARG:
-    cc += _pcre_OP_lengths[op] + cc[1];
+    cc += PRIV(OP_lengths)[op] + cc[1];
     break;
 
     /* The remaining opcodes are just skipped over. */
@@ -506,7 +506,7 @@ for (;;)
     case OP_SET_SOM:
     case OP_SKIP:
     case OP_THEN:
-    cc += _pcre_OP_lengths[op];
+    cc += PRIV(OP_lengths)[op];
     break;
 
     /* This should not occur: we list all opcodes explicitly so that when
@@ -557,7 +557,7 @@ if (utf8 && c > 127)
     {
     pcre_uint8 buff[8];
     c = UCD_OTHERCASE(c);
-    (void)_pcre_ord2utf8(c, buff);
+    (void)PRIV(ord2utf8)(c, buff);
     SET_BIT(buff[0]);
     }
 #endif
@@ -605,7 +605,7 @@ for (c = 128; c < 256; c++)
   if ((cd->cbits[c/8] & (1 << (c&7))) != 0)
     {
     pcre_uint8 buff[8];
-    (void)_pcre_ord2utf8(c, buff);
+    (void)PRIV(ord2utf8)(c, buff);
     SET_BIT(buff[0]);
     }
   }
@@ -1346,7 +1346,7 @@ if (bits_set || min > 0
 
 #ifdef SUPPORT_JIT
   extra->executable_jit = NULL;
-  if ((options & PCRE_STUDY_JIT_COMPILE) != 0) _pcre_jit_compile(re, extra);
+  if ((options & PCRE_STUDY_JIT_COMPILE) != 0) PRIV(jit_compile)(re, extra);
   if (study->flags == 0 && (extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) == 0)
     {
     pcre_free_study(extra);
@@ -1375,7 +1375,7 @@ pcre_free_study(pcre_extra *extra)
 #ifdef SUPPORT_JIT
 if ((extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) != 0 &&
      extra->executable_jit != NULL)
-  _pcre_jit_free(extra->executable_jit);
+  PRIV(jit_free)(extra->executable_jit);
 #endif
 pcre_free(extra);
 }

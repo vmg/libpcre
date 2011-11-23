@@ -81,7 +81,7 @@ if (extra_data != NULL && (extra_data->flags & PCRE_EXTRA_STUDY_DATA) != 0)
 
 if (re->magic_number != MAGIC_NUMBER)
   {
-  re = _pcre_try_flipped(re, &internal_re, study, &internal_study);
+  re = PRIV(try_flipped)(re, &internal_re, study, &internal_study);
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   if (study != NULL) study = &internal_study;
   }
@@ -153,7 +153,7 @@ switch (what)
   break;
 
   case PCRE_INFO_DEFAULT_TABLES:
-  *((const pcre_uint8 **)where) = (const pcre_uint8 *)(_pcre_default_tables);
+  *((const pcre_uint8 **)where) = (const pcre_uint8 *)(PRIV(default_tables));
   break;
 
   /* From release 8.00 this will always return TRUE because NOPARTIAL is

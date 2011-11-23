@@ -702,7 +702,7 @@ for (;;)
     {
     case OP_MARK:
     markptr = ecode + 2;
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode] + ecode[1], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode] + ecode[1], offset_top, md,
       eptrb, RM55);
 
     /* A return of MATCH_SKIP_ARG means that matching failed at SKIP with an
@@ -728,7 +728,7 @@ for (;;)
     /* COMMIT overrides PRUNE, SKIP, and THEN */
 
     case OP_COMMIT:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
       eptrb, RM52);
     if (rrc != MATCH_NOMATCH && rrc != MATCH_PRUNE &&
         rrc != MATCH_SKIP && rrc != MATCH_SKIP_ARG &&
@@ -739,13 +739,13 @@ for (;;)
     /* PRUNE overrides THEN */
 
     case OP_PRUNE:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
       eptrb, RM51);
     if (rrc != MATCH_NOMATCH && rrc != MATCH_THEN) RRETURN(rrc);
     MRRETURN(MATCH_PRUNE);
 
     case OP_PRUNE_ARG:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode] + ecode[1], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode] + ecode[1], offset_top, md,
       eptrb, RM56);
     if (rrc != MATCH_NOMATCH && rrc != MATCH_THEN) RRETURN(rrc);
     md->mark = ecode + 2;
@@ -754,7 +754,7 @@ for (;;)
     /* SKIP overrides PRUNE and THEN */
 
     case OP_SKIP:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
       eptrb, RM53);
     if (rrc != MATCH_NOMATCH && rrc != MATCH_PRUNE && rrc != MATCH_THEN)
       RRETURN(rrc);
@@ -762,7 +762,7 @@ for (;;)
     MRRETURN(MATCH_SKIP);
 
     case OP_SKIP_ARG:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode] + ecode[1], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode] + ecode[1], offset_top, md,
       eptrb, RM57);
     if (rrc != MATCH_NOMATCH && rrc != MATCH_PRUNE && rrc != MATCH_THEN)
       RRETURN(rrc);
@@ -780,14 +780,14 @@ for (;;)
     match pointer to do this. */
 
     case OP_THEN:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
       eptrb, RM54);
     if (rrc != MATCH_NOMATCH) RRETURN(rrc);
     md->start_match_ptr = ecode;
     MRRETURN(MATCH_THEN);
 
     case OP_THEN_ARG:
-    RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode] + ecode[1], offset_top,
+    RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode] + ecode[1], offset_top,
       md, eptrb, RM58);
     if (rrc != MATCH_NOMATCH) RRETURN(rrc);
     md->start_match_ptr = ecode;
@@ -916,7 +916,7 @@ for (;;)
       for (;;)
         {
         if (op >= OP_SBRA) md->match_function_type = MATCH_CBEGROUP;
-        RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+        RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
           eptrb, RM1);
         if (rrc == MATCH_ONCE) break;  /* Backing up through an atomic group */
 
@@ -1004,13 +1004,13 @@ for (;;)
 
       else if (!md->hasthen && ecode[GET(ecode, 1)] != OP_ALT)
         {
-        ecode += _pcre_OP_lengths[*ecode];
+        ecode += PRIV(OP_lengths)[*ecode];
         goto TAIL_RECURSE;
         }
 
       /* In all other cases, we have to make another call to match(). */
 
-      RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md, eptrb,
+      RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md, eptrb,
         RM2);
 
       /* See comment in the code for capturing groups above about handling
@@ -1094,7 +1094,7 @@ for (;;)
         md->offset_vector[md->offset_end - number] =
           (int)(eptr - md->start_subject);
         if (op >= OP_SBRA) md->match_function_type = MATCH_CBEGROUP;
-        RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+        RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
           eptrb, RM63);
         if (rrc == MATCH_KETRPOS)
           {
@@ -1167,7 +1167,7 @@ for (;;)
     for (;;)
       {
       if (op >= OP_SBRA) md->match_function_type = MATCH_CBEGROUP;
-      RMATCH(eptr, ecode + _pcre_OP_lengths[*ecode], offset_top, md,
+      RMATCH(eptr, ecode + PRIV(OP_lengths)[*ecode], offset_top, md,
         eptrb, RM48);
       if (rrc == MATCH_KETRPOS)
         {
@@ -1236,7 +1236,7 @@ for (;;)
         if ((rrc = (*pcre_callout)(&cb)) > 0) MRRETURN(MATCH_NOMATCH);
         if (rrc < 0) RRETURN(rrc);
         }
-      ecode += _pcre_OP_lengths[OP_CALLOUT];
+      ecode += PRIV(OP_lengths)[OP_CALLOUT];
       }
 
     condcode = ecode[LINK_SIZE+1];
@@ -1718,7 +1718,7 @@ for (;;)
       do
         {
         if (cbegroup) md->match_function_type = MATCH_CBEGROUP;
-        RMATCH(eptr, callpat + _pcre_OP_lengths[*callpat], offset_top,
+        RMATCH(eptr, callpat + PRIV(OP_lengths)[*callpat], offset_top,
           md, eptrb, RM6);
         memcpy(md->offset_vector, new_recursive.offset_save,
             new_recursive.saved_max * sizeof(int));
@@ -2478,7 +2478,7 @@ for (;;)
         break;
 
         case PT_GC:
-        if ((ecode[2] != _pcre_ucp_gentype[prop->chartype]) == (op == OP_PROP))
+        if ((ecode[2] != PRIV(ucp_gentype)[prop->chartype]) == (op == OP_PROP))
           MRRETURN(MATCH_NOMATCH);
         break;
 
@@ -2495,20 +2495,20 @@ for (;;)
         /* These are specials */
 
         case PT_ALNUM:
-        if ((_pcre_ucp_gentype[prop->chartype] == ucp_L ||
-             _pcre_ucp_gentype[prop->chartype] == ucp_N) == (op == OP_NOTPROP))
+        if ((PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+             PRIV(ucp_gentype)[prop->chartype] == ucp_N) == (op == OP_NOTPROP))
           MRRETURN(MATCH_NOMATCH);
         break;
 
         case PT_SPACE:    /* Perl space */
-        if ((_pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+        if ((PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
              c == CHAR_HT || c == CHAR_NL || c == CHAR_FF || c == CHAR_CR)
                == (op == OP_NOTPROP))
           MRRETURN(MATCH_NOMATCH);
         break;
 
         case PT_PXSPACE:  /* POSIX space */
-        if ((_pcre_ucp_gentype[prop->chartype] == ucp_Z ||
+        if ((PRIV(ucp_gentype)[prop->chartype] == ucp_Z ||
              c == CHAR_HT || c == CHAR_NL || c == CHAR_VT ||
              c == CHAR_FF || c == CHAR_CR)
                == (op == OP_NOTPROP))
@@ -2516,8 +2516,8 @@ for (;;)
         break;
 
         case PT_WORD:
-        if ((_pcre_ucp_gentype[prop->chartype] == ucp_L ||
-             _pcre_ucp_gentype[prop->chartype] == ucp_N ||
+        if ((PRIV(ucp_gentype)[prop->chartype] == ucp_L ||
+             PRIV(ucp_gentype)[prop->chartype] == ucp_N ||
              c == CHAR_UNDERSCORE) == (op == OP_NOTPROP))
           MRRETURN(MATCH_NOMATCH);
         break;
@@ -2949,7 +2949,7 @@ for (;;)
           MRRETURN(MATCH_NOMATCH);
           }
         GETCHARINCTEST(c, eptr);
-        if (!_pcre_xclass(c, data)) MRRETURN(MATCH_NOMATCH);
+        if (!PRIV(xclass)(c, data)) MRRETURN(MATCH_NOMATCH);
         }
 
       /* If max == min we can continue with the main loop without the
@@ -2973,7 +2973,7 @@ for (;;)
             MRRETURN(MATCH_NOMATCH);
             }
           GETCHARINCTEST(c, eptr);
-          if (!_pcre_xclass(c, data)) MRRETURN(MATCH_NOMATCH);
+          if (!PRIV(xclass)(c, data)) MRRETURN(MATCH_NOMATCH);
           }
         /* Control never gets here */
         }
@@ -2992,7 +2992,7 @@ for (;;)
             break;
             }
           GETCHARLENTEST(c, eptr, len);
-          if (!_pcre_xclass(c, data)) break;
+          if (!PRIV(xclass)(c, data)) break;
           eptr += len;
           }
         for(;;)
@@ -3184,7 +3184,7 @@ for (;;)
         unsigned int othercase;
         if (op >= OP_STARI &&     /* Caseless */
             (othercase = UCD_OTHERCASE(fc)) != fc)
-          oclength = _pcre_ord2utf8(othercase, occhars);
+          oclength = PRIV(ord2utf8)(othercase, occhars);
         else oclength = 0;
 #endif  /* SUPPORT_UCP */
 
@@ -5983,7 +5983,7 @@ code for an invalid string if a results vector is available. */
 if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
-  int errorcode = _pcre_valid_utf8((PCRE_PUCHAR)subject, length, &erroroffset);
+  int errorcode = PRIV(valid_utf8)((PCRE_PUCHAR)subject, length, &erroroffset);
   if (errorcode != 0)
     {
     if (offsetcount >= 2)
@@ -6015,7 +6015,7 @@ if (extra_data != NULL
     && (extra_data->flags & PCRE_EXTRA_TABLES) == 0
     && (options & ~(PCRE_NO_UTF8_CHECK | PCRE_NOTBOL | PCRE_NOTEOL |
                     PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART)) == 0)
-  return _pcre_jit_exec(re, extra_data->executable_jit, subject, length,
+  return PRIV(jit_exec)(re, extra_data->executable_jit, subject, length,
     start_offset, options, ((extra_data->flags & PCRE_EXTRA_MATCH_LIMIT) == 0)
     ? MATCH_LIMIT : extra_data->match_limit, offsets, offsetcount);
 #endif
@@ -6057,7 +6057,7 @@ if (extra_data != NULL)
 is a feature that makes it possible to save compiled regex and re-use them
 in other programs later. */
 
-if (tables == NULL) tables = _pcre_default_tables;
+if (tables == NULL) tables = PRIV(default_tables);
 
 /* Check that the first field in the block is the magic number. If it is not,
 test for a regex that was compiled on a host of opposite endianness. If this is
@@ -6066,7 +6066,7 @@ study data too. */
 
 if (re->magic_number != MAGIC_NUMBER)
   {
-  re = _pcre_try_flipped(re, &internal_re, study, &internal_study);
+  re = PRIV(try_flipped)(re, &internal_re, study, &internal_study);
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   if (study != NULL) study = &internal_study;
   }

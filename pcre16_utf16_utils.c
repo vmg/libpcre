@@ -38,9 +38,8 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-/* This module contains the external function pcre_info(), which gives some
-information about a compiled pattern. However, use of this function is now
-deprecated, as it has been superseded by pcre_fullinfo(). */
+/* This module contains a function for converting any UTF-16 character
+strings to host byte order. */
 
 
 #ifdef HAVE_CONFIG_H
@@ -49,45 +48,40 @@ deprecated, as it has been superseded by pcre_fullinfo(). */
 
 #include "pcre_internal.h"
 
-
-/*************************************************
-* (Obsolete) Return info about compiled pattern  *
-*************************************************/
-
-/* This is the original "info" function. It picks potentially useful data out
-of the private structure, but its interface was too rigid. It remains for
-backwards compatibility. The public options are passed back in an int - though
-the re->options field has been expanded to a long int, all the public options
-at the low end of it, and so even on 16-bit systems this will still be OK.
-Therefore, I haven't changed the API for pcre_info().
-
-Arguments:
-  argument_re   points to compiled code
-  optptr        where to pass back the options
-  first_byte    where to pass back the first character,
-                or -1 if multiline and all branches start ^,
-                or -2 otherwise
-
-Returns:        number of capturing subpatterns
-                or negative values on error
-*/
-
-PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
-pcre_info(const pcre *argument_re, int *optptr, int *first_byte)
+int
+pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input, int length, int keep_boms)
 {
-real_pcre internal_re;
-const real_pcre *re = (const real_pcre *)argument_re;
-if (re == NULL) return PCRE_ERROR_NULL;
-if (re->magic_number != MAGIC_NUMBER)
+#ifdef SUPPORT_UTF16
+/* This function converts any UTF-16 string to host byte order and optionally removes
+any Byte Order Marks (BOMS). Returns with the remainig length. */
+BOOL same_bo = TRUE;
+PCRE_SPTR16 end = input + length;
+/* The c variable must be unsigned. */
+register uschar c;
+
+while (input < end)
   {
-  re = PRIV(try_flipped)(re, &internal_re, NULL, NULL);
-  if (re == NULL) return PCRE_ERROR_BADMAGIC;
+  c = *input++;
+  if (c == 0xfeff || c == 0xfffe)
+    {
+    /* Detecting the byte order of the machine is unnecessary, it is
+    enough to know that the UTF-16 string has the same byte order or not. */
+    same_bo = c == 0xfeff;
+    if (keep_boms != 0)
+      *output++ = 0xfeff;
+    else
+      length--;
+    }
+  else
+    *output++ = same_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
   }
-if (optptr != NULL) *optptr = (int)(re->options & PUBLIC_COMPILE_OPTIONS);
-if (first_byte != NULL)
-  *first_byte = ((re->flags & PCRE_FIRSTSET) != 0)? re->first_byte :
-     ((re->flags & PCRE_STARTLINE) != 0)? -1 : -2;
-return re->top_bracket;
+
+#else
+(void)(output);  /* Keep picky compilers happy */
+(void)(input);
+(void)(keep_boms);
+#endif
+return length;
 }
 
-/* End of pcre_info.c */
+/* End of pcre16_utf16_utils.c */

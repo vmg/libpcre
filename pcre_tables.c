@@ -54,7 +54,7 @@ clashes with the library. */
 /* Table of sizes for the fixed-length opcodes. It's defined in a macro so that
 the definition is next to the definition of the opcodes in pcre_internal.h. */
 
-const pcre_uint8 _pcre_OP_lengths[] = { OP_LENGTHS };
+const pcre_uint8 PRIV(OP_lengths)[] = { OP_LENGTHS };
 
 
 
@@ -67,21 +67,21 @@ character. */
 
 #ifdef SUPPORT_UTF8
 
-const int _pcre_utf8_table1[] =
+const int PRIV(utf8_table1)[] =
   { 0x7f, 0x7ff, 0xffff, 0x1fffff, 0x3ffffff, 0x7fffffff};
 
-const int _pcre_utf8_table1_size = sizeof(_pcre_utf8_table1)/sizeof(int);
+const int PRIV(utf8_table1_size) = sizeof(PRIV(utf8_table1)) / sizeof(int);
 
 /* These are the indicator bits and the mask for the data bits to set in the
 first byte of a character, indexed by the number of additional bytes. */
 
-const int _pcre_utf8_table2[] = { 0,    0xc0, 0xe0, 0xf0, 0xf8, 0xfc};
-const int _pcre_utf8_table3[] = { 0xff, 0x1f, 0x0f, 0x07, 0x03, 0x01};
+const int PRIV(utf8_table2)[] = { 0,    0xc0, 0xe0, 0xf0, 0xf8, 0xfc};
+const int PRIV(utf8_table3)[] = { 0xff, 0x1f, 0x0f, 0x07, 0x03, 0x01};
 
 /* Table of the number of extra bytes, indexed by the first byte masked with
 0x3f. The highest number for a valid UTF-8 first byte is in fact 0x3d. */
 
-const pcre_uint8 _pcre_utf8_table4[] = {
+const pcre_uint8 PRIV(utf8_table4)[] = {
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
   2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
@@ -89,7 +89,7 @@ const pcre_uint8 _pcre_utf8_table4[] = {
 
 /* Table to translate from particular type value to the general value. */
 
-const int _pcre_ucp_gentype[] = {
+const int PRIV(ucp_gentype)[] = {
   ucp_C, ucp_C, ucp_C, ucp_C, ucp_C,  /* Cc, Cf, Cn, Co, Cs */
   ucp_L, ucp_L, ucp_L, ucp_L, ucp_L,  /* Ll, Lu, Lm, Lo, Lt */
   ucp_M, ucp_M, ucp_M,                /* Mc, Me, Mn */
@@ -101,10 +101,10 @@ const int _pcre_ucp_gentype[] = {
 };
 
 #ifdef SUPPORT_JIT
-/* This table reverses _pcre_ucp_gentype. We can save the cost
+/* This table reverses PRIV(ucp_gentype). We can save the cost
 of a memory load. */
 
-const int _pcre_ucp_typerange[] = {
+const int PRIV(ucp_typerange)[] = {
   ucp_Cc, ucp_Cs,
   ucp_Ll, ucp_Lu,
   ucp_Mc, ucp_Mn,
@@ -271,7 +271,7 @@ strings to make sure that UTF-8 support works on EBCDIC platforms. */
 #define STRING_Zp0 STR_Z STR_p "\0"
 #define STRING_Zs0 STR_Z STR_s "\0"
 
-const char _pcre_utt_names[] =
+const char PRIV(utt_names)[] =
   STRING_Any0
   STRING_Arabic0
   STRING_Armenian0
@@ -411,7 +411,7 @@ const char _pcre_utt_names[] =
   STRING_Zp0
   STRING_Zs0;
 
-const ucp_type_table _pcre_utt[] = {
+const ucp_type_table PRIV(utt)[] = {
   {   0, PT_ANY, 0 },
   {   4, PT_SC, ucp_Arabic },
   {  11, PT_SC, ucp_Armenian },
@@ -552,7 +552,7 @@ const ucp_type_table _pcre_utt[] = {
   { 961, PT_PC, ucp_Zs }
 };
 
-const int _pcre_utt_size = sizeof(_pcre_utt)/sizeof(ucp_type_table);
+const int PRIV(utt_size) = sizeof(PRIV(utt)) / sizeof(ucp_type_table);
 
 #endif  /* SUPPORT_UTF8 */
 
