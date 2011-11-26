@@ -77,7 +77,7 @@ print_char(FILE *f, pcre_uchar *ptr, BOOL utf8)
 int c = *ptr;
 
 #ifndef SUPPORT_UTF8
-utf8 = utf8;  /* Avoid compiler warning */
+(void)utf8;  /* Avoid compiler warning */
 if (PRINTABLE(c)) fprintf(f, "%c", c); else fprintf(f, "\\x%02x", c);
 return 0;
 
@@ -116,7 +116,19 @@ else
 #endif
 }
 
+/*************************************************
+*  Print uchar string (regardless of utf8)       *
+*************************************************/
 
+static void
+print_puchar(FILE *f, PCRE_PUCHAR ptr)
+{
+while (*ptr != '\0')
+  {
+  register int c = *ptr++;
+  if (PRINTABLE(c)) fprintf(f, "%c", c); else fprintf(f, "\\x{%x}", c);
+  }
+}
 
 /*************************************************
 *          Find Unicode property name            *
@@ -583,17 +595,14 @@ for(;;)
     case OP_MARK:
     case OP_PRUNE_ARG:
     case OP_SKIP_ARG:
-    fprintf(f, "    %s %s", OP_names[*code], code + 2);
+    case OP_THEN_ARG:
+    fprintf(f, "    %s ", OP_names[*code]);
+    print_puchar(f, code + 2);
     extra += code[1];
     break;
 
     case OP_THEN:
     fprintf(f, "    %s", OP_names[*code]);
-    break;
-
-    case OP_THEN_ARG:
-    fprintf(f, "    %s %s", OP_names[*code], code + 2);
-    extra += code[1];
     break;
 
     case OP_CIRCM:

@@ -3419,7 +3419,7 @@ for (;; ptr++)
       {
       if (previous > orig_code)
         {
-        memmove(orig_code, previous, code - previous);
+        memmove(orig_code, previous, IN_UCHARS(code - previous));
         code -= previous - orig_code;
         previous = orig_code;
         }
@@ -4484,7 +4484,7 @@ for (;; ptr++)
     
     if (*previous == OP_RECURSE)
       {
-      memmove(previous + 1 + LINK_SIZE, previous, 1 + LINK_SIZE);
+      memmove(previous + 1 + LINK_SIZE, previous, IN_UCHARS(1 + LINK_SIZE));
       *previous = OP_ONCE;
       PUT(previous, 1, 2 + 2*LINK_SIZE);
       previous[2 + 2*LINK_SIZE] = OP_KET;
@@ -4862,7 +4862,7 @@ for (;; ptr++)
           {
           *code = OP_END;
           adjust_recurse(previous, 1, utf8, cd, save_hwm);
-          memmove(previous+1, previous, len);
+          memmove(previous + 1, previous, IN_UCHARS(len));
           code++;
           if (repeat_max == 0)
             {
@@ -4886,7 +4886,7 @@ for (;; ptr++)
           int offset;
           *code = OP_END;
           adjust_recurse(previous, 2 + LINK_SIZE, utf8, cd, save_hwm);
-          memmove(previous + 2 + LINK_SIZE, previous, len);
+          memmove(previous + 2 + LINK_SIZE, previous, IN_UCHARS(len));
           code += 2 + LINK_SIZE;
           *previous++ = OP_BRAZERO + repeat_type;
           *previous++ = OP_BRA;
@@ -4941,7 +4941,7 @@ for (;; ptr++)
               {
               pcre_uchar *hc;
               pcre_uchar *this_hwm = cd->hwm;
-              memcpy(code, previous, len);
+              memcpy(code, previous, IN_UCHARS(len));
               for (hc = save_hwm; hc < this_hwm; hc += LINK_SIZE)
                 {
                 PUT(cd->hwm, 0, GET(hc, 0) + len);
@@ -5008,7 +5008,7 @@ for (;; ptr++)
             PUTINC(code, 0, offset);
             }
 
-          memcpy(code, previous, len);
+          memcpy(code, previous, IN_UCHARS(len));
           for (hc = save_hwm; hc < this_hwm; hc += LINK_SIZE)
             {
             PUT(cd->hwm, 0, GET(hc, 0) + len + ((i != 0)? 2+LINK_SIZE : 1));
@@ -5111,7 +5111,7 @@ for (;; ptr++)
               int nlen = (int)(code - bracode);
               *code = OP_END;
               adjust_recurse(bracode, 1 + LINK_SIZE, utf8, cd, save_hwm);
-              memmove(bracode + 1+LINK_SIZE, bracode, nlen);
+              memmove(bracode + 1 + LINK_SIZE, bracode, IN_UCHARS(nlen));
               code += 1 + LINK_SIZE;
               nlen += 1 + LINK_SIZE;
               *bracode = OP_BRAPOS;
@@ -5226,7 +5226,7 @@ for (;; ptr++)
         default:
         *code = OP_END;
         adjust_recurse(tempcode, 1 + LINK_SIZE, utf8, cd, save_hwm);
-        memmove(tempcode + 1+LINK_SIZE, tempcode, len);
+        memmove(tempcode + 1 + LINK_SIZE, tempcode, IN_UCHARS(len));
         code += 1 + LINK_SIZE;
         len += 1 + LINK_SIZE;
         tempcode[0] = OP_ONCE;
@@ -5343,7 +5343,7 @@ for (;; ptr++)
             *code = verbs[i].op_arg;
             if (*code++ == OP_THEN_ARG) cd->external_flags |= PCRE_HASTHEN;
             *code++ = arglen;
-            memcpy(code, arg, arglen);
+            memcpy(code, arg, IN_UCHARS(arglen));
             code += arglen;
             *code++ = 0;
             }
@@ -5779,7 +5779,7 @@ for (;; ptr++)
               if (crc < 0)
                 {
                 memmove(slot + cd->name_entry_size, slot,
-                  (cd->names_found - i) * cd->name_entry_size);
+                  IN_UCHARS((cd->names_found - i) * cd->name_entry_size));
                 break;
                 }
 
@@ -5810,8 +5810,8 @@ for (;; ptr++)
               }
 
             PUT2(slot, 0, cd->bracount + 1);
-            memcpy(slot + 2, name, namelen);
-            slot[2+namelen] = 0;
+            memcpy(slot + 2, name, IN_UCHARS(namelen));
+            slot[2 + namelen] = 0;
             }
           }
 
@@ -6877,7 +6877,7 @@ for (;;)
       if (cd->open_caps->flag)
         {
         memmove(start_bracket + 1 + LINK_SIZE, start_bracket,
-          code - start_bracket);
+          IN_UCHARS(code - start_bracket));
         *start_bracket = OP_ONCE;
         code += 1 + LINK_SIZE;
         PUT(start_bracket, 1, (int)(code - start_bracket));
@@ -7247,7 +7247,7 @@ Returns:        pointer to compiled data block, or NULL on error,
                 with errorptr and erroroffset set
 */
 
-#ifndef COMPILE_PCRE16
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN pcre * PCRE_CALL_CONVENTION
 pcre_compile(const char *pattern, int options, const char **errorptr,
   int *erroroffset, const unsigned char *tables)
@@ -7257,7 +7257,7 @@ pcre16_compile(PCRE_SPTR16 pattern, int options, const char **errorptr,
   int *erroroffset, const unsigned char *tables)
 #endif
 {
-#ifndef COMPILE_PCRE16
+#ifdef COMPILE_PCRE8
 return pcre_compile2(pattern, options, NULL, errorptr, erroroffset, tables);
 #else
 return pcre16_compile2(pattern, options, NULL, errorptr, erroroffset, tables);
@@ -7265,7 +7265,7 @@ return pcre16_compile2(pattern, options, NULL, errorptr, erroroffset, tables);
 }
 
 
-#ifndef COMPILE_PCRE16
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN pcre * PCRE_CALL_CONVENTION
 pcre_compile2(const char *pattern, int options, int *errorcodeptr,
   const char **errorptr, int *erroroffset, const unsigned char *tables)
@@ -7469,7 +7469,10 @@ cd->backref_map = 0;
 /* Reflect pattern for debugging output */
 
 DPRINTF(("------------------------------------------------------------------\n"));
-DPRINTF(("%s\n", pattern));
+#ifdef PCRE_DEBUG
+print_puchar(stdout, (PCRE_PUCHAR)pattern);
+#endif
+DPRINTF(("\n"));
 
 /* Pretend to compile the pattern while actually just accumulating the length
 of memory required. This behaviour is triggered by passing a non-NULL final
@@ -7486,7 +7489,7 @@ cd->start_workspace = cworkspace;
 cd->start_code = cworkspace;
 cd->hwm = cworkspace;
 cd->start_pattern = (const pcre_uchar *)pattern;
-cd->end_pattern = (const pcre_uchar *)(pattern + STRLEN_UC(pattern));
+cd->end_pattern = (const pcre_uchar *)(pattern + STRLEN_UC((const pcre_uchar *)pattern));
 cd->req_varyopt = 0;
 cd->external_options = options;
 cd->external_flags = 0;
@@ -7506,7 +7509,7 @@ code = cworkspace;
 if (errorcode != 0) goto PCRE_EARLY_ERROR_RETURN;
 
 DPRINTF(("end pre-compile: length=%d workspace=%d\n", length,
-  cd->hwm - cworkspace));
+  (int)(cd->hwm - cworkspace)));
 
 if (length > MAX_PATTERN_SIZE)
   {
@@ -7519,7 +7522,7 @@ externally provided function. Integer overflow should no longer be possible
 because nowadays we limit the maximum value of cd->names_found and
 cd->name_entry_size. */
 
-size = length + sizeof(real_pcre) + cd->names_found * (cd->name_entry_size + 3);
+size = sizeof(real_pcre) + (length + cd->names_found * (cd->name_entry_size + 3)) * sizeof(pcre_uchar);
 re = (real_pcre *)(pcre_malloc)(size);
 
 if (re == NULL)
@@ -7541,7 +7544,7 @@ re->flags = cd->external_flags;
 re->dummy1 = 0;
 re->first_byte = 0;
 re->req_byte = 0;
-re->name_table_offset = sizeof(real_pcre);
+re->name_table_offset = sizeof(real_pcre) / sizeof(pcre_uchar);
 re->name_entry_size = cd->name_entry_size;
 re->name_count = cd->names_found;
 re->ref_count = 0;

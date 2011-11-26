@@ -361,6 +361,8 @@ PCRE_EXP_DECL int  pcre_dfa_exec(const pcre *, const pcre_extra *,
                   const char *, int, int, int, int *, int , int *, int);
 PCRE_EXP_DECL int  pcre_exec(const pcre *, const pcre_extra *, PCRE_SPTR,
                    int, int, int, int *, int);
+PCRE_EXP_DECL int  pcre16_exec(const pcre *, const pcre_extra *, PCRE_SPTR16,
+                   int, int, int, int *, int);
 PCRE_EXP_DECL void pcre_free_substring(const char *);
 PCRE_EXP_DECL void pcre_free_substring_list(const char **);
 PCRE_EXP_DECL int  pcre_fullinfo(const pcre *, const pcre_extra *, int,
@@ -380,14 +382,21 @@ PCRE_EXP_DECL int  pcre_refcount(pcre *, int);
 PCRE_EXP_DECL int  pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *,
                   PCRE_SPTR16, int, int);
 PCRE_EXP_DECL pcre_extra *pcre_study(const pcre *, int, const char **);
+PCRE_EXP_DECL pcre_extra *pcre16_study(const pcre *, int, const char **);
 PCRE_EXP_DECL void pcre_free_study(pcre_extra *);
+PCRE_EXP_DECL void pcre16_free_study(pcre_extra *);
 PCRE_EXP_DECL const char *pcre_version(void);
 
 /* JIT compiler related functions. */
 
 PCRE_EXP_DECL pcre_jit_stack *pcre_jit_stack_alloc(int, int);
+PCRE_EXP_DECL pcre_jit_stack *pcre16_jit_stack_alloc(int, int);
 PCRE_EXP_DECL void pcre_jit_stack_free(pcre_jit_stack *);
-PCRE_EXP_DECL void pcre_assign_jit_stack(pcre_extra *, pcre_jit_callback, void *);
+PCRE_EXP_DECL void pcre16_jit_stack_free(pcre_jit_stack *);
+PCRE_EXP_DECL void pcre_assign_jit_stack(pcre_extra *,
+                  pcre_jit_callback, void *);
+PCRE_EXP_DECL void pcre16_assign_jit_stack(pcre_extra *,
+                  pcre_jit_callback, void *);
 
 #ifdef __cplusplus
 }  /* extern "C" */

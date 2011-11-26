@@ -220,16 +220,27 @@ for the current character representation (either 8 or 16 bit) to save lots
 of typing. I tried "uchar", but it causes problems on Digital Unix, where
 it is defined in sys/types, so use "uschar" instead. */
 
-#ifndef COMPILE_PCRE16
+#ifdef COMPILE_PCRE8
+
 typedef unsigned char pcre_uchar;
+#define IN_UCHARS(x) (x)
+
 #else
+
+#ifdef COMPILE_PCRE16
 #if USHRT_MAX != 65535
 /* This is a warning message. Change PCRE_SCHAR16 to a 16 bit data type in
 pcre.h(.in) and disable (comment out) this message. */
 #error Warning: PCRE_SCHAR16 is not a 16 bit data type.
 #endif
 typedef pcre_uint16 pcre_uchar;
-#endif
+#define IN_UCHARS(x) ((x) << 1)
+
+#else
+#error Unsupported compiling mode
+#endif /* COMPILE_PCRE16 */
+
+#endif /* COMPILE_PCRE8 */
 
 /* This is an unsigned int value that no character can ever have. UTF-8
 characters only go up to 0x7fffffff (though Unicode doesn't go beyond
@@ -288,9 +299,6 @@ must begin with PCRE_. */
 #define PCRE_PUCHAR CUSTOM_SUBJECT_PTR
 #else
 #define PCRE_PUCHAR const pcre_uchar *
-
-/* PCRE_SPTR is defined in pcre.h. */
-#define USPTR const uschar *
 #endif
 
 /* Include the public PCRE header and the definitions of UCP character property
@@ -423,6 +431,9 @@ is automated on Unix systems via the "configure" command. */
 #define MAX_PATTERN_SIZE (1 << 16)
 
 #elif LINK_SIZE == 3 || LINK_SIZE == 4
+
+#undef LINK_SIZE
+#define LINK_SIZE 2
 
 #define PUT(a,n,d)   \
   (a[n] = (d) >> 16), \
@@ -2033,7 +2044,7 @@ sense, but are not part of the PCRE public API. */
   strncmp((char *)(str1), (char *)(str2), (num))
 #define STRNCMP_UC_C8(str1, str2, num) \
   strncmp((char *)(str1), (str2), (num))
-#define STRLEN_UC(str) strlen(str)
+#define STRLEN_UC(str) strlen((const char *)str)
 
 #else
 
@@ -2076,8 +2087,8 @@ extern BOOL              PRIV(xclass)(int, const pcre_uchar *);
 
 #ifdef SUPPORT_JIT
 extern void              PRIV(jit_compile)(const real_pcre *, pcre_extra *);
-extern int               PRIV(jit_exec)(const real_pcre *, void *, PCRE_SPTR,
-                           int, int, int, int, int *, int);
+extern int               PRIV(jit_exec)(const real_pcre *, void *,
+                           const pcre_uchar *, int, int, int, int, int *, int);
 extern void              PRIV(jit_free)(void *);
 #endif
 

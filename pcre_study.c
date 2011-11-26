@@ -599,6 +599,7 @@ set_type_bits(pcre_uint8 *start_bits, int cbit_type, int table_limit,
 {
 register int c;
 for (c = 0; c < table_limit; c++) start_bits[c] |= cd->cbits[c+cbit_type];
+#ifdef SUPPORT_UTF8
 if (table_limit == 32) return;
 for (c = 128; c < 256; c++)
   {
@@ -609,6 +610,7 @@ for (c = 128; c < 256; c++)
     SET_BIT(buff[0]);
     }
   }
+#endif
 }
 
 
@@ -1219,8 +1221,13 @@ Returns:    pointer to a pcre_extra block, with study_data filled in and the
             NULL on error or if no optimization possible
 */
 
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN pcre_extra * PCRE_CALL_CONVENTION
 pcre_study(const pcre *external_re, int options, const char **errorptr)
+#else
+PCRE_EXP_DEFN pcre_extra * PCRE_CALL_CONVENTION
+pcre16_study(const pcre *external_re, int options, const char **errorptr)
+#endif
 {
 int min;
 BOOL bits_set = FALSE;
@@ -1369,8 +1376,13 @@ Argument:   a pointer to the pcre_extra block
 Returns:    nothing
 */
 
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN void
 pcre_free_study(pcre_extra *extra)
+#else
+PCRE_EXP_DEFN void
+pcre16_free_study(pcre_extra *extra)
+#endif
 {
 #ifdef SUPPORT_JIT
 if ((extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) != 0 &&

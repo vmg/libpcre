@@ -1232,7 +1232,7 @@ for (;;)
         cb.capture_top      = offset_top/2;
         cb.capture_last     = md->capture_last;
         cb.callout_data     = md->callout_data;
-        cb.mark             = markptr;
+        cb.mark             = (unsigned char *)markptr;
         if ((rrc = (*pcre_callout)(&cb)) > 0) MRRETURN(MATCH_NOMATCH);
         if (rrc < 0) RRETURN(rrc);
         }
@@ -1643,7 +1643,7 @@ for (;;)
       cb.capture_top      = offset_top/2;
       cb.capture_last     = md->capture_last;
       cb.callout_data     = md->callout_data;
-      cb.mark             = markptr;
+      cb.mark             = (unsigned char *)markptr;
       if ((rrc = (*pcre_callout)(&cb)) > 0) MRRETURN(MATCH_NOMATCH);
       if (rrc < 0) RRETURN(rrc);
       }
@@ -5926,10 +5926,17 @@ Returns:          > 0 => success; value is the number of elements filled in
                  < -1 => some kind of unexpected problem
 */
 
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
 pcre_exec(const pcre *argument_re, const pcre_extra *extra_data,
   PCRE_SPTR subject, int length, int start_offset, int options, int *offsets,
   int offsetcount)
+#else
+PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
+pcre16_exec(const pcre *argument_re, const pcre_extra *extra_data,
+  PCRE_SPTR16 subject, int length, int start_offset, int options, int *offsets,
+  int offsetcount)
+#endif
 {
 int rc, ocount, arg_offset_max;
 int first_byte = -1;
@@ -6015,8 +6022,9 @@ if (extra_data != NULL
     && (extra_data->flags & PCRE_EXTRA_TABLES) == 0
     && (options & ~(PCRE_NO_UTF8_CHECK | PCRE_NOTBOL | PCRE_NOTEOL |
                     PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART)) == 0)
-  return PRIV(jit_exec)(re, extra_data->executable_jit, subject, length,
-    start_offset, options, ((extra_data->flags & PCRE_EXTRA_MATCH_LIMIT) == 0)
+  return PRIV(jit_exec)(re, extra_data->executable_jit,
+    (const pcre_uchar *)subject, length, start_offset, options,
+    ((extra_data->flags & PCRE_EXTRA_MATCH_LIMIT) == 0)
     ? MATCH_LIMIT : extra_data->match_limit, offsets, offsetcount);
 #endif
 

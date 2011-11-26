@@ -163,7 +163,7 @@ static SLJIT_INLINE void sljit_remove_free_block(struct free_block *free_block)
 	}
 }
 
-void* sljit_malloc_exec(sljit_uw size)
+static void* sljit_malloc_exec(sljit_uw size)
 {
 	struct block_header *header;
 	struct block_header *next_header;
@@ -231,7 +231,7 @@ void* sljit_malloc_exec(sljit_uw size)
 	return MEM_START(header);
 }
 
-void sljit_free_exec(void* ptr)
+static void sljit_free_exec(void* ptr)
 {
 	struct block_header *header;
 	struct free_block* free_block;
