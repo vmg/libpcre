@@ -1615,7 +1615,7 @@ for (;;)
     case OP_ONCE:
     case OP_ONCE_NC:
     case OP_COND:
-    d = find_fixedlength(cc + ((op == OP_CBRA)? 2:0), utf8, atend, cd);
+    d = find_fixedlength(cc + ((op == OP_CBRA)? IMM2_SIZE : 0), utf8, atend, cd);
     if (d < 0) return d;
     branchlength += d;
     do cc += GET(cc, 1); while (*cc == OP_ALT);
@@ -1721,7 +1721,7 @@ for (;;)
     case OP_NOTEXACT:
     case OP_NOTEXACTI:
     branchlength += GET2(cc,1);
-    cc += 4;
+    cc += 2 + IMM2_SIZE;
 #ifdef SUPPORT_UTF8
     if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
@@ -1729,8 +1729,8 @@ for (;;)
 
     case OP_TYPEEXACT:
     branchlength += GET2(cc,1);
-    if (cc[3] == OP_PROP || cc[3] == OP_NOTPROP) cc += 2;
-    cc += 4;
+    if (cc[1 + IMM2_SIZE] == OP_PROP || cc[1 + IMM2_SIZE] == OP_NOTPROP) cc += 2;
+    cc += 1 + IMM2_SIZE + 1;
     break;
 
     /* Handle single-char matchers */
@@ -1786,9 +1786,9 @@ for (;;)
 
       case OP_CRRANGE:
       case OP_CRMINRANGE:
-      if (GET2(cc,1) != GET2(cc,3)) return -1;
+      if (GET2(cc,1) != GET2(cc,1+IMM2_SIZE)) return -1;
       branchlength += GET2(cc,1);
-      cc += 5;
+      cc += 1 + 2 * IMM2_SIZE;
       break;
 
       default:
@@ -1967,7 +1967,8 @@ for (;;)
       case OP_TYPEMINUPTO:
       case OP_TYPEEXACT:
       case OP_TYPEPOSUPTO:
-      if (code[3] == OP_PROP || code[3] == OP_NOTPROP) code += 2;
+      if (code[1 + IMM2_SIZE] == OP_PROP
+        || code[1 + IMM2_SIZE] == OP_NOTPROP) code += 2;
       break;
 
       case OP_MARK:
@@ -2086,7 +2087,8 @@ for (;;)
       case OP_TYPEUPTO:
       case OP_TYPEMINUPTO:
       case OP_TYPEEXACT:
-      if (code[3] == OP_PROP || code[3] == OP_NOTPROP) code += 2;
+      if (code[1 + IMM2_SIZE] == OP_PROP
+        || code[1 + IMM2_SIZE] == OP_NOTPROP) code += 2;
       break;
 
       case OP_MARK:
@@ -2383,7 +2385,8 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_TYPEUPTO:
     case OP_TYPEMINUPTO:
     case OP_TYPEPOSUPTO:
-    if (code[3] == OP_PROP || code[3] == OP_NOTPROP) code += 2;
+    if (code[1 + IMM2_SIZE] == OP_PROP
+      || code[1 + IMM2_SIZE] == OP_NOTPROP) code += 2;
     break;
 
     /* End of branch */
@@ -2420,7 +2423,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_MINUPTOI:
     case OP_POSUPTO:
     case OP_POSUPTOI:
-    if (utf8 && code[3] >= 0xc0) code += PRIV(utf8_table4)[code[3] & 0x3f];
+    if (utf8 && code[1 + IMM2_SIZE] >= 0xc0) code += PRIV(utf8_table4)[code[1 + IMM2_SIZE] & 0x3f];
     break;
 #endif
 
@@ -5181,7 +5184,8 @@ for (;; ptr++)
 
       if (*tempcode == OP_TYPEEXACT)
         tempcode += PRIV(OP_lengths)[*tempcode] +
-          ((tempcode[3] == OP_PROP || tempcode[3] == OP_NOTPROP)? 2 : 0);
+          ((tempcode[1 + IMM2_SIZE] == OP_PROP
+          || tempcode[1 + IMM2_SIZE] == OP_NOTPROP)? 2 : 0);
 
       else if (*tempcode == OP_EXACT || *tempcode == OP_NOTEXACT)
         {
@@ -5420,10 +5424,10 @@ for (;; ptr++)
           break;
 
         /* Most other conditions use OP_CREF (a couple change to OP_RREF
-        below), and all need to skip 3 bytes at the start of the group. */
+        below), and all need to skip 1+IMM2_SIZE bytes at the start of the group. */
 
         code[1+LINK_SIZE] = OP_CREF;
-        skipbytes = 3;
+        skipbytes = 1+IMM2_SIZE;
         refsign = -1;
 
         /* Check for a test for recursion in a named group. */
@@ -6164,7 +6168,7 @@ for (;; ptr++)
       NUMBERED_GROUP:
       cd->bracount += 1;
       PUT2(code, 1+LINK_SIZE, cd->bracount);
-      skipbytes = 2;
+      skipbytes = IMM2_SIZE;
       }
 
     /* Process nested bracketed regex. Assertions used not to be repeatable,
@@ -7165,7 +7169,7 @@ register int c = -1;
 do {
    int d;
    int xl = (*code == OP_CBRA || *code == OP_SCBRA ||
-             *code == OP_CBRAPOS || *code == OP_SCBRAPOS)? 2:0;
+             *code == OP_CBRAPOS || *code == OP_SCBRAPOS)? IMM2_SIZE:0;
    const pcre_uchar *scode = first_significant_code(code + 1+LINK_SIZE + xl,
      TRUE);
    register int op = *scode;
@@ -7191,7 +7195,7 @@ do {
      break;
 
      case OP_EXACT:
-     scode += 2;
+     scode += IMM2_SIZE;
      /* Fall through */
 
      case OP_CHAR:
@@ -7204,7 +7208,7 @@ do {
      break;
 
      case OP_EXACTI:
-     scode += 2;
+     scode += IMM2_SIZE;
      /* Fall through */
 
      case OP_CHARI:

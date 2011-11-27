@@ -364,7 +364,7 @@ for(;;)
     case OP_MINUPTO:
     case OP_POSUPTO:
     fprintf(f, " %s ", flag);
-    extra = print_char(f, code+3, utf8);
+    extra = print_char(f, code + 1 + IMM2_SIZE, utf8);
     fprintf(f, "{");
     if (*code != OP_EXACT && *code != OP_EXACTI) fprintf(f, "0,");
     fprintf(f, "%d}", GET2(code,1));
@@ -376,10 +376,11 @@ for(;;)
     case OP_TYPEUPTO:
     case OP_TYPEMINUPTO:
     case OP_TYPEPOSUPTO:
-    fprintf(f, "    %s", OP_names[code[3]]);
-    if (code[3] == OP_PROP || code[3] == OP_NOTPROP)
+    fprintf(f, "    %s", OP_names[code[1 + IMM2_SIZE]]);
+    if (code[1 + IMM2_SIZE] == OP_PROP || code[1 + IMM2_SIZE] == OP_NOTPROP)
       {
-      fprintf(f, " %s ", get_ucpname(code[4], code[5]));
+      fprintf(f, " %s ", get_ucpname(code[1 + IMM2_SIZE + 1],
+        code[1 + IMM2_SIZE + 2]));
       extra = 2;
       }
     fprintf(f, "{");
@@ -436,7 +437,7 @@ for(;;)
     case OP_NOTUPTO:
     case OP_NOTMINUPTO:
     case OP_NOTPOSUPTO:
-    c = code[3];
+    c = code[1 + IMM2_SIZE];
     if (PRINTABLE(c)) fprintf(f, " %s [^%c]{", flag, c);
       else fprintf(f, " %s [^\\x%02x]{", flag, c);
     if (*code != OP_NOTEXACT && *code != OP_NOTEXACTI) fprintf(f, "0,");
@@ -576,7 +577,7 @@ for(;;)
         case OP_CRRANGE:
         case OP_CRMINRANGE:
         min = GET2(ccode,1);
-        max = GET2(ccode,3);
+        max = GET2(ccode,1 + IMM2_SIZE);
         if (max == 0) fprintf(f, "{%d,}", min);
         else fprintf(f, "{%d,%d}", min, max);
         if (*ccode == OP_CRMINRANGE) fprintf(f, "?");

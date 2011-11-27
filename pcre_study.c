@@ -88,7 +88,7 @@ register int branchlength = 0;
 register pcre_uchar *cc = (pcre_uchar *)code + 1 + LINK_SIZE;
 
 if (*code == OP_CBRA || *code == OP_SCBRA ||
-    *code == OP_CBRAPOS || *code == OP_SCBRAPOS) cc += 2;
+    *code == OP_CBRAPOS || *code == OP_SCBRAPOS) cc += IMM2_SIZE;
 
 /* Scan along the opcodes for this branch. If we get to the end of the
 branch, check the length against that of the other branches. */
@@ -243,7 +243,7 @@ for (;;)
     case OP_NOTEXACT:
     case OP_NOTEXACTI:
     branchlength += GET2(cc,1);
-    cc += 4;
+    cc += 2 + IMM2_SIZE;
 #ifdef SUPPORT_UTF8
     if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
@@ -251,7 +251,8 @@ for (;;)
 
     case OP_TYPEEXACT:
     branchlength += GET2(cc,1);
-    cc += (cc[3] == OP_PROP || cc[3] == OP_NOTPROP)? 6 : 4;
+    cc += 2 + IMM2_SIZE + ((cc[1 + IMM2_SIZE] == OP_PROP
+      || cc[1 + IMM2_SIZE] == OP_NOTPROP)? 2 : 0);
     break;
 
     /* Handle single-char non-literal matchers */
@@ -314,7 +315,8 @@ for (;;)
     case OP_TYPEUPTO:
     case OP_TYPEMINUPTO:
     case OP_TYPEPOSUPTO:
-    if (cc[3] == OP_PROP || cc[3] == OP_NOTPROP) cc += 2;
+    if (cc[1 + IMM2_SIZE] == OP_PROP
+      || cc[1 + IMM2_SIZE] == OP_NOTPROP) cc += 2;
     cc += PRIV(OP_lengths)[op];
     break;
 
@@ -347,7 +349,7 @@ for (;;)
       case OP_CRRANGE:
       case OP_CRMINRANGE:
       branchlength += GET2(cc,1);
-      cc += 5;
+      cc += 1 + 2 * IMM2_SIZE;
       break;
 
       default:
@@ -386,7 +388,7 @@ for (;;)
         }
       }
     else d = 0;
-    cc += 3;
+    cc += 1 + IMM2_SIZE;
 
     /* Handle repeated back references */
 
@@ -409,7 +411,7 @@ for (;;)
       case OP_CRRANGE:
       case OP_CRMINRANGE:
       min = GET2(cc, 1);
-      cc += 5;
+      cc += 1 + 2 * IMM2_SIZE;
       break;
 
       default:
@@ -701,7 +703,7 @@ do
   const pcre_uchar *tcode = code + 1 + LINK_SIZE;
 
   if (*code == OP_CBRA || *code == OP_SCBRA ||
-      *code == OP_CBRAPOS || *code == OP_SCBRAPOS) tcode += 2;
+      *code == OP_CBRAPOS || *code == OP_SCBRAPOS) tcode += IMM2_SIZE;
 
   while (try_next)    /* Loop for items in this branch */
     {
@@ -904,19 +906,19 @@ do
       case OP_UPTO:
       case OP_MINUPTO:
       case OP_POSUPTO:
-      tcode = set_table_bit(start_bits, tcode + 3, FALSE, cd, utf8);
+      tcode = set_table_bit(start_bits, tcode + 1 + IMM2_SIZE, FALSE, cd, utf8);
       break;
 
       case OP_UPTOI:
       case OP_MINUPTOI:
       case OP_POSUPTOI:
-      tcode = set_table_bit(start_bits, tcode + 3, TRUE, cd, utf8);
+      tcode = set_table_bit(start_bits, tcode + 1 + IMM2_SIZE, TRUE, cd, utf8);
       break;
 
       /* At least one single char sets the bit and stops */
 
       case OP_EXACT:
-      tcode += 2;
+      tcode += IMM2_SIZE;
       /* Fall through */
       case OP_CHAR:
       case OP_PLUS:
@@ -927,7 +929,7 @@ do
       break;
 
       case OP_EXACTI:
-      tcode += 2;
+      tcode += IMM2_SIZE;
       /* Fall through */
       case OP_CHARI:
       case OP_PLUSI:
@@ -1026,7 +1028,7 @@ do
       break;
 
       case OP_TYPEEXACT:
-      tcode += 3;
+      tcode += 1 + IMM2_SIZE;
       break;
 
       /* Zero or more repeats of character types set the bits and then
@@ -1035,7 +1037,7 @@ do
       case OP_TYPEUPTO:
       case OP_TYPEMINUPTO:
       case OP_TYPEPOSUPTO:
-      tcode += 2;               /* Fall through */
+      tcode += IMM2_SIZE;  /* Fall through */
 
       case OP_TYPESTAR:
       case OP_TYPEMINSTAR:
@@ -1178,7 +1180,7 @@ do
 
           case OP_CRRANGE:
           case OP_CRMINRANGE:
-          if (((tcode[1] << 8) + tcode[2]) == 0) tcode += 5;
+          if (GET2(tcode, 1) == 0) tcode += 1 + 2 * IMM2_SIZE;
             else try_next = FALSE;
           break;
 

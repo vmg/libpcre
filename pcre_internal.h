@@ -1680,30 +1680,35 @@ in UTF-8 mode. The code that uses this table must know about such things. */
   2,                             /* noti                                   */ \
   /* Positive single-char repeats                             ** These are */ \
   2, 2, 2, 2, 2, 2,              /* *, *?, +, +?, ?, ??       ** minima in */ \
-  4, 4, 4,                       /* upto, minupto, exact      ** mode      */ \
-  2, 2, 2, 4,                    /* *+, ++, ?+, upto+                      */ \
+  2+IMM2_SIZE, 2+IMM2_SIZE,      /* upto, minupto             ** mode      */ \
+  2+IMM2_SIZE,                   /* exact                                  */ \
+  2, 2, 2, 2+IMM2_SIZE,          /* *+, ++, ?+, upto+                      */ \
   2, 2, 2, 2, 2, 2,              /* *I, *?I, +I, +?I, ?I, ??I ** UTF-8     */ \
-  4, 4, 4,                       /* upto I, minupto I, exact I             */ \
-  2, 2, 2, 4,                    /* *+I, ++I, ?+I, upto+I                  */ \
+  2+IMM2_SIZE, 2+IMM2_SIZE,      /* upto I, minupto I                      */ \
+  2+IMM2_SIZE,                   /* exact I                                */ \
+  2, 2, 2, 2+IMM2_SIZE,          /* *+I, ++I, ?+I, upto+I                  */ \
   /* Negative single-char repeats - only for chars < 256                   */ \
   2, 2, 2, 2, 2, 2,              /* NOT *, *?, +, +?, ?, ??                */ \
-  4, 4, 4,                       /* NOT upto, minupto, exact               */ \
-  2, 2, 2, 4,                    /* Possessive NOT *, +, ?, upto           */ \
+  2+IMM2_SIZE, 2+IMM2_SIZE,      /* NOT upto, minupto                      */ \
+  2+IMM2_SIZE,                   /* NOT exact                              */ \
+  2, 2, 2, 2+IMM2_SIZE,          /* Possessive NOT *, +, ?, upto           */ \
   2, 2, 2, 2, 2, 2,              /* NOT *I, *?I, +I, +?I, ?I, ??I          */ \
-  4, 4, 4,                       /* NOT upto I, minupto I, exact I         */ \
-  2, 2, 2, 4,                    /* Possessive NOT *I, +I, ?I, upto I      */ \
+  2+IMM2_SIZE, 2+IMM2_SIZE,      /* NOT upto I, minupto I                  */ \
+  2+IMM2_SIZE,                   /* NOT exact I                            */ \
+  2, 2, 2, 2+IMM2_SIZE,          /* Possessive NOT *I, +I, ?I, upto I      */ \
   /* Positive type repeats                                                 */ \
   2, 2, 2, 2, 2, 2,              /* Type *, *?, +, +?, ?, ??               */ \
-  4, 4, 4,                       /* Type upto, minupto, exact              */ \
-  2, 2, 2, 4,                    /* Possessive *+, ++, ?+, upto+           */ \
+  2+IMM2_SIZE, 2+IMM2_SIZE,      /* Type upto, minupto                     */ \
+  2+IMM2_SIZE,                   /* Type exact                             */ \
+  2, 2, 2, 2+IMM2_SIZE,          /* Possessive *+, ++, ?+, upto+           */ \
   /* Character class & ref repeats                                         */ \
   1, 1, 1, 1, 1, 1,              /* *, *?, +, +?, ?, ??                    */ \
-  5, 5,                          /* CRRANGE, CRMINRANGE                    */ \
+  1+2*IMM2_SIZE, 1+2*IMM2_SIZE,  /* CRRANGE, CRMINRANGE                    */ \
  33,                             /* CLASS                                  */ \
  33,                             /* NCLASS                                 */ \
   0,                             /* XCLASS - variable length               */ \
-  3,                             /* REF                                    */ \
-  3,                             /* REFI                                   */ \
+  1+IMM2_SIZE,                   /* REF                                    */ \
+  1+IMM2_SIZE,                   /* REFI                                   */ \
   1+LINK_SIZE,                   /* RECURSE                                */ \
   2+2*LINK_SIZE,                 /* CALLOUT                                */ \
   1+LINK_SIZE,                   /* Alt                                    */ \
@@ -1720,23 +1725,23 @@ in UTF-8 mode. The code that uses this table must know about such things. */
   1+LINK_SIZE,                   /* ONCE_NC                                */ \
   1+LINK_SIZE,                   /* BRA                                    */ \
   1+LINK_SIZE,                   /* BRAPOS                                 */ \
-  3+LINK_SIZE,                   /* CBRA                                   */ \
-  3+LINK_SIZE,                   /* CBRAPOS                                */ \
+  1+LINK_SIZE+IMM2_SIZE,         /* CBRA                                   */ \
+  1+LINK_SIZE+IMM2_SIZE,         /* CBRAPOS                                */ \
   1+LINK_SIZE,                   /* COND                                   */ \
   1+LINK_SIZE,                   /* SBRA                                   */ \
   1+LINK_SIZE,                   /* SBRAPOS                                */ \
-  3+LINK_SIZE,                   /* SCBRA                                  */ \
-  3+LINK_SIZE,                   /* SCBRAPOS                               */ \
+  1+LINK_SIZE+IMM2_SIZE,         /* SCBRA                                  */ \
+  1+LINK_SIZE+IMM2_SIZE,         /* SCBRAPOS                               */ \
   1+LINK_SIZE,                   /* SCOND                                  */ \
-  3, 3,                          /* CREF, NCREF                            */ \
-  3, 3,                          /* RREF, NRREF                            */ \
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* CREF, NCREF                            */ \
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* RREF, NRREF                            */ \
   1,                             /* DEF                                    */ \
   1, 1, 1,                       /* BRAZERO, BRAMINZERO, BRAPOSZERO        */ \
   3, 1, 3,                       /* MARK, PRUNE, PRUNE_ARG                 */ \
   1, 3,                          /* SKIP, SKIP_ARG                         */ \
   1, 3,                          /* THEN, THEN_ARG                         */ \
   1, 1, 1, 1,                    /* COMMIT, FAIL, ACCEPT, ASSERT_ACCEPT    */ \
-  3, 1                           /* CLOSE, SKIPZERO  */
+  1+IMM2_SIZE, 1                 /* CLOSE, SKIPZERO                        */
 
 /* A magic value for OP_RREF and OP_NRREF to indicate the "any recursion"
 condition. */

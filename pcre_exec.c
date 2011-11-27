@@ -1308,7 +1308,7 @@ for (;;)
 
         /* Chose branch according to the condition */
 
-        ecode += condition? 3 : GET(ecode, 1);
+        ecode += condition? 1 + IMM2_SIZE : GET(ecode, 1);
         }
       }
 
@@ -1376,7 +1376,7 @@ for (;;)
 
       /* Chose branch according to the condition */
 
-      ecode += condition? 3 : GET(ecode, 1);
+      ecode += condition? 1 + IMM2_SIZE : GET(ecode, 1);
       }
 
     else if (condcode == OP_DEF)     /* DEFINE - always false */
@@ -1468,7 +1468,7 @@ for (;;)
       md->offset_vector[offset+1] = (int)(eptr - md->start_subject);
       if (offset_top <= offset) offset_top = offset + 2;
       }
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     break;
 
 
@@ -2567,7 +2567,7 @@ for (;;)
     case OP_REFI:
     caseless = op == OP_REFI;
     offset = GET2(ecode, 1) << 1;               /* Doubled ref number */
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
 
     /* If the reference is unset, there are two possibilities:
 
@@ -2607,9 +2607,9 @@ for (;;)
       case OP_CRMINRANGE:
       minimize = (*ecode == OP_CRMINRANGE);
       min = GET2(ecode, 1);
-      max = GET2(ecode, 3);
+      max = GET2(ecode, 1 + IMM2_SIZE);
       if (max == 0) max = INT_MAX;
-      ecode += 5;
+      ecode += 1 + 2 * IMM2_SIZE;
       break;
 
       default:               /* No repeat follows */
@@ -2728,9 +2728,9 @@ for (;;)
         case OP_CRMINRANGE:
         minimize = (*ecode == OP_CRMINRANGE);
         min = GET2(ecode, 1);
-        max = GET2(ecode, 3);
+        max = GET2(ecode, 1 + IMM2_SIZE);
         if (max == 0) max = INT_MAX;
-        ecode += 5;
+        ecode += 1 + 2 * IMM2_SIZE;
         break;
 
         default:               /* No repeat follows */
@@ -2929,9 +2929,9 @@ for (;;)
         case OP_CRMINRANGE:
         minimize = (*ecode == OP_CRMINRANGE);
         min = GET2(ecode, 1);
-        max = GET2(ecode, 3);
+        max = GET2(ecode, 1 + IMM2_SIZE);
         if (max == 0) max = INT_MAX;
-        ecode += 5;
+        ecode += 1 + 2 * IMM2_SIZE;
         break;
 
         default:               /* No repeat follows */
@@ -3104,7 +3104,7 @@ for (;;)
     case OP_EXACT:
     case OP_EXACTI:
     min = max = GET2(ecode, 1);
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATCHAR;
 
     case OP_POSUPTO:
@@ -3119,7 +3119,7 @@ for (;;)
     min = 0;
     max = GET2(ecode, 1);
     minimize = *ecode == OP_MINUPTO || *ecode == OP_MINUPTOI;
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATCHAR;
 
     case OP_POSSTAR:
@@ -3439,7 +3439,7 @@ for (;;)
     case OP_NOTEXACT:
     case OP_NOTEXACTI:
     min = max = GET2(ecode, 1);
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATNOTCHAR;
 
     case OP_NOTUPTO:
@@ -3449,7 +3449,7 @@ for (;;)
     min = 0;
     max = GET2(ecode, 1);
     minimize = *ecode == OP_NOTMINUPTO || *ecode == OP_NOTMINUPTOI;
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATNOTCHAR;
 
     case OP_NOTPOSSTAR:
@@ -3481,7 +3481,7 @@ for (;;)
     possessive = TRUE;
     min = 0;
     max = GET2(ecode, 1);
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATNOTCHAR;
 
     case OP_NOTSTAR:
@@ -3805,7 +3805,7 @@ for (;;)
     case OP_TYPEEXACT:
     min = max = GET2(ecode, 1);
     minimize = TRUE;
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATTYPE;
 
     case OP_TYPEUPTO:
@@ -3813,7 +3813,7 @@ for (;;)
     min = 0;
     max = GET2(ecode, 1);
     minimize = *ecode == OP_TYPEMINUPTO;
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATTYPE;
 
     case OP_TYPEPOSSTAR:
@@ -3841,7 +3841,7 @@ for (;;)
     possessive = TRUE;
     min = 0;
     max = GET2(ecode, 1);
-    ecode += 3;
+    ecode += 1 + IMM2_SIZE;
     goto REPEATTYPE;
 
     case OP_TYPESTAR:

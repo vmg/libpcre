@@ -442,7 +442,8 @@ new_count = 0;
 
 first_op = this_start_code + 1 + LINK_SIZE +
   ((*this_start_code == OP_CBRA || *this_start_code == OP_SCBRA ||
-    *this_start_code == OP_CBRAPOS || *this_start_code == OP_SCBRAPOS)? 2:0);
+    *this_start_code == OP_CBRAPOS || *this_start_code == OP_SCBRAPOS)
+    ? IMM2_SIZE:0);
 
 /* The first thing in any (sub) pattern is a bracket of some sort. Push all
 the alternative states onto the list, and find out where the end is. This
@@ -542,8 +543,8 @@ else
     {
     int length = 1 + LINK_SIZE +
       ((*this_start_code == OP_CBRA || *this_start_code == OP_SCBRA ||
-        *this_start_code == OP_CBRAPOS || *this_start_code == OP_SCBRAPOS)?
-        2:0);
+        *this_start_code == OP_CBRAPOS || *this_start_code == OP_SCBRAPOS)
+        ? IMM2_SIZE:0);
     do
       {
       ADD_NEW((int)(end_code - start_code + length), 0);
@@ -556,7 +557,7 @@ else
 
 workspace[0] = 0;    /* Bit indicating which vector is current */
 
-DPRINTF(("%.*sEnd state = %d\n", rlevel*2-2, SP, end_code - start_code));
+DPRINTF(("%.*sEnd state = %d\n", rlevel*2-2, SP, (int)(end_code - start_code)));
 
 /* Loop for scanning the subject */
 
@@ -816,7 +817,7 @@ for (;;)
       /*-----------------------------------------------------------------*/
       case OP_CBRA:
       case OP_SCBRA:
-      ADD_ACTIVE((int)(code - start_code + 3 + LINK_SIZE),  0);
+      ADD_ACTIVE((int)(code - start_code + 1 + LINK_SIZE + IMM2_SIZE),  0);
       code += GET(code, 1);
       while (*code == OP_ALT)
         {
@@ -1157,7 +1158,7 @@ for (;;)
               ((ctypes[c] & toptable1[d]) ^ toptable2[d]) != 0))
           {
           if (++count >= GET2(code, 1))
-            { ADD_NEW(state_offset + 4, 0); }
+            { ADD_NEW(state_offset + 1 + IMM2_SIZE + 1, 0); }
           else
             { ADD_NEW(state_offset, count); }
           }
@@ -1168,7 +1169,7 @@ for (;;)
       case OP_TYPEUPTO:
       case OP_TYPEMINUPTO:
       case OP_TYPEPOSUPTO:
-      ADD_ACTIVE(state_offset + 4, 0);
+      ADD_ACTIVE(state_offset + 2 + IMM2_SIZE, 0);
       count = current_state->count;  /* Number already matched */
       if (clen > 0)
         {
@@ -1183,7 +1184,7 @@ for (;;)
             next_active_state--;
             }
           if (++count >= GET2(code, 1))
-            { ADD_NEW(state_offset + 4, 0); }
+            { ADD_NEW(state_offset + 2 + IMM2_SIZE, 0); }
           else
             { ADD_NEW(state_offset, count); }
           }
@@ -1719,13 +1720,13 @@ for (;;)
       case OP_PROP_EXTRA + OP_TYPEMINUPTO:
       case OP_PROP_EXTRA + OP_TYPEPOSUPTO:
       if (codevalue != OP_PROP_EXTRA + OP_TYPEEXACT)
-        { ADD_ACTIVE(state_offset + 6, 0); }
+        { ADD_ACTIVE(state_offset + 1 + IMM2_SIZE + 3, 0); }
       count = current_state->count;  /* Number already matched */
       if (clen > 0)
         {
         BOOL OK;
         const ucd_record * prop = GET_UCD(c);
-        switch(code[4])
+        switch(code[1 + IMM2_SIZE + 1])
           {
           case PT_ANY:
           OK = TRUE;
@@ -1737,15 +1738,15 @@ for (;;)
           break;
 
           case PT_GC:
-          OK = PRIV(ucp_gentype)[prop->chartype] == code[5];
+          OK = PRIV(ucp_gentype)[prop->chartype] == code[1 + IMM2_SIZE + 2];
           break;
 
           case PT_PC:
-          OK = prop->chartype == code[5];
+          OK = prop->chartype == code[1 + IMM2_SIZE + 2];
           break;
 
           case PT_SC:
-          OK = prop->script == code[5];
+          OK = prop->script == code[1 + IMM2_SIZE + 2];
           break;
 
           /* These are specials for combination cases. */
@@ -1787,7 +1788,7 @@ for (;;)
             next_active_state--;
             }
           if (++count >= GET2(code, 1))
-            { ADD_NEW(state_offset + 6, 0); }
+            { ADD_NEW(state_offset + 1 + IMM2_SIZE + 3, 0); }
           else
             { ADD_NEW(state_offset, count); }
           }
@@ -1800,7 +1801,7 @@ for (;;)
       case OP_EXTUNI_EXTRA + OP_TYPEMINUPTO:
       case OP_EXTUNI_EXTRA + OP_TYPEPOSUPTO:
       if (codevalue != OP_EXTUNI_EXTRA + OP_TYPEEXACT)
-        { ADD_ACTIVE(state_offset + 4, 0); }
+        { ADD_ACTIVE(state_offset + 2 + IMM2_SIZE, 0); }
       count = current_state->count;  /* Number already matched */
       if (clen > 0 && UCD_CATEGORY(c) != ucp_M)
         {
@@ -1821,7 +1822,7 @@ for (;;)
           nptr += ndlen;
           }
         if (++count >= GET2(code, 1))
-          { ADD_NEW_DATA(-(state_offset + 4), 0, ncount); }
+          { ADD_NEW_DATA(-(state_offset + 2 + IMM2_SIZE), 0, ncount); }
         else
           { ADD_NEW_DATA(-state_offset, count, ncount); }
         }
@@ -1834,7 +1835,7 @@ for (;;)
       case OP_ANYNL_EXTRA + OP_TYPEMINUPTO:
       case OP_ANYNL_EXTRA + OP_TYPEPOSUPTO:
       if (codevalue != OP_ANYNL_EXTRA + OP_TYPEEXACT)
-        { ADD_ACTIVE(state_offset + 4, 0); }
+        { ADD_ACTIVE(state_offset + 2 + IMM2_SIZE, 0); }
       count = current_state->count;  /* Number already matched */
       if (clen > 0)
         {
@@ -1861,7 +1862,7 @@ for (;;)
             next_active_state--;
             }
           if (++count >= GET2(code, 1))
-            { ADD_NEW_DATA(-(state_offset + 4), 0, ncount); }
+            { ADD_NEW_DATA(-(state_offset + 2 + IMM2_SIZE), 0, ncount); }
           else
             { ADD_NEW_DATA(-state_offset, count, ncount); }
           break;
@@ -1878,7 +1879,7 @@ for (;;)
       case OP_VSPACE_EXTRA + OP_TYPEMINUPTO:
       case OP_VSPACE_EXTRA + OP_TYPEPOSUPTO:
       if (codevalue != OP_VSPACE_EXTRA + OP_TYPEEXACT)
-        { ADD_ACTIVE(state_offset + 4, 0); }
+        { ADD_ACTIVE(state_offset + 2 + IMM2_SIZE, 0); }
       count = current_state->count;  /* Number already matched */
       if (clen > 0)
         {
@@ -1907,7 +1908,7 @@ for (;;)
             next_active_state--;
             }
           if (++count >= GET2(code, 1))
-            { ADD_NEW_DATA(-(state_offset + 4), 0, 0); }
+            { ADD_NEW_DATA(-(state_offset + 2 + IMM2_SIZE), 0, 0); }
           else
             { ADD_NEW_DATA(-state_offset, count, 0); }
           }
@@ -1920,7 +1921,7 @@ for (;;)
       case OP_HSPACE_EXTRA + OP_TYPEMINUPTO:
       case OP_HSPACE_EXTRA + OP_TYPEPOSUPTO:
       if (codevalue != OP_HSPACE_EXTRA + OP_TYPEEXACT)
-        { ADD_ACTIVE(state_offset + 4, 0); }
+        { ADD_ACTIVE(state_offset + 2 + IMM2_SIZE, 0); }
       count = current_state->count;  /* Number already matched */
       if (clen > 0)
         {
@@ -1962,7 +1963,7 @@ for (;;)
             next_active_state--;
             }
           if (++count >= GET2(code, 1))
-            { ADD_NEW_DATA(-(state_offset + 4), 0, 0); }
+            { ADD_NEW_DATA(-(state_offset + 2 + IMM2_SIZE), 0, 0); }
           else
             { ADD_NEW_DATA(-state_offset, count, 0); }
           }
@@ -2352,7 +2353,7 @@ for (;;)
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
           {
           if (++count >= GET2(code, 1))
-            { ADD_NEW(state_offset + dlen + 3, 0); }
+            { ADD_NEW(state_offset + dlen + 1 + IMM2_SIZE, 0); }
           else
             { ADD_NEW(state_offset, count); }
           }
@@ -2375,7 +2376,7 @@ for (;;)
       case OP_NOTUPTO:
       case OP_NOTMINUPTO:
       case OP_NOTPOSUPTO:
-      ADD_ACTIVE(state_offset + dlen + 3, 0);
+      ADD_ACTIVE(state_offset + dlen + 1 + IMM2_SIZE, 0);
       count = current_state->count;  /* Number already matched */
       if (clen > 0)
         {
@@ -2401,7 +2402,7 @@ for (;;)
             next_active_state--;
             }
           if (++count >= GET2(code, 1))
-            { ADD_NEW(state_offset + dlen + 3, 0); }
+            { ADD_NEW(state_offset + dlen + 1 + IMM2_SIZE, 0); }
           else
             { ADD_NEW(state_offset, count); }
           }
@@ -2474,12 +2475,12 @@ for (;;)
           case OP_CRMINRANGE:
           count = current_state->count;  /* Already matched */
           if (count >= GET2(ecode, 1))
-            { ADD_ACTIVE(next_state_offset + 5, 0); }
+            { ADD_ACTIVE(next_state_offset + 1 + 2 * IMM2_SIZE, 0); }
           if (isinclass)
             {
             int max = GET2(ecode, 3);
             if (++count >= max && max != 0)   /* Max 0 => no limit */
-              { ADD_NEW(next_state_offset + 5, 0); }
+              { ADD_NEW(next_state_offset + 1 + 2 * IMM2_SIZE, 0); }
             else
               { ADD_NEW(state_offset, count); }
             }

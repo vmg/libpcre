@@ -564,7 +564,7 @@ switch(*cc)
   case OP_NOTMINUPTOI:
   case OP_NOTEXACTI:
   case OP_NOTPOSUPTOI:
-  cc += 4;
+  cc += 2 + IMM2_SIZE;
 #ifdef SUPPORT_UTF8
   if (common->utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
@@ -583,12 +583,12 @@ switch(*cc)
   case OP_RREF:
   case OP_NRREF:
   case OP_CLOSE:
-  cc += 3;
+  cc += 1 + IMM2_SIZE;
   return cc;
 
   case OP_CRRANGE:
   case OP_CRMINRANGE:
-  return cc + 5;
+  return cc + 1 + 2 * IMM2_SIZE;
 
   case OP_CLASS:
   case OP_NCLASS:
@@ -624,7 +624,7 @@ switch(*cc)
   case OP_CBRAPOS:
   case OP_SCBRA:
   case OP_SCBRAPOS:
-  return cc + 1 + LINK_SIZE + 2;
+  return cc + 1 + LINK_SIZE + IMM2_SIZE;
 
   default:
   return NULL;
@@ -657,7 +657,7 @@ while (cc < ccend)
     case OP_CBRAPOS:
     case OP_SCBRAPOS:
     localspace += sizeof(sljit_w);
-    cc += 1 + LINK_SIZE + 2;
+    cc += 1 + LINK_SIZE + IMM2_SIZE;
     break;
 
     case OP_COND:
@@ -705,7 +705,7 @@ while (cc < ccend)
     case OP_SCBRAPOS:
     common->localptrs[cc - common->start] = localptr;
     localptr += sizeof(sljit_w);
-    cc += 1 + LINK_SIZE + 2;
+    cc += 1 + LINK_SIZE + IMM2_SIZE;
     break;
 
     case OP_COND:
@@ -761,7 +761,7 @@ while (cc < ccend)
     case OP_SCBRA:
     case OP_SCBRAPOS:
     length += 3;
-    cc += 1 + LINK_SIZE + 2;
+    cc += 1 + LINK_SIZE + IMM2_SIZE;
     break;
 
     default:
@@ -824,7 +824,7 @@ while (cc < ccend)
     OP1(SLJIT_MOV, SLJIT_MEM1(STACK_TOP), stackpos, TMP2, 0);
     stackpos += (int)sizeof(sljit_w);
 
-    cc += 1 + LINK_SIZE + 2;
+    cc += 1 + LINK_SIZE + IMM2_SIZE;
     break;
 
     default:
@@ -863,13 +863,13 @@ while (cc < ccend)
     case OP_CBRA:
     case OP_SCBRA:
     localsize++;
-    cc += 1 + LINK_SIZE + 2;
+    cc += 1 + LINK_SIZE + IMM2_SIZE;
     break;
 
     case OP_CBRAPOS:
     case OP_SCBRAPOS:
     localsize += 2;
-    cc += 1 + LINK_SIZE + 2;
+    cc += 1 + LINK_SIZE + IMM2_SIZE;
     break;
 
     case OP_COND:
@@ -969,7 +969,7 @@ while (status != end)
       case OP_SCBRA:
       count = 1;
       srcw[0] = OVECTOR_PRIV(GET2(cc, 1 + LINK_SIZE));
-      cc += 1 + LINK_SIZE + 2;
+      cc += 1 + LINK_SIZE + IMM2_SIZE;
       break;
 
       case OP_CBRAPOS:
@@ -978,7 +978,7 @@ while (status != end)
       srcw[1] = OVECTOR_PRIV(GET2(cc, 1 + LINK_SIZE));
       srcw[0] = PRIV_DATA(cc);
       SLJIT_ASSERT(srcw[0] != 0);
-      cc += 1 + LINK_SIZE + 2;
+      cc += 1 + LINK_SIZE + IMM2_SIZE;
       break;
 
       case OP_COND:
@@ -1427,8 +1427,8 @@ if (common->utf8)
   return;
   }
 #endif
-OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
-OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
+OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
+OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
 OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), common->ctypes);
 }
 
@@ -1449,7 +1449,7 @@ if (common->utf8)
   return;
   }
 #endif
-OP2(SLJIT_SUB, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
+OP2(SLJIT_SUB, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
 }
 
 static void check_newlinechar(compiler_common *common, int nltype, jump_list **fallbacks, BOOL jumpiftrue)
@@ -3116,10 +3116,10 @@ switch(type)
 
   case OP_NOT:
   case OP_NOTI:
-  length = 1;
 #ifdef SUPPORT_UTF8
   if (common->utf8)
     {
+    length = 1;
     if (*cc >= 0xc0) length += PRIV(utf8_table4)[*cc & 0x3f];
 
     check_input_end(common, fallbacks);
@@ -3150,9 +3150,9 @@ switch(type)
   else
 #endif
     {
-    OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
+    OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
     add_jump(compiler, fallbacks, CMP(SLJIT_C_GREATER, STR_PTR, 0, STR_END, 0));
-    OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(STR_PTR), -1);
+    OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(STR_PTR), IN_UCHARS(-1));
     c = *cc;
     }
 
@@ -3173,7 +3173,7 @@ switch(type)
       add_jump(compiler, fallbacks, CMP(SLJIT_C_EQUAL, TMP1, 0, SLJIT_IMM, oc));
       }
     }
-  return cc + length;
+  return cc + 1;
 
   case OP_CLASS:
   case OP_NCLASS:
@@ -3403,7 +3403,7 @@ if (jump != NULL)
   else
     JUMPHERE(jump);
   }
-return cc + 3;
+return cc + 1 + IMM2_SIZE;
 }
 
 static SLJIT_INLINE pcre_uchar *compile_ref_iterator_hotpath(compiler_common *common, pcre_uchar *cc, fallback_common *parent)
@@ -3420,7 +3420,7 @@ BOOL minimize;
 
 PUSH_FALLBACK(sizeof(iterator_fallback), cc, NULL);
 
-type = cc[3];
+type = cc[1 + IMM2_SIZE];
 minimize = (type & 0x1) != 0;
 switch(type)
   {
@@ -3428,25 +3428,25 @@ switch(type)
   case OP_CRMINSTAR:
   min = 0;
   max = 0;
-  cc += 4;
+  cc += 1 + IMM2_SIZE + 1;
   break;
   case OP_CRPLUS:
   case OP_CRMINPLUS:
   min = 1;
   max = 0;
-  cc += 4;
+  cc += 1 + IMM2_SIZE + 1;
   break;
   case OP_CRQUERY:
   case OP_CRMINQUERY:
   min = 0;
   max = 1;
-  cc += 4;
+  cc += 1 + IMM2_SIZE + 1;
   break;
   case OP_CRRANGE:
   case OP_CRMINRANGE:
-  min = GET2(cc, 3 + 1);
-  max = GET2(cc, 3 + 3);
-  cc += 8;
+  min = GET2(cc, 1 + IMM2_SIZE + 1);
+  max = GET2(cc, 1 + IMM2_SIZE + 1 + IMM2_SIZE);
+  cc += 1 + IMM2_SIZE + 1 + 2 * IMM2_SIZE;
   break;
   default:
   SLJIT_ASSERT_STOP();
@@ -4101,7 +4101,7 @@ if (opcode == OP_CBRA || opcode == OP_SCBRA)
   localptr = OVECTOR_PRIV(offset);
   offset <<= 1;
   FALLBACK_AS(bracket_fallback)->localptr = localptr;
-  hotpath += 2;
+  hotpath += IMM2_SIZE;
   }
 else if (opcode == OP_ONCE || opcode == OP_SBRA || opcode == OP_SCOND)
   {
@@ -4265,7 +4265,7 @@ if (opcode == OP_COND || opcode == OP_SCOND)
     SLJIT_ASSERT(has_alternatives);
     add_jump(compiler, &(FALLBACK_AS(bracket_fallback)->u.condfailed),
       CMP(SLJIT_C_EQUAL, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(GET2(hotpath, 1) << 1), SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(1)));
-    hotpath += 3;
+    hotpath += 1 + IMM2_SIZE;
     }
   else if (*hotpath == OP_NCREF)
     {
@@ -4284,7 +4284,7 @@ if (opcode == OP_COND || opcode == OP_SCOND)
     add_jump(compiler, &(FALLBACK_AS(bracket_fallback)->u.condfailed), CMP(SLJIT_C_EQUAL, SLJIT_TEMPORARY_REG1, 0, SLJIT_IMM, 0));
 
     JUMPHERE(jump);
-    hotpath += 3;
+    hotpath += 1 + IMM2_SIZE;
     }
   else if (*hotpath == OP_RREF || *hotpath == OP_NRREF)
     {
@@ -4305,7 +4305,7 @@ if (opcode == OP_COND || opcode == OP_SCOND)
       {
       SLJIT_ASSERT(!has_alternatives);
       if (stacksize != 0)
-        hotpath += 3;
+        hotpath += 1 + IMM2_SIZE;
       else
         {
         if (*cc == OP_ALT)
@@ -4332,7 +4332,7 @@ if (opcode == OP_COND || opcode == OP_SCOND)
       sljit_emit_ijump(compiler, SLJIT_CALL3, SLJIT_IMM, SLJIT_FUNC_OFFSET(do_searchgroups));
       OP1(SLJIT_MOV, STACK_TOP, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), POSSESSIVE1);
       add_jump(compiler, &(FALLBACK_AS(bracket_fallback)->u.condfailed), CMP(SLJIT_C_EQUAL, SLJIT_TEMPORARY_REG1, 0, SLJIT_IMM, 0));
-      hotpath += 3;
+      hotpath += 1 + IMM2_SIZE;
       }
     }
   else
@@ -4507,7 +4507,7 @@ switch(opcode)
   offset = GET2(cc, 1 + LINK_SIZE);
   cbraprivptr = OVECTOR_PRIV(offset);
   offset <<= 1;
-  ccbegin = cc + 1 + LINK_SIZE + 2;
+  ccbegin = cc + 1 + LINK_SIZE + IMM2_SIZE;
   break;
 
   default:
@@ -4736,7 +4736,7 @@ else
   else
     {
     SLJIT_ASSERT(*opcode == OP_CRRANGE || *opcode == OP_CRMINRANGE);
-    *arg1 = GET2(cc, (class_len + 2));
+    *arg1 = GET2(cc, (class_len + IMM2_SIZE));
     *arg2 = GET2(cc, class_len);
 
     if (*arg2 == 0)
@@ -4748,7 +4748,7 @@ else
       *opcode = OP_EXACT;
 
     if (end != NULL)
-      *end = cc + class_len + 4;
+      *end = cc + class_len + 2 * IMM2_SIZE;
     }
   return cc;
   }
@@ -4756,7 +4756,7 @@ else
 if (*opcode == OP_UPTO || *opcode == OP_MINUPTO || *opcode == OP_EXACT || *opcode == OP_POSUPTO)
   {
   *arg1 = GET2(cc, 0);
-  cc += 2;
+  cc += IMM2_SIZE;
   }
 
 if (*type == 0)
@@ -4998,13 +4998,13 @@ int offset = GET2(cc, 1);
 
 /* Data will be discarded anyway... */
 if (common->currententry != NULL)
-  return cc + 3;
+  return cc + 1 + IMM2_SIZE;
 
 OP1(SLJIT_MOV, TMP1, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR_PRIV(offset));
 offset <<= 1;
 OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(offset + 1), STR_PTR, 0);
 OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(offset), TMP1, 0);
-return cc + 3;
+return cc + 1 + IMM2_SIZE;
 }
 
 static void compile_hotpath(compiler_common *common, pcre_uchar *cc, pcre_uchar *ccend, fallback_common *parent)
@@ -5150,7 +5150,7 @@ while (cc < ccend)
 
     case OP_REF:
     case OP_REFI:
-    if (cc[3] >= OP_CRSTAR && cc[3] <= OP_CRMINRANGE)
+    if (cc[1 + IMM2_SIZE] >= OP_CRSTAR && cc[1 + IMM2_SIZE] <= OP_CRMINRANGE)
       cc = compile_ref_iterator_hotpath(common, cc, parent);
     else
       cc = compile_ref_hotpath(common, cc, parent->top != NULL ? &parent->top->nextfallbacks : &parent->topfallbacks, TRUE, FALSE);
@@ -5388,7 +5388,7 @@ DEFINE_COMPILER;
 pcre_uchar *cc = current->cc;
 pcre_uchar type;
 
-type = cc[3];
+type = cc[1 + IMM2_SIZE];
 if ((type & 0x1) == 0)
   {
   set_jumps(current->topfallbacks, LABEL());
@@ -6062,7 +6062,7 @@ static SLJIT_INLINE void compile_recurse(compiler_common *common)
 {
 DEFINE_COMPILER;
 pcre_uchar *cc = common->start + common->currententry->start;
-pcre_uchar *ccbegin = cc + 1 + LINK_SIZE + (*cc == OP_BRA ? 0 : 2);
+pcre_uchar *ccbegin = cc + 1 + LINK_SIZE + (*cc == OP_BRA ? 0 : IMM2_SIZE);
 pcre_uchar *ccend = bracketend(cc);
 int localsize = get_localsize(common, ccbegin, ccend);
 int framesize = get_framesize(common, cc, TRUE);
