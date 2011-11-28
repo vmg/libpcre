@@ -71,6 +71,21 @@ script prevents both being selected, but not everybody uses "configure". */
 #define SUPPORT_UTF8 1
 #endif
 
+/* If SUPPORT_UCP is defined, SUPPORT_UTF16 must also be defined. The
+"configure" script ensures this, but not everybody uses "configure". */
+
+#if defined SUPPORT_UCP && defined COMPILE_PCRE16 && !defined SUPPORT_UTF16
+#define SUPPORT_UTF16 1
+#endif
+
+/* This macro is defined if either UTF-8 or UTF-16 support or both are
+enabled. */
+
+#if defined SUPPORT_UTF8 || defined SUPPORT_UTF16
+/* Unicode Transformation Format is enabled. */
+#define SUPPORT_UTF 1
+#endif
+
 /* Use a macro for debugging printing, 'cause that eliminates the use of #ifdef
 inline, and there are *still* stupid compilers about that don't like indented
 pre-processor statements, or at least there were when I first wrote this. After
@@ -1325,7 +1340,7 @@ only. */
 #define PT_WORD       8    /* Word - L plus N plus underscore */
 
 /* Flag bits and data types for the extended class (OP_XCLASS) for classes that
-contain UTF-8 characters with values greater than 255. */
+contain characters with values greater than 255. */
 
 #define XCL_NOT    0x01    /* Flag: this is a negative class */
 #define XCL_MAP    0x02    /* Flag: a 32-byte map is present */
@@ -1522,8 +1537,8 @@ enum {
   OP_CLASS,          /* 106 Match a character class, chars < 256 only */
   OP_NCLASS,         /* 107 Same, but the bitmap was created from a negative
                               class - the difference is relevant only when a
-                              UTF-8 character > 255 is encountered. */
-  OP_XCLASS,         /* 108 Extended class for handling UTF-8 chars within the
+                              character > 255 is encountered. */
+  OP_XCLASS,         /* 108 Extended class for handling > 255 chars within the
                               class. This does both positive and negative. */
   OP_REF,            /* 109 Match a back reference, casefully */
   OP_REFI,           /* 110 Match a back reference, caselessly */
@@ -1704,8 +1719,8 @@ in UTF-8 mode. The code that uses this table must know about such things. */
   /* Character class & ref repeats                                         */ \
   1, 1, 1, 1, 1, 1,              /* *, *?, +, +?, ?, ??                    */ \
   1+2*IMM2_SIZE, 1+2*IMM2_SIZE,  /* CRRANGE, CRMINRANGE                    */ \
- 33,                             /* CLASS                                  */ \
- 33,                             /* NCLASS                                 */ \
+  1+(32/sizeof(pcre_uchar)),     /* CLASS                                  */ \
+  1+(32/sizeof(pcre_uchar)),     /* NCLASS                                 */ \
   0,                             /* XCLASS - variable length               */ \
   1+IMM2_SIZE,                   /* REF                                    */ \
   1+IMM2_SIZE,                   /* REFI                                   */ \

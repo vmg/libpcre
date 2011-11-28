@@ -322,15 +322,15 @@ for (;;)
 
     /* Check a class for variable quantification */
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF8 || !defined COMPILE_PCRE8
     case OP_XCLASS:
-    cc += GET(cc, 1) - 33;
+    cc += GET(cc, 1) - PRIV(OP_lengths)[OP_CLASS];
     /* Fall through */
 #endif
 
     case OP_CLASS:
     case OP_NCLASS:
-    cc += 33;
+    cc += PRIV(OP_lengths)[OP_CLASS];
 
     switch (*cc)
       {
@@ -789,7 +789,9 @@ do
       case OP_SOM:
       case OP_THEN:
       case OP_THEN_ARG:
+#if defined SUPPORT_UTF8 || !defined COMPILE_PCRE8
       case OP_XCLASS:
+#endif
       return SSB_FAIL;
 
       /* We can ignore word boundary tests. */
@@ -1134,7 +1136,9 @@ do
 
       case OP_CLASS:
         {
+        pcre_uint8 *map;
         tcode++;
+        map = (pcre_uint8 *)tcode;
 
         /* In UTF-8 mode, the bits in a bit map correspond to character
         values, not to byte values. However, the bit map we are constructing is
@@ -1145,10 +1149,10 @@ do
 #ifdef SUPPORT_UTF8
         if (utf8)
           {
-          for (c = 0; c < 16; c++) start_bits[c] |= tcode[c];
+          for (c = 0; c < 16; c++) start_bits[c] |= map[c];
           for (c = 128; c < 256; c++)
             {
-            if ((tcode[c/8] && (1 << (c&7))) != 0)
+            if ((map[c/8] && (1 << (c&7))) != 0)
               {
               int d = (c >> 6) | 0xc0;            /* Set bit for this starter */
               start_bits[d/8] |= (1 << (d&7));    /* and then skip on to the */
@@ -1162,13 +1166,13 @@ do
         else
 #endif
           {
-          for (c = 0; c < 32; c++) start_bits[c] |= tcode[c];
+          for (c = 0; c < 32; c++) start_bits[c] |= map[c];
           }
 
         /* Advance past the bit map, and act on what follows. For a zero
         minimum repeat, continue; otherwise stop processing. */
 
-        tcode += 32;
+        tcode += 32 / sizeof(pcre_uchar);
         switch (*tcode)
           {
           case OP_CRSTAR:

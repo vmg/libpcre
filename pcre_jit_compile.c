@@ -592,9 +592,9 @@ switch(*cc)
 
   case OP_CLASS:
   case OP_NCLASS:
-  return cc + 33;
+  return cc + 1 + 32 / sizeof(pcre_uchar);
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
   case OP_XCLASS:
   return cc + GET(cc, 1);
 #endif
@@ -1879,10 +1879,13 @@ if (firstline)
 
 start = LABEL();
 leave = CMP(SLJIT_C_GREATER_EQUAL, STR_PTR, 0, STR_END, 0);
-OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
-#ifdef SUPPORT_UTF8
+OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
+#ifdef SUPPORT_UTF
 if (common->utf8)
   OP1(SLJIT_MOV, TMP3, 0, TMP1, 0);
+#endif
+#ifndef COMPILE_PCRE8
+OP2(SLJIT_AND, TMP1, 0, TMP1, 0, SLJIT_IMM, 0xff);
 #endif
 OP2(SLJIT_AND, TMP2, 0, TMP1, 0, SLJIT_IMM, 0x7);
 OP2(SLJIT_LSHR, TMP1, 0, TMP1, 0, SLJIT_IMM, 3);
@@ -1891,11 +1894,11 @@ OP2(SLJIT_SHL, TMP2, 0, SLJIT_IMM, 1, TMP2, 0);
 OP2(SLJIT_AND | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, TMP2, 0);
 found = JUMP(SLJIT_C_NOT_ZERO);
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf8)
   OP1(SLJIT_MOV, TMP1, 0, TMP3, 0);
 #endif
-OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
+OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
 #ifdef SUPPORT_UTF8
 if (common->utf8)
   {
@@ -2435,7 +2438,7 @@ while (utf8length > 0);
 return cc;
 }
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
 
 #define SET_TYPE_OFFSET(value) \
   if ((value) != typeoffset) \
@@ -2482,8 +2485,12 @@ read_char(common);
 if ((*cc++ & XCL_MAP) != 0)
   {
   OP1(SLJIT_MOV, TMP3, 0, TMP1, 0);
+#ifndef COMPILE_PCRE8
+  jump = CMP(SLJIT_C_GREATER, TMP1, 0, SLJIT_IMM, 255);
+#elif defined SUPPORT_UTF8
   if (common->utf8)
     jump = CMP(SLJIT_C_GREATER, TMP1, 0, SLJIT_IMM, 255);
+#endif
 
   OP2(SLJIT_AND, TMP2, 0, TMP1, 0, SLJIT_IMM, 0x7);
   OP2(SLJIT_LSHR, TMP1, 0, TMP1, 0, SLJIT_IMM, 3);
@@ -2492,13 +2499,17 @@ if ((*cc++ & XCL_MAP) != 0)
   OP2(SLJIT_AND | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, TMP2, 0);
   add_jump(compiler, list, JUMP(SLJIT_C_NOT_ZERO));
 
+#ifndef COMPILE_PCRE8
+  JUMPHERE(jump);
+#elif defined SUPPORT_UTF8
   if (common->utf8)
     JUMPHERE(jump);
+#endif
   OP1(SLJIT_MOV, TMP1, 0, TMP3, 0);
 #ifdef SUPPORT_UCP
   charsaved = TRUE;
 #endif
-  cc += 32;
+  cc += 32 / sizeof(pcre_uchar);
   }
 
 /* Scanning the necessary info. */
@@ -3179,9 +3190,12 @@ switch(type)
   case OP_NCLASS:
   check_input_end(common, fallbacks);
   read_char(common);
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
   jump[0] = NULL;
+#ifdef SUPPORT_UTF8
+  /* This check can only be skipped in pure 8 bit mode. */
   if (common->utf8)
+#endif
     {
     jump[0] = CMP(SLJIT_C_GREATER, TMP1, 0, SLJIT_IMM, 255);
     if (type == OP_CLASS)
@@ -3197,13 +3211,13 @@ switch(type)
   OP2(SLJIT_SHL, TMP2, 0, SLJIT_IMM, 1, TMP2, 0);
   OP2(SLJIT_AND | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, TMP2, 0);
   add_jump(compiler, fallbacks, JUMP(SLJIT_C_ZERO));
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
   if (jump[0] != NULL)
     JUMPHERE(jump[0]);
 #endif
-  return cc + 32;
+  return cc + 32 / sizeof(pcre_uchar);
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || defined COMPILE_PCRE16
   case OP_XCLASS:
   compile_xclass_hotpath(common, cc + LINK_SIZE, fallbacks);
   return cc + GET(cc, 0) - 1;
@@ -4725,7 +4739,7 @@ else
   SLJIT_ASSERT(*opcode >= OP_CLASS || *opcode <= OP_XCLASS);
   *type = *opcode;
   cc++;
-  class_len = (*type < OP_XCLASS) ? 33 : GET(cc, 0);
+  class_len = (*type < OP_XCLASS) ? (1 + (32 / sizeof(pcre_uchar))) : GET(cc, 0);
   *opcode = cc[class_len - 1];
   if (*opcode >= OP_CRSTAR && *opcode <= OP_CRMINQUERY)
     {
@@ -5133,13 +5147,13 @@ while (cc < ccend)
 
     case OP_CLASS:
     case OP_NCLASS:
-    if (cc[33] >= OP_CRSTAR && cc[33] <= OP_CRMINRANGE)
+    if (cc[1 + (32 / sizeof(pcre_uchar))] >= OP_CRSTAR && cc[1 + (32 / sizeof(pcre_uchar))] <= OP_CRMINRANGE)
       cc = compile_iterator_hotpath(common, cc, parent);
     else
       cc = compile_char1_hotpath(common, *cc, cc + 1, parent->top != NULL ? &parent->top->nextfallbacks : &parent->topfallbacks);
     break;
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || defined COMPILE_PCRE16
     case OP_XCLASS:
     if (*(cc + GET(cc, 1)) >= OP_CRSTAR && *(cc + GET(cc, 1)) <= OP_CRMINRANGE)
       cc = compile_iterator_hotpath(common, cc, parent);
@@ -5994,7 +6008,9 @@ while (current)
     case OP_TYPEPOSUPTO:
     case OP_CLASS:
     case OP_NCLASS:
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
     case OP_XCLASS:
+#endif
     compile_iterator_fallbackpath(common, current);
     break;
 

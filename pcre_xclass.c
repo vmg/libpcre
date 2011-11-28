@@ -75,15 +75,16 @@ additional data. */
 
 if (c < 256)
   {
-  if ((*data & XCL_MAP) != 0 && (data[1 + c/8] & (1 << (c&7))) != 0)
-    return !negated;   /* char found */
+  if ((*data & XCL_MAP) != 0 &&
+    (((pcre_uint8 *)(data + 1))[c/8] & (1 << (c&7))) != 0)
+    return !negated; /* char found */
   }
 
 /* First skip the bit map if present. Then match against the list of Unicode
 properties or large chars or ranges that end with a large char. We won't ever
 encounter XCL_PROP or XCL_NOTPROP when UCP support is not compiled. */
 
-if ((*data++ & XCL_MAP) != 0) data += 32;
+if ((*data++ & XCL_MAP) != 0) data += 32 / sizeof(pcre_uchar);
 
 while ((t = *data++) != XCL_END)
   {

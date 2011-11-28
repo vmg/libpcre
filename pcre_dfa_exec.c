@@ -2426,7 +2426,7 @@ for (;;)
 
         if (codevalue != OP_XCLASS)
           {
-          ecode = code + 33;
+          ecode = code + 1 + (32 / sizeof(pcre_uchar));
           if (clen > 0)
             {
             isinclass = (c > 255)? (codevalue == OP_NCLASS) :

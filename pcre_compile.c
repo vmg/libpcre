@@ -1764,15 +1764,15 @@ for (;;)
 
     /* Check a class for variable quantification */
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || defined COMPILE_PCRE16
     case OP_XCLASS:
-    cc += GET(cc, 1) - 33;
+    cc += GET(cc, 1) - PRIV(OP_lengths)[OP_CLASS];
     /* Fall through */
 #endif
 
     case OP_CLASS:
     case OP_NCLASS:
-    cc += 33;
+    cc += PRIV(OP_lengths)[OP_CLASS];
 
     switch (*cc)
       {
@@ -2310,7 +2310,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
 
     case OP_CLASS:
     case OP_NCLASS:
-    ccode = code + 33;
+    ccode = code + PRIV(OP_lengths)[OP_CLASS];
 
 #ifdef SUPPORT_UTF8
     CHECK_CLASS_REPEAT:
@@ -3299,20 +3299,25 @@ const pcre_uchar *nestptr = NULL;
 pcre_uchar *previous = NULL;
 pcre_uchar *previous_callout = NULL;
 pcre_uchar *save_hwm = NULL;
-pcre_uchar classbits[32];
+pcre_uint8 classbits[32];
 
 /* We can fish out the UTF-8 setting once and for all into a BOOL, but we
 must not do this for other options (e.g. PCRE_EXTENDED) because they may change
 dynamically as we process the pattern. */
 
 #ifdef SUPPORT_UTF8
-BOOL class_utf8;
 BOOL utf8 = (options & PCRE_UTF8) != 0;
-pcre_uint8 *class_utf8data;
-pcre_uint8 *class_utf8data_base;
 pcre_uint8 utf8_char[6];
 #else
 BOOL utf8 = FALSE;
+#endif
+
+/* Helper variables for OP_XCLASS opcode (for characters > 255). */
+
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
+BOOL xclass;
+pcre_uchar *class_uchardata;
+pcre_uchar *class_uchardata_base;
 #endif
 
 #ifdef PCRE_DEBUG
@@ -3620,8 +3625,7 @@ for (;; ptr++)
         {
         if (ptr[1] == CHAR_E)
           ptr++;
-        else if (STRNCMP_UC_C8(ptr + 1,
-                          STR_Q STR_BACKSLASH STR_E, 3) == 0)
+        else if (STRNCMP_UC_C8(ptr + 1, STR_Q STR_BACKSLASH STR_E, 3) == 0)
           ptr += 3;
         else
           break;
@@ -3665,10 +3669,10 @@ for (;; ptr++)
 
     memset(classbits, 0, 32 * sizeof(pcre_uint8));
 
-#ifdef SUPPORT_UTF8
-    class_utf8 = FALSE;                       /* No chars >= 256 */
-    class_utf8data = code + LINK_SIZE + 2;    /* For UTF-8 items */
-    class_utf8data_base = class_utf8data;     /* For resetting in pass 1 */
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
+    xclass = FALSE;                           /* No chars >= 256 */
+    class_uchardata = code + LINK_SIZE + 2;   /* For UTF-8 items */
+    class_uchardata_base = class_uchardata;   /* For resetting in pass 1 */
 #endif
 
     /* Process characters until ] is reached. By writing this as a "do" it
@@ -3684,18 +3688,19 @@ for (;; ptr++)
         {                           /* Braces are required because the */
         GETCHARLEN(c, ptr, ptr);    /* macro generates multiple statements */
         }
+#endif
 
-      /* In the pre-compile phase, accumulate the length of any UTF-8 extra
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
+      /* In the pre-compile phase, accumulate the length of any extra
       data and reset the pointer. This is so that very large classes that
-      contain a zillion UTF-8 characters no longer overwrite the work space
+      contain a zillion > 255 characters no longer overwrite the work space
       (which is on the stack). */
 
       if (lengthptr != NULL)
         {
-        *lengthptr += class_utf8data - class_utf8data_base;
-        class_utf8data = class_utf8data_base;
+        *lengthptr += class_uchardata - class_uchardata_base;
+        class_uchardata = class_uchardata_base;
         }
-
 #endif
 
       /* Inside \Q...\E everything is literal except \E */
@@ -3896,23 +3901,23 @@ for (;; ptr++)
             SETBIT(classbits, 0x09); /* VT */
             SETBIT(classbits, 0x20); /* SPACE */
             SETBIT(classbits, 0xa0); /* NSBP */
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
             if (utf8)
               {
-              class_utf8 = TRUE;
-              *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += PRIV(ord2utf8)(0x1680, class_utf8data);
-              *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += PRIV(ord2utf8)(0x180e, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x2000, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x200A, class_utf8data);
-              *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += PRIV(ord2utf8)(0x202f, class_utf8data);
-              *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += PRIV(ord2utf8)(0x205f, class_utf8data);
-              *class_utf8data++ = XCL_SINGLE;
-              class_utf8data += PRIV(ord2utf8)(0x3000, class_utf8data);
+              xclass = TRUE;
+              *class_uchardata++ = XCL_SINGLE;
+              class_uchardata += PRIV(ord2utf8)(0x1680, class_uchardata);
+              *class_uchardata++ = XCL_SINGLE;
+              class_uchardata += PRIV(ord2utf8)(0x180e, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x2000, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x200A, class_uchardata);
+              *class_uchardata++ = XCL_SINGLE;
+              class_uchardata += PRIV(ord2utf8)(0x202f, class_uchardata);
+              *class_uchardata++ = XCL_SINGLE;
+              class_uchardata += PRIV(ord2utf8)(0x205f, class_uchardata);
+              *class_uchardata++ = XCL_SINGLE;
+              class_uchardata += PRIV(ord2utf8)(0x3000, class_uchardata);
               }
 #endif
             continue;
@@ -3931,31 +3936,31 @@ for (;; ptr++)
               classbits[c] |= x;
               }
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
             if (utf8)
               {
-              class_utf8 = TRUE;
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x0100, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x167f, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x1681, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x180d, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x180f, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x1fff, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x200B, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x202e, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x2030, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x205e, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x2060, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x2fff, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x3001, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x7fffffff, class_utf8data);
+              xclass = TRUE;
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x0100, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x167f, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x1681, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x180d, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x180f, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x1fff, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x200B, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x202e, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x2030, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x205e, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x2060, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x2fff, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x3001, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x7fffffff, class_uchardata);
               }
 #endif
             continue;
@@ -3966,13 +3971,13 @@ for (;; ptr++)
             SETBIT(classbits, 0x0c); /* FF */
             SETBIT(classbits, 0x0d); /* CR */
             SETBIT(classbits, 0x85); /* NEL */
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
             if (utf8)
               {
-              class_utf8 = TRUE;
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x2028, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x2029, class_utf8data);
+              xclass = TRUE;
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x2028, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x2029, class_uchardata);
               }
 #endif
             continue;
@@ -3994,16 +3999,16 @@ for (;; ptr++)
               classbits[c] |= x;
               }
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
             if (utf8)
               {
-              class_utf8 = TRUE;
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x0100, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x2027, class_utf8data);
-              *class_utf8data++ = XCL_RANGE;
-              class_utf8data += PRIV(ord2utf8)(0x2029, class_utf8data);
-              class_utf8data += PRIV(ord2utf8)(0x7fffffff, class_utf8data);
+              xclass = TRUE;
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x0100, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x2027, class_uchardata);
+              *class_uchardata++ = XCL_RANGE;
+              class_uchardata += PRIV(ord2utf8)(0x2029, class_uchardata);
+              class_uchardata += PRIV(ord2utf8)(0x7fffffff, class_uchardata);
               }
 #endif
             continue;
@@ -4016,11 +4021,11 @@ for (;; ptr++)
               int pdata;
               int ptype = get_ucp(&ptr, &negated, &pdata, errorcodeptr);
               if (ptype < 0) goto FAILED;
-              class_utf8 = TRUE;
-              *class_utf8data++ = ((-c == ESC_p) != negated)?
+              xclass = TRUE;
+              *class_uchardata++ = ((-c == ESC_p) != negated)?
                 XCL_PROP : XCL_NOTPROP;
-              *class_utf8data++ = ptype;
-              *class_utf8data++ = pdata;
+              *class_uchardata++ = ptype;
+              *class_uchardata++ = pdata;
               class_charcount -= 2;   /* Not a < 256 character */
               continue;
               }
@@ -4042,7 +4047,7 @@ for (;; ptr++)
           }
 
         /* Fall through if we have a single character (c >= 0). This may be
-        greater than 256 in UTF-8 mode. */
+        greater than 256 mode. */
 
         }   /* End of backslash handling */
 
@@ -4140,10 +4145,15 @@ for (;; ptr++)
         matching for characters > 127 is available only if UCP support is
         available. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf8 && (d > 255 || ((options & PCRE_CASELESS) != 0 && d > 127)))
+#endif
+#ifndef COMPILE_PCRE8
+        if (d > 255)
+#endif
+#if defined SUPPORT_UTF || defined COMPILE_PCRE16
           {
-          class_utf8 = TRUE;
+          xclass = TRUE;
 
           /* With UCP support, we can find the other case equivalents of
           the relevant characters. There may be several ranges. Optimize how
@@ -4176,14 +4186,14 @@ for (;; ptr++)
 
               if (occ == ocd)
                 {
-                *class_utf8data++ = XCL_SINGLE;
+                *class_uchardata++ = XCL_SINGLE;
                 }
               else
                 {
-                *class_utf8data++ = XCL_RANGE;
-                class_utf8data += PRIV(ord2utf8)(occ, class_utf8data);
+                *class_uchardata++ = XCL_RANGE;
+                class_uchardata += PRIV(ord2utf8)(occ, class_uchardata);
                 }
-              class_utf8data += PRIV(ord2utf8)(ocd, class_utf8data);
+              class_uchardata += PRIV(ord2utf8)(ocd, class_uchardata);
               }
             }
 #endif  /* SUPPORT_UCP */
@@ -4191,30 +4201,38 @@ for (;; ptr++)
           /* Now record the original range, possibly modified for UCP caseless
           overlapping ranges. */
 
-          *class_utf8data++ = XCL_RANGE;
-          class_utf8data += PRIV(ord2utf8)(c, class_utf8data);
-          class_utf8data += PRIV(ord2utf8)(d, class_utf8data);
+          *class_uchardata++ = XCL_RANGE;
+#ifdef SUPPORT_UTF
+          class_uchardata += PRIV(ord2utf8)(c, class_uchardata);
+          class_uchardata += PRIV(ord2utf8)(d, class_uchardata);
+#else
+          *class_uchardata++ = c;
+          *class_uchardata++ = d;
+#endif
 
           /* With UCP support, we are done. Without UCP support, there is no
-          caseless matching for UTF-8 characters > 127; we can use the bit map
-          for the smaller ones. */
+          caseless matching for UTF characters > 127; we can use the bit map
+          for the smaller ones. As for 16 bit characters without UTF, we
+          can still use  */
 
 #ifdef SUPPORT_UCP
           continue;    /* With next character in the class */
 #else
+#ifdef SUPPORT_UTF
           if ((options & PCRE_CASELESS) == 0 || c > 127) continue;
-
           /* Adjust upper limit and fall through to set up the map */
-
           d = 127;
-
+#else
+          if (c > 255) continue;
+          /* Adjust upper limit and fall through to set up the map */
+          d = 255;
+#endif  /* SUPPORT_UTF */
 #endif  /* SUPPORT_UCP */
           }
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF8 || COMPILE_PCRE16 */
 
-        /* We use the bit map for all cases when not in UTF-8 mode; else
-        ranges that lie entirely within 0-127 when there is UCP support; else
-        for partial ranges without UCP support. */
+        /* We use the bit map for 8 bit mode, or when the characters fall
+        partially or entirely to [0-255] ([0-127] for UCP) ranges. */
 
         class_charcount += d - c + 1;
         class_lastchar = d;
@@ -4242,12 +4260,21 @@ for (;; ptr++)
 
       /* Handle a character that cannot go in the bit map */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf8 && (c > 255 || ((options & PCRE_CASELESS) != 0 && c > 127)))
+#endif
+#ifndef COMPILE_PCRE8
+      if (c > 255)
+#endif
+#if defined SUPPORT_UTF || defined COMPILE_PCRE16
         {
-        class_utf8 = TRUE;
-        *class_utf8data++ = XCL_SINGLE;
-        class_utf8data += PRIV(ord2utf8)(c, class_utf8data);
+        xclass = TRUE;
+        *class_uchardata++ = XCL_SINGLE;
+#ifdef SUPPORT_UTF
+        class_uchardata += PRIV(ord2utf8)(c, class_uchardata);
+#else
+        *class_uchardata++ = c;
+#endif
 
 #ifdef SUPPORT_UCP
         if ((options & PCRE_CASELESS) != 0)
@@ -4255,8 +4282,8 @@ for (;; ptr++)
           unsigned int othercase;
           if ((othercase = UCD_OTHERCASE(c)) != c)
             {
-            *class_utf8data++ = XCL_SINGLE;
-            class_utf8data += PRIV(ord2utf8)(othercase, class_utf8data);
+            *class_uchardata++ = XCL_SINGLE;
+            class_uchardata += PRIV(ord2utf8)(othercase, class_uchardata);
             }
           }
 #endif  /* SUPPORT_UCP */
@@ -4312,11 +4339,13 @@ for (;; ptr++)
     char if this item is first, whatever repeat count may follow. In the case
     of reqbyte, save the previous value for reinstating. */
 
-#ifdef SUPPORT_UTF8
-    if (class_charcount == 1 && !class_utf8 &&
+#ifdef SUPPORT_UTF
+    if (class_charcount == 1 && !xclass &&
       (!utf8 || !negate_class || class_lastchar < 128))
-#else
+#elif defined COMPILE_PCRE8
     if (class_charcount == 1)
+#else
+    if (class_charcount == 1 && !xclass)
 #endif
       {
       zeroreqbyte = reqbyte;
@@ -4364,13 +4393,18 @@ for (;; ptr++)
     be listed) there are no characters < 256, we can omit the bitmap in the
     actual compiled code. */
 
-#ifdef SUPPORT_UTF8
-    if (class_utf8 && (!should_flip_negation || (options & PCRE_UCP) != 0))
+#ifdef SUPPORT_UTF
+    if (xclass && (!should_flip_negation || (options & PCRE_UCP) != 0))
+#endif
+#ifndef COMPILE_PCRE8
+    if (xclass && !should_flip_negation)
+#endif
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
       {
-      *class_utf8data++ = XCL_END;    /* Marks the end of extra data */
+      *class_uchardata++ = XCL_END;    /* Marks the end of extra data */
       *code++ = OP_XCLASS;
       code += LINK_SIZE;
-      *code = negate_class? XCL_NOT : 0;
+      *code = negate_class? XCL_NOT:0;
 
       /* If the map is required, move up the extra data to make room for it;
       otherwise just move the code pointer to the end of the extra data. */
@@ -4378,11 +4412,12 @@ for (;; ptr++)
       if (class_charcount > 0)
         {
         *code++ |= XCL_MAP;
-        memmove(code + 32, code, class_utf8data - code);
+        memmove(code + (32 / sizeof(pcre_uchar)), code,
+          IN_UCHARS(class_uchardata - code));
         memcpy(code, classbits, 32);
-        code = class_utf8data + 32;
+        code = class_uchardata + (32 / sizeof(pcre_uchar));
         }
-      else code = class_utf8data;
+      else code = class_uchardata;
 
       /* Now fill in the complete length of the item */
 
@@ -4398,16 +4433,13 @@ for (;; ptr++)
     negating it if necessary. */
 
     *code++ = (negate_class == should_flip_negation) ? OP_CLASS : OP_NCLASS;
-    if (negate_class)
+    if (lengthptr == NULL)    /* Save time in the pre-compile phase */
       {
-      if (lengthptr == NULL)    /* Save time in the pre-compile phase */
-        for (c = 0; c < 32; c++) code[c] = ~classbits[c];
-      }
-    else
-      {
+      if (negate_class)
+        for (c = 0; c < 32; c++) classbits[c] = ~classbits[c];
       memcpy(code, classbits, 32);
       }
-    code += 32;
+    code += 32 / sizeof(pcre_uchar);
     break;
 
 
@@ -4761,7 +4793,7 @@ for (;; ptr++)
 
     else if (*previous == OP_CLASS ||
              *previous == OP_NCLASS ||
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF8 || !defined COMPILE_PCRE8
              *previous == OP_XCLASS ||
 #endif
              *previous == OP_REF ||

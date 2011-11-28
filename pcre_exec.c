@@ -2706,8 +2706,11 @@ for (;;)
     case OP_NCLASS:
     case OP_CLASS:
       {
+      /* The data variable is saved across frames, so the byte map needs to
+      be stored there. */
+#define BYTE_MAP ((pcre_uint8 *)data)
       data = ecode + 1;                /* Save for matching */
-      ecode += 33;                     /* Advance past the item */
+      ecode += 1 + (32 / sizeof(pcre_uchar)); /* Advance past the item */
 
       switch (*ecode)
         {
@@ -2740,7 +2743,7 @@ for (;;)
 
       /* First, ensure the minimum number of matches are present. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       /* UTF-8 mode */
       if (utf8)
         {
@@ -2757,9 +2760,7 @@ for (;;)
             if (op == OP_CLASS) MRRETURN(MATCH_NOMATCH);
             }
           else
-            {
-            if ((data[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
-            }
+            if ((BYTE_MAP[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
           }
         }
       else
@@ -2774,7 +2775,14 @@ for (;;)
             MRRETURN(MATCH_NOMATCH);
             }
           c = *eptr++;
-          if ((data[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
+#ifndef COMPILE_PCRE8
+          if (c > 255)
+            {
+            if (op == OP_CLASS) MRRETURN(MATCH_NOMATCH);
+            }
+          else
+#endif
+            if ((BYTE_MAP[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
           }
         }
 
@@ -2788,7 +2796,7 @@ for (;;)
 
       if (minimize)
         {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         /* UTF-8 mode */
         if (utf8)
           {
@@ -2808,9 +2816,7 @@ for (;;)
               if (op == OP_CLASS) MRRETURN(MATCH_NOMATCH);
               }
             else
-              {
-              if ((data[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
-              }
+              if ((BYTE_MAP[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
             }
           }
         else
@@ -2828,7 +2834,14 @@ for (;;)
               MRRETURN(MATCH_NOMATCH);
               }
             c = *eptr++;
-            if ((data[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
+#ifndef COMPILE_PCRE8
+            if (c > 255)
+              {
+              if (op == OP_CLASS) MRRETURN(MATCH_NOMATCH);
+              }
+            else
+#endif
+              if ((BYTE_MAP[c/8] & (1 << (c&7))) == 0) MRRETURN(MATCH_NOMATCH);
             }
           }
         /* Control never gets here */
@@ -2840,8 +2853,8 @@ for (;;)
         {
         pp = eptr;
 
-#ifdef SUPPORT_UTF8
-        /* UTF-8 mode */
+#ifdef SUPPORT_UTF
+        /* UTF mode */
         if (utf8)
           {
           for (i = min; i < max; i++)
@@ -2858,9 +2871,7 @@ for (;;)
               if (op == OP_CLASS) break;
               }
             else
-              {
-              if ((data[c/8] & (1 << (c&7))) == 0) break;
-              }
+              if ((BYTE_MAP[c/8] & (1 << (c&7))) == 0) break;
             eptr += len;
             }
           for (;;)
@@ -2873,7 +2884,7 @@ for (;;)
           }
         else
 #endif
-          /* Not UTF-8 mode */
+          /* Not UTF mode */
           {
           for (i = min; i < max; i++)
             {
@@ -2883,7 +2894,14 @@ for (;;)
               break;
               }
             c = *eptr;
-            if ((data[c/8] & (1 << (c&7))) == 0) break;
+#ifndef COMPILE_PCRE8
+            if (c > 255)
+              {
+              if (op == OP_CLASS) break;
+              }
+            else
+#endif
+              if ((BYTE_MAP[c/8] & (1 << (c&7))) == 0) break;
             eptr++;
             }
           while (eptr >= pp)
@@ -2896,6 +2914,7 @@ for (;;)
 
         MRRETURN(MATCH_NOMATCH);
         }
+#undef BYTE_MAP
       }
     /* Control never gets here */
 
@@ -2904,7 +2923,7 @@ for (;;)
     when UTF-8 mode mode is supported. Nevertheless, we may not be in UTF-8
     mode, because Unicode properties are supported in non-UTF-8 mode. */
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
     case OP_XCLASS:
       {
       data = ecode + 1 + LINK_SIZE;                /* Save for matching */
@@ -2991,7 +3010,11 @@ for (;;)
             SCHECK_PARTIAL();
             break;
             }
+#ifdef SUPPORT_UTF
           GETCHARLENTEST(c, eptr, len);
+#else
+          c = *eptr;
+#endif
           if (!PRIV(xclass)(c, data)) break;
           eptr += len;
           }
@@ -3000,7 +3023,9 @@ for (;;)
           RMATCH(eptr, ecode, offset_top, md, eptrb, RM21);
           if (rrc != MATCH_NOMATCH) RRETURN(rrc);
           if (eptr-- == pp) break;        /* Stop if tried at original pos */
+#ifdef SUPPORT_UTF
           if (utf8) BACKCHAR(eptr);
+#endif
           }
         MRRETURN(MATCH_NOMATCH);
         }
@@ -6353,7 +6378,11 @@ for(;;)
       {
       while (start_match < end_subject)
         {
+#ifdef COMPILE_PCRE8
         register unsigned int c = *start_match;
+#else
+        register unsigned int c = *start_match & 0xff;
+#endif
         if ((start_bits[c/8] & (1 << (c&7))) == 0)
           {
           start_match++;

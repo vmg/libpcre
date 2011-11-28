@@ -471,9 +471,9 @@ for(;;)
     fprintf(f, "    %s %s", OP_names[*code], get_ucpname(code[1], code[2]));
     break;
 
-    /* OP_XCLASS can only occur in UTF-8 mode. However, there's no harm in
-    having this code always here, and it makes it less messy without all those
-    #ifdefs. */
+    /* OP_XCLASS can only occur in UTF or PCRE16 modes. However, there's no
+    harm in having this code always here, and it makes it less messy without
+    all those #ifdefs. */
 
     case OP_CLASS:
     case OP_NCLASS:
@@ -481,6 +481,7 @@ for(;;)
       {
       int i, min, max;
       BOOL printmap;
+      pcre_uint8 *map;
 
       fprintf(f, "    [");
 
@@ -501,13 +502,14 @@ for(;;)
 
       if (printmap)
         {
+        map = (pcre_uint8 *)ccode;
         for (i = 0; i < 256; i++)
           {
-          if ((ccode[i/8] & (1 << (i&7))) != 0)
+          if ((map[i/8] & (1 << (i&7))) != 0)
             {
             int j;
             for (j = i+1; j < 256; j++)
-              if ((ccode[j/8] & (1 << (j&7))) == 0) break;
+              if ((map[j/8] & (1 << (j&7))) == 0) break;
             if (i == '-' || i == ']') fprintf(f, "\\");
             if (PRINTABLE(i)) fprintf(f, "%c", i);
               else fprintf(f, "\\x%02x", i);
@@ -521,7 +523,7 @@ for(;;)
             i = j;
             }
           }
-        ccode += 32;
+        ccode += 32 / sizeof(pcre_uchar);
         }
 
       /* For an XCLASS there is always some additional data */
