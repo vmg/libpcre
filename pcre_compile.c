@@ -97,6 +97,10 @@ overrun before it actually does run off the end of the data block. */
 
 #define WORK_SIZE_CHECK (COMPILE_WORK_SIZE - 100)
 
+/* Private flags added to firstchar and reqchar. */
+
+#define REQ_CASELESS   0x10000000l      /* Indicates caselessness */
+#define REQ_VARY       0x20000000l      /* Reqchar followed non-literal item */
 
 /* Table for handling escaped characters in the range '0'-'z'. Positive returns
 are simple data values; negative values are for special things like \d and so
@@ -484,12 +488,18 @@ For convenience, we use the same bit definitions as in chartables:
 
 Then we can use ctype_digit and ctype_xdigit in the code. */
 
+/* Using a simple comparison for decimal numbers rather than a memory read
+is much faster, and the resulting code is simpler (the compiler turns it
+into a subtraction and unsigned comparison). */
+
+#define IS_DIGIT(x) ((x) >= CHAR_0 && (x) <= CHAR_9)
+
 #ifndef EBCDIC
 
 /* This is the "normal" case, for ASCII systems, and EBCDIC systems running in
 UTF-8 mode. */
 
-static const unsigned char digitab[] =
+static const pcre_uint8 digitab[] =
   {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, /*   0-  7 */
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, /*   8- 15 */
@@ -528,7 +538,7 @@ static const unsigned char digitab[] =
 
 /* This is the "abnormal" case, for EBCDIC systems not running in UTF-8 mode. */
 
-static const unsigned char digitab[] =
+static const pcre_unit8 digitab[] =
   {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, /*   0-  7  0 */
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, /*   8- 15    */
@@ -563,7 +573,7 @@ static const unsigned char digitab[] =
   0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c, /*  0 - 7  F0 */
   0x0c,0x0c,0x00,0x00,0x00,0x00,0x00,0x00};/*  8 -255    */
 
-static const unsigned char ebcdic_chartab[] = { /* chartable partial dup */
+static const pcre_uint8 ebcdic_chartab[] = { /* chartable partial dup */
   0x80,0x00,0x00,0x00,0x00,0x01,0x00,0x00, /*   0-  7 */
   0x00,0x00,0x00,0x00,0x01,0x01,0x00,0x00, /*   8- 15 */
   0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00, /*  16- 23 */
@@ -651,15 +661,17 @@ Returns:    TRUE or FALSE
 static BOOL
 is_counted_repeat(const pcre_uchar *p)
 {
-if ((digitab[*p++] & ctype_digit) == 0) return FALSE;
-while ((digitab[*p] & ctype_digit) != 0) p++;
+if (!IS_DIGIT(*p)) return FALSE;
+p++;
+while (IS_DIGIT(*p)) p++;
 if (*p == CHAR_RIGHT_CURLY_BRACKET) return TRUE;
 
 if (*p++ != CHAR_COMMA) return FALSE;
 if (*p == CHAR_RIGHT_CURLY_BRACKET) return TRUE;
 
-if ((digitab[*p++] & ctype_digit) == 0) return FALSE;
-while ((digitab[*p] & ctype_digit) != 0) p++;
+if (!IS_DIGIT(*p)) return FALSE;
+p++;
+while (IS_DIGIT(*p)) p++;
 
 return (*p == CHAR_RIGHT_CURLY_BRACKET);
 }
@@ -710,11 +722,13 @@ in a table. A non-zero result is something that can be returned immediately.
 Otherwise further processing may be required. */
 
 #ifndef EBCDIC  /* ASCII/UTF-8 coding */
-else if (c < CHAR_0 || c > CHAR_z) {}                     /* Not alphanumeric */
+/* Not alphanumeric */
+else if (c < CHAR_0 || c > CHAR_z) {}
 else if ((i = escapes[c - CHAR_0]) != 0) c = i;
 
 #else           /* EBCDIC coding */
-else if (c < 'a' || (ebcdic_chartab[c] & 0x0E) == 0) {}   /* Not alphanumeric */
+/* Not alphanumeric */
+else if (c < 'a' || (!MAX_255(c) || (ebcdic_chartab[c] & 0x0E) == 0)) {}
 else if ((i = escapes[c - 0x48]) != 0)  c = i;
 #endif
 
@@ -740,8 +754,10 @@ else
       {
       /* In JavaScript, \u must be followed by four hexadecimal numbers.
       Otherwise it is a lowercase u letter. */
-      if ((digitab[ptr[1]] & ctype_xdigit) != 0 && (digitab[ptr[2]] & ctype_xdigit) != 0
-           && (digitab[ptr[3]] & ctype_xdigit) != 0 && (digitab[ptr[4]] & ctype_xdigit) != 0)
+      if (MAX_255(ptr[1]) && (digitab[ptr[1]] & ctype_xdigit) != 0
+        && MAX_255(ptr[2]) && (digitab[ptr[2]] & ctype_xdigit) != 0
+        && MAX_255(ptr[3]) && (digitab[ptr[3]] & ctype_xdigit) != 0
+        && MAX_255(ptr[4]) && (digitab[ptr[4]] & ctype_xdigit) != 0)
         {
         c = 0;
         for (i = 0; i < 4; ++i)
@@ -797,7 +813,7 @@ else
       {
       const pcre_uchar *p;
       for (p = ptr+2; *p != 0 && *p != CHAR_RIGHT_CURLY_BRACKET; p++)
-        if (*p != CHAR_MINUS && (digitab[*p] & ctype_digit) == 0) break;
+        if (*p != CHAR_MINUS && !IS_DIGIT(*p)) break;
       if (*p != 0 && *p != CHAR_RIGHT_CURLY_BRACKET)
         {
         c = -ESC_k;
@@ -815,12 +831,21 @@ else
       }
     else negated = FALSE;
 
+    /* The integer range is limited by the machine's int representation. */
     c = 0;
-    while ((digitab[ptr[1]] & ctype_digit) != 0)
-      c = c * 10 + *(++ptr) - CHAR_0;
-
-    if (c < 0)   /* Integer overflow */
+    while (IS_DIGIT(ptr[1]))
       {
+      if (((unsigned int)c) > INT_MAX / 10) /* Integer overflow */
+        {
+        c = -1;
+        break;
+        }
+      c = c * 10 + *(++ptr) - CHAR_0;
+      }
+    if (((unsigned int)c) > INT_MAX) /* Integer overflow */
+      {
+      while (IS_DIGIT(ptr[1]))
+        ptr++;
       *errorcodeptr = ERR61;
       break;
       }
@@ -868,11 +893,21 @@ else
     if (!isclass)
       {
       oldptr = ptr;
+      /* The integer range is limited by the machine's int representation. */
       c -= CHAR_0;
-      while ((digitab[ptr[1]] & ctype_digit) != 0)
-        c = c * 10 + *(++ptr) - CHAR_0;
-      if (c < 0)    /* Integer overflow */
+      while (IS_DIGIT(ptr[1]))
         {
+        if (((unsigned int)c) > INT_MAX / 10) /* Integer overflow */
+          {
+          c = -1;
+          break;
+          }
+        c = c * 10 + *(++ptr) - CHAR_0;
+        }
+      if (((unsigned int)c) > INT_MAX) /* Integer overflow */
+        {
+        while (IS_DIGIT(ptr[1]))
+          ptr++;
         *errorcodeptr = ERR61;
         break;
         }
@@ -905,7 +940,7 @@ else
     c -= CHAR_0;
     while(i++ < 2 && ptr[1] >= CHAR_0 && ptr[1] <= CHAR_7)
         c = c * 8 + *(++ptr) - CHAR_0;
-    if (!utf8 && c > 255) *errorcodeptr = ERR51;
+    if (!utf8 && c > 0xff) *errorcodeptr = ERR51;
     break;
 
     /* \x is complicated. \x{ddd} is a character number which can be greater
@@ -917,7 +952,8 @@ else
       {
       /* In JavaScript, \x must be followed by two hexadecimal numbers.
       Otherwise it is a lowercase x letter. */
-      if ((digitab[ptr[1]] & ctype_xdigit) != 0 && (digitab[ptr[2]] & ctype_xdigit) != 0)
+      if (MAX_255(ptr[1]) && (digitab[ptr[1]] & ctype_xdigit) != 0
+        && MAX_255(ptr[2]) && (digitab[ptr[2]] & ctype_xdigit) != 0)
         {
         c = 0;
         for (i = 0; i < 2; ++i)
@@ -941,7 +977,7 @@ else
       int count = 0;
 
       c = 0;
-      while ((digitab[*pt] & ctype_xdigit) != 0)
+      while (MAX_255(*pt) && (digitab[*pt] & ctype_xdigit) != 0)
         {
         register int cc = *pt++;
         if (c == 0 && cc == CHAR_0) continue;     /* Leading zeroes */
@@ -958,7 +994,13 @@ else
 
       if (*pt == CHAR_RIGHT_CURLY_BRACKET)
         {
-        if (c < 0 || count > (utf8? 8 : 2)) *errorcodeptr = ERR34;
+#ifdef COMPILE_PCRE8
+        if (c < 0 || count > (utf8? 8:2)) *errorcodeptr = ERR34;
+#else
+#ifdef COMPILE_PCRE16
+        if (c < 0 || count > (utf8? 8:4)) *errorcodeptr = ERR34;
+#endif
+#endif
         ptr = pt;
         break;
         }
@@ -970,7 +1012,7 @@ else
     /* Read just a single-byte hex-defined char */
 
     c = 0;
-    while (i++ < 2 && (digitab[ptr[1]] & ctype_xdigit) != 0)
+    while (i++ < 2 && MAX_255(ptr[1]) && (digitab[ptr[1]] & ctype_xdigit) != 0)
       {
       int cc;                                  /* Some compilers don't like */
       cc = *(++ptr);                           /* ++ in initializers */
@@ -1169,7 +1211,7 @@ int max = -1;
 /* Read the minimum value and do a paranoid check: a negative value indicates
 an integer overflow. */
 
-while ((digitab[*p] & ctype_digit) != 0) min = min * 10 + *p++ - CHAR_0;
+while (IS_DIGIT(*p)) min = min * 10 + *p++ - CHAR_0;
 if (min < 0 || min > 65535)
   {
   *errorcodeptr = ERR5;
@@ -1184,7 +1226,7 @@ if (*p == CHAR_RIGHT_CURLY_BRACKET) max = min; else
   if (*(++p) != CHAR_RIGHT_CURLY_BRACKET)
     {
     max = 0;
-    while((digitab[*p] & ctype_digit) != 0) max = max * 10 + *p++ - CHAR_0;
+    while(IS_DIGIT(*p)) max = max * 10 + *p++ - CHAR_0;
     if (max < 0 || max > 65535)
       {
       *errorcodeptr = ERR5;
@@ -3258,8 +3300,8 @@ Arguments:
   codeptr        points to the pointer to the current code point
   ptrptr         points to the current pattern pointer
   errorcodeptr   points to error code variable
-  firstbyteptr   set to initial literal character, or < 0 (REQ_UNSET, REQ_NONE)
-  reqbyteptr     set to the last literal character required, else < 0
+  firstcharptr   set to initial literal character, or < 0 (REQ_UNSET, REQ_NONE)
+  reqcharptr     set to the last literal character required, else < 0
   bcptr          points to current branch chain
   cond_depth     conditional nesting depth
   cd             contains pointers to tables etc.
@@ -3272,17 +3314,17 @@ Returns:         TRUE on success
 
 static BOOL
 compile_branch(int *optionsptr, pcre_uchar **codeptr,
-  const pcre_uchar **ptrptr, int *errorcodeptr, int *firstbyteptr,
-  int *reqbyteptr, branch_chain *bcptr, int cond_depth, compile_data *cd,
-  int *lengthptr)
+  const pcre_uchar **ptrptr, int *errorcodeptr, pcre_int32 *firstcharptr,
+  pcre_int32 *reqcharptr, branch_chain *bcptr, int cond_depth,
+  compile_data *cd, int *lengthptr)
 {
 int repeat_type, op_type;
 int repeat_min = 0, repeat_max = 0;      /* To please picky compilers */
 int bravalue = 0;
 int greedy_default, greedy_non_default;
-int firstbyte, reqbyte;
-int zeroreqbyte, zerofirstbyte;
-int req_caseopt, reqvary, tempreqvary;
+pcre_int32 firstchar, reqchar;
+pcre_int32 zeroreqchar, zerofirstchar;
+pcre_int32 req_caseopt, reqvary, tempreqvary;
 int options = *optionsptr;               /* May change dynamically */
 int after_manual_callout = 0;
 int length_prevgroup = 0;
@@ -3292,7 +3334,7 @@ pcre_uchar *last_code = code;
 pcre_uchar *orig_code = code;
 pcre_uchar *tempcode;
 BOOL inescq = FALSE;
-BOOL groupsetfirstbyte = FALSE;
+BOOL groupsetfirstchar = FALSE;
 const pcre_uchar *ptr = *ptrptr;
 const pcre_uchar *tempptr;
 const pcre_uchar *nestptr = NULL;
@@ -3331,22 +3373,23 @@ greedy_non_default = greedy_default ^ 1;
 
 /* Initialize no first byte, no required byte. REQ_UNSET means "no char
 matching encountered yet". It gets changed to REQ_NONE if we hit something that
-matches a non-fixed char first char; reqbyte just remains unset if we never
+matches a non-fixed char first char; reqchar just remains unset if we never
 find one.
 
 When we hit a repeat whose minimum is zero, we may have to adjust these values
 to take the zero repeat into account. This is implemented by setting them to
-zerofirstbyte and zeroreqbyte when such a repeat is encountered. The individual
+zerofirstbyte and zeroreqchar when such a repeat is encountered. The individual
 item types that can be repeated set these backoff variables appropriately. */
 
-firstbyte = reqbyte = zerofirstbyte = zeroreqbyte = REQ_UNSET;
+firstchar = reqchar = zerofirstchar = zeroreqchar = REQ_UNSET;
 
-/* The variable req_caseopt contains either the REQ_CASELESS value or zero,
-according to the current setting of the caseless flag. REQ_CASELESS is a bit
-value > 255. It is added into the firstbyte or reqbyte variables to record the
-case status of the value. This is used only for ASCII characters. */
+/* The variable req_caseopt contains either the REQ_CASELESS value
+or zero, according to the current setting of the caseless flag. The
+REQ_CASELESS leaves the lower 28 bit empty. It is added into the
+firstchar or reqchar variables to record the case status of the
+value. This is used only for ASCII characters. */
 
-req_caseopt = ((options & PCRE_CASELESS) != 0)? REQ_CASELESS : 0;
+req_caseopt = ((options & PCRE_CASELESS) != 0)? REQ_CASELESS:0;
 
 /* Switch on next character until the end of the branch */
 
@@ -3364,8 +3407,8 @@ for (;; ptr++)
   int recno;
   int refsign;
   int skipbytes;
-  int subreqbyte;
-  int subfirstbyte;
+  int subreqchar;
+  int subfirstchar;
   int terminator;
   int mclength;
   int tempbracount;
@@ -3528,8 +3571,8 @@ for (;; ptr++)
     case 0:                        /* The branch terminates at string end */
     case CHAR_VERTICAL_LINE:       /* or | or ) */
     case CHAR_RIGHT_PARENTHESIS:
-    *firstbyteptr = firstbyte;
-    *reqbyteptr = reqbyte;
+    *firstcharptr = firstchar;
+    *reqcharptr = reqchar;
     *codeptr = code;
     *ptrptr = ptr;
     if (lengthptr != NULL)
@@ -3553,7 +3596,7 @@ for (;; ptr++)
     previous = NULL;
     if ((options & PCRE_MULTILINE) != 0)
       {
-      if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
+      if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
       *code++ = OP_CIRCM;
       }
     else *code++ = OP_CIRC;
@@ -3565,12 +3608,12 @@ for (;; ptr++)
     break;
 
     /* There can never be a first char if '.' is first, whatever happens about
-    repeats. The value of reqbyte doesn't change either. */
+    repeats. The value of reqchar doesn't change either. */
 
     case CHAR_DOT:
-    if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
-    zerofirstbyte = firstbyte;
-    zeroreqbyte = reqbyte;
+    if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
+    zerofirstchar = firstchar;
+    zeroreqchar = reqchar;
     previous = code;
     *code++ = ((options & PCRE_DOTALL) != 0)? OP_ALLANY: OP_ANY;
     break;
@@ -3644,8 +3687,8 @@ for (;; ptr++)
         (cd->external_options & PCRE_JAVASCRIPT_COMPAT) != 0)
       {
       *code++ = negate_class? OP_ALLANY : OP_FAIL;
-      if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
-      zerofirstbyte = firstbyte;
+      if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
+      zerofirstchar = firstchar;
       break;
       }
 
@@ -4335,9 +4378,9 @@ for (;; ptr++)
     The optimization throws away the bit map. We turn the item into a
     1-character OP_CHAR[I] if it's positive, or OP_NOT[I] if it's negative.
     Note that OP_NOT[I] does not support multibyte characters. In the positive
-    case, it can cause firstbyte to be set. Otherwise, there can be no first
+    case, it can cause firstchar to be set. Otherwise, there can be no first
     char if this item is first, whatever repeat count may follow. In the case
-    of reqbyte, save the previous value for reinstating. */
+    of reqchar, save the previous value for reinstating. */
 
 #ifdef SUPPORT_UTF
     if (class_charcount == 1 && !xclass &&
@@ -4348,14 +4391,14 @@ for (;; ptr++)
     if (class_charcount == 1 && !xclass)
 #endif
       {
-      zeroreqbyte = reqbyte;
+      zeroreqchar = reqchar;
 
       /* The OP_NOT[I] opcodes work on one-byte characters only. */
 
       if (negate_class)
         {
-        if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
-        zerofirstbyte = firstbyte;
+        if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
+        zerofirstchar = firstchar;
         *code++ = ((options & PCRE_CASELESS) != 0)? OP_NOTI: OP_NOT;
         *code++ = class_lastchar;
         break;
@@ -4378,12 +4421,12 @@ for (;; ptr++)
 
     /* The general case - not the one-char optimization. If this is the first
     thing in the branch, there can be no first char setting, whatever the
-    repeat count. Any reqbyte setting must remain unchanged after any kind of
+    repeat count. Any reqchar setting must remain unchanged after any kind of
     repeat. */
 
-    if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
-    zerofirstbyte = firstbyte;
-    zeroreqbyte = reqbyte;
+    if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
+    zerofirstchar = firstchar;
+    zeroreqchar = reqchar;
 
     /* If there are characters with values > 255, we have to compile an
     extended class, with its own opcode, unless there was a negated special
@@ -4476,8 +4519,8 @@ for (;; ptr++)
 
     if (repeat_min == 0)
       {
-      firstbyte = zerofirstbyte;    /* Adjust for zero repeat */
-      reqbyte = zeroreqbyte;        /* Ditto */
+      firstchar = zerofirstchar;    /* Adjust for zero repeat */
+      reqchar = zeroreqchar;        /* Ditto */
       }
 
     /* Remember whether this is a variable length repeat */
@@ -4542,8 +4585,8 @@ for (;; ptr++)
 
     /* If previous was a character match, abolish the item and generate a
     repeat item instead. If a char item has a minumum of more than one, ensure
-    that it is set in reqbyte - it might not be if a sequence such as x{3} is
-    the first thing in a branch because the x will have gone into firstbyte
+    that it is set in reqchar - it might not be if a sequence such as x{3} is
+    the first thing in a branch because the x will have gone into firstchar
     instead.  */
 
     if (*previous == OP_CHAR || *previous == OP_CHARI)
@@ -4572,7 +4615,7 @@ for (;; ptr++)
 
         {
         c = code[-1];
-        if (repeat_min > 1) reqbyte = c | req_caseopt | cd->req_varyopt;
+        if (repeat_min > 1) reqchar = c | req_caseopt | cd->req_varyopt;
         }
 
       /* If the repetition is unlimited, it pays to see if the next thing on
@@ -4971,7 +5014,7 @@ for (;; ptr++)
 
           else
             {
-            if (groupsetfirstbyte && reqbyte < 0) reqbyte = firstbyte;
+            if (groupsetfirstchar && reqchar < 0) reqchar = firstchar;
             for (i = 1; i < repeat_min; i++)
               {
               pcre_uchar *hc;
@@ -5274,7 +5317,7 @@ for (;; ptr++)
       }
 
     /* In all case we no longer have a previous item. We also set the
-    "follows varying string" flag for subsequently encountered reqbytes if
+    "follows varying string" flag for subsequently encountered reqchars if
     it isn't already set and we have just passed a varying length item. */
 
     END_REPEAT:
@@ -5352,8 +5395,8 @@ for (;; ptr++)
               }
             *code++ = (cd->assert_depth > 0)? OP_ASSERT_ACCEPT : OP_ACCEPT;
 
-            /* Do not set firstbyte after *ACCEPT */
-            if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
+            /* Do not set firstchar after *ACCEPT */
+            if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
             }
 
           /* Handle other cases with/without an argument */
@@ -5506,8 +5549,7 @@ for (;; ptr++)
         while ((cd->ctypes[*ptr] & ctype_word) != 0)
           {
           if (recno >= 0)
-            recno = ((digitab[*ptr] & ctype_digit) != 0)?
-              recno * 10 + *ptr - CHAR_0 : -1;
+            recno = (IS_DIGIT(*ptr))? recno * 10 + *ptr - CHAR_0 : -1;
           ptr++;
           }
         namelen = (int)(ptr - name);
@@ -5597,7 +5639,7 @@ for (;; ptr++)
           recno = 0;
           for (i = 1; i < namelen; i++)
             {
-            if ((digitab[name[i]] & ctype_digit) == 0)
+            if (!IS_DIGIT(name[i]))
               {
               *errorcodeptr = ERR15;
               goto FAILED;
@@ -5697,8 +5739,9 @@ for (;; ptr++)
         *code++ = OP_CALLOUT;
           {
           int n = 0;
-          while ((digitab[*(++ptr)] & ctype_digit) != 0)
-            n = n * 10 + *ptr - CHAR_0;
+          ptr++;
+          while(IS_DIGIT(*ptr))
+            n = n * 10 + *ptr++ - CHAR_0;
           if (*ptr != CHAR_RIGHT_PARENTHESIS)
             {
             *errorcodeptr = ERR39;
@@ -5981,7 +6024,7 @@ for (;; ptr++)
           if ((refsign = *ptr) == CHAR_PLUS)
             {
             ptr++;
-            if ((digitab[*ptr] & ctype_digit) == 0)
+            if (!IS_DIGIT(*ptr))
               {
               *errorcodeptr = ERR63;
               goto FAILED;
@@ -5989,13 +6032,13 @@ for (;; ptr++)
             }
           else if (refsign == CHAR_MINUS)
             {
-            if ((digitab[ptr[1]] & ctype_digit) == 0)
+            if (!IS_DIGIT(ptr[1]))
               goto OTHER_CHAR_AFTER_QUERY;
             ptr++;
             }
 
           recno = 0;
-          while((digitab[*ptr] & ctype_digit) != 0)
+          while(IS_DIGIT(*ptr))
             recno = recno * 10 + *ptr++ - CHAR_0;
 
           if (*ptr != terminator)
@@ -6093,7 +6136,7 @@ for (;; ptr++)
 
         /* Can't determine a first byte now */
 
-        if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
+        if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
         continue;
 
 
@@ -6150,7 +6193,7 @@ for (;; ptr++)
         both phases.
 
         If we are not at the pattern start, reset the greedy defaults and the
-        case value for firstbyte and reqbyte. */
+        case value for firstchar and reqchar. */
 
         if (*ptr == CHAR_RIGHT_PARENTHESIS)
           {
@@ -6163,7 +6206,7 @@ for (;; ptr++)
             {
             greedy_default = ((newoptions & PCRE_UNGREEDY) != 0);
             greedy_non_default = greedy_default ^ 1;
-            req_caseopt = ((newoptions & PCRE_CASELESS) != 0)? REQ_CASELESS : 0;
+            req_caseopt = ((newoptions & PCRE_CASELESS) != 0)? REQ_CASELESS:0;
             }
 
           /* Change options at this level, and pass them back for use
@@ -6226,8 +6269,8 @@ for (;; ptr++)
          skipbytes,                       /* Skip over bracket number */
          cond_depth +
            ((bravalue == OP_COND)?1:0),   /* Depth of condition subpatterns */
-         &subfirstbyte,                   /* For possible first char */
-         &subreqbyte,                     /* For possible last char */
+         &subfirstchar,                   /* For possible first char */
+         &subreqchar,                     /* For possible last char */
          bcptr,                           /* Current branch chain */
          cd,                              /* Tables block */
          (lengthptr == NULL)? NULL :      /* Actual compile phase */
@@ -6278,7 +6321,7 @@ for (;; ptr++)
         }
 
       /* A "normal" conditional group. If there is just one branch, we must not
-      make use of its firstbyte or reqbyte, because this is equivalent to an
+      make use of its firstchar or reqchar, because this is equivalent to an
       empty second branch. */
 
       else
@@ -6288,7 +6331,7 @@ for (;; ptr++)
           *errorcodeptr = ERR27;
           goto FAILED;
           }
-        if (condcount == 1) subfirstbyte = subreqbyte = REQ_NONE;
+        if (condcount == 1) subfirstchar = subreqchar = REQ_NONE;
         }
       }
 
@@ -6332,55 +6375,55 @@ for (;; ptr++)
     /* Handle updating of the required and first characters for other types of
     group. Update for normal brackets of all kinds, and conditions with two
     branches (see code above). If the bracket is followed by a quantifier with
-    zero repeat, we have to back off. Hence the definition of zeroreqbyte and
-    zerofirstbyte outside the main loop so that they can be accessed for the
+    zero repeat, we have to back off. Hence the definition of zeroreqchar and
+    zerofirstchar outside the main loop so that they can be accessed for the
     back off. */
 
-    zeroreqbyte = reqbyte;
-    zerofirstbyte = firstbyte;
-    groupsetfirstbyte = FALSE;
+    zeroreqchar = reqchar;
+    zerofirstchar = firstchar;
+    groupsetfirstchar = FALSE;
 
     if (bravalue >= OP_ONCE)
       {
-      /* If we have not yet set a firstbyte in this branch, take it from the
+      /* If we have not yet set a firstchar in this branch, take it from the
       subpattern, remembering that it was set here so that a repeat of more
-      than one can replicate it as reqbyte if necessary. If the subpattern has
-      no firstbyte, set "none" for the whole branch. In both cases, a zero
-      repeat forces firstbyte to "none". */
+      than one can replicate it as reqchar if necessary. If the subpattern has
+      no firstchar, set "none" for the whole branch. In both cases, a zero
+      repeat forces firstchar to "none". */
 
-      if (firstbyte == REQ_UNSET)
+      if (firstchar == REQ_UNSET)
         {
-        if (subfirstbyte >= 0)
+        if (subfirstchar >= 0)
           {
-          firstbyte = subfirstbyte;
-          groupsetfirstbyte = TRUE;
+          firstchar = subfirstchar;
+          groupsetfirstchar = TRUE;
           }
-        else firstbyte = REQ_NONE;
-        zerofirstbyte = REQ_NONE;
+        else firstchar = REQ_NONE;
+        zerofirstchar = REQ_NONE;
         }
 
-      /* If firstbyte was previously set, convert the subpattern's firstbyte
-      into reqbyte if there wasn't one, using the vary flag that was in
+      /* If firstchar was previously set, convert the subpattern's firstchar
+      into reqchar if there wasn't one, using the vary flag that was in
       existence beforehand. */
 
-      else if (subfirstbyte >= 0 && subreqbyte < 0)
-        subreqbyte = subfirstbyte | tempreqvary;
+      else if (subfirstchar >= 0 && subreqchar < 0)
+        subreqchar = subfirstchar | tempreqvary;
 
       /* If the subpattern set a required byte (or set a first byte that isn't
       really the first byte - see above), set it. */
 
-      if (subreqbyte >= 0) reqbyte = subreqbyte;
+      if (subreqchar >= 0) reqchar = subreqchar;
       }
 
-    /* For a forward assertion, we take the reqbyte, if set. This can be
+    /* For a forward assertion, we take the reqchar, if set. This can be
     helpful if the pattern that follows the assertion doesn't set a different
-    char. For example, it's useful for /(?=abcde).+/. We can't set firstbyte
+    char. For example, it's useful for /(?=abcde).+/. We can't set firstchar
     for an assertion, however because it leads to incorrect effect for patterns
-    such as /(?=a)a.+/ when the "real" "a" would then become a reqbyte instead
-    of a firstbyte. This is overcome by a scan at the end if there's no
-    firstbyte, looking for an asserted first char. */
+    such as /(?=a)a.+/ when the "real" "a" would then become a reqchar instead
+    of a firstchar. This is overcome by a scan at the end if there's no
+    firstchar, looking for an asserted first char. */
 
-    else if (bravalue == OP_ASSERT && subreqbyte >= 0) reqbyte = subreqbyte;
+    else if (bravalue == OP_ASSERT && subreqchar >= 0) reqchar = subreqchar;
     break;     /* End of processing '(' */
 
 
@@ -6413,13 +6456,13 @@ for (;; ptr++)
       /* For metasequences that actually match a character, we disable the
       setting of a first character if it hasn't already been set. */
 
-      if (firstbyte == REQ_UNSET && -c > ESC_b && -c < ESC_Z)
-        firstbyte = REQ_NONE;
+      if (firstchar == REQ_UNSET && -c > ESC_b && -c < ESC_Z)
+        firstchar = REQ_NONE;
 
       /* Set values to reset to if this is followed by a zero repeat. */
 
-      zerofirstbyte = firstbyte;
-      zeroreqbyte = reqbyte;
+      zerofirstchar = firstchar;
+      zeroreqchar = reqchar;
 
       /* \g<name> or \g'name' is a subroutine call by name and \g<n> or \g'n'
       is a subroutine call by number (Oniguruma syntax). In fact, the value
@@ -6470,7 +6513,7 @@ for (;; ptr++)
         /* Test a signed number in angle brackets or quotes. */
 
         p = ptr + 2;
-        while ((digitab[*p] & ctype_digit) != 0) p++;
+        while (IS_DIGIT(*p)) p++;
         if (*p != terminator)
           {
           *errorcodeptr = ERR57;
@@ -6498,7 +6541,7 @@ for (;; ptr++)
         goto NAMED_REF_OR_RECURSE;
         }
 
-      /* Back references are handled specially; must disable firstbyte if
+      /* Back references are handled specially; must disable firstchar if
       not set to cope with cases like (?=(\w+))\1: which would otherwise set
       ':' later. */
 
@@ -6508,7 +6551,7 @@ for (;; ptr++)
         recno = -c - ESC_REF;
 
         HANDLE_REFERENCE:    /* Come here from named backref handling */
-        if (firstbyte == REQ_UNSET) firstbyte = REQ_NONE;
+        if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
         previous = code;
         *code++ = ((options & PCRE_CASELESS) != 0)? OP_REFI : OP_REF;
         PUT2INC(code, 0, recno);
@@ -6631,34 +6674,34 @@ for (;; ptr++)
 
     /* Set the first and required bytes appropriately. If no previous first
     byte, set it from this character, but revert to none on a zero repeat.
-    Otherwise, leave the firstbyte value alone, and don't change it on a zero
+    Otherwise, leave the firstchar value alone, and don't change it on a zero
     repeat. */
 
-    if (firstbyte == REQ_UNSET)
+    if (firstchar == REQ_UNSET)
       {
-      zerofirstbyte = REQ_NONE;
-      zeroreqbyte = reqbyte;
+      zerofirstchar = REQ_NONE;
+      zeroreqchar = reqchar;
 
-      /* If the character is more than one byte long, we can set firstbyte
+      /* If the character is more than one byte long, we can set firstchar
       only if it is not to be matched caselessly. */
 
       if (mclength == 1 || req_caseopt == 0)
         {
-        firstbyte = mcbuffer[0] | req_caseopt;
-        if (mclength != 1) reqbyte = code[-1] | cd->req_varyopt;
+        firstchar = mcbuffer[0] | req_caseopt;
+        if (mclength != 1) reqchar = code[-1] | cd->req_varyopt;
         }
-      else firstbyte = reqbyte = REQ_NONE;
+      else firstchar = reqchar = REQ_NONE;
       }
 
-    /* firstbyte was previously set; we can set reqbyte only if the length is
+    /* firstchar was previously set; we can set reqchar only if the length is
     1 or the matching is caseful. */
 
     else
       {
-      zerofirstbyte = firstbyte;
-      zeroreqbyte = reqbyte;
+      zerofirstchar = firstchar;
+      zeroreqchar = reqchar;
       if (mclength == 1 || req_caseopt == 0)
-        reqbyte = code[-1] | req_caseopt | cd->req_varyopt;
+        reqchar = code[-1] | req_caseopt | cd->req_varyopt;
       }
 
     break;            /* End of literal character handling */
@@ -6698,8 +6741,8 @@ Arguments:
   reset_bracount TRUE to reset the count for each branch
   skipbytes      skip this many bytes at start (for brackets and OP_COND)
   cond_depth     depth of nesting for conditional subpatterns
-  firstbyteptr   place to put the first required character, or a negative number
-  reqbyteptr     place to put the last required character, or a negative number
+  firstcharptr   place to put the first required character, or a negative number
+  reqcharptr     place to put the last required character, or a negative number
   bcptr          pointer to the chain of currently open branches
   cd             points to the data block with tables pointers etc.
   lengthptr      NULL during the real compile phase
@@ -6711,8 +6754,8 @@ Returns:         TRUE on success
 static BOOL
 compile_regex(int options, pcre_uchar **codeptr, const pcre_uchar **ptrptr,
   int *errorcodeptr, BOOL lookbehind, BOOL reset_bracount, int skipbytes,
-  int cond_depth, int *firstbyteptr, int *reqbyteptr, branch_chain *bcptr,
-  compile_data *cd, int *lengthptr)
+  int cond_depth, pcre_int32 *firstcharptr, pcre_int32 *reqcharptr,
+  branch_chain *bcptr, compile_data *cd, int *lengthptr)
 {
 const pcre_uchar *ptr = *ptrptr;
 pcre_uchar *code = *codeptr;
@@ -6721,8 +6764,8 @@ pcre_uchar *start_bracket = code;
 pcre_uchar *reverse_count = NULL;
 open_capitem capitem;
 int capnumber = 0;
-int firstbyte, reqbyte;
-int branchfirstbyte, branchreqbyte;
+pcre_int32 firstchar, reqchar;
+pcre_int32 branchfirstchar, branchreqchar;
 int length;
 int orig_bracount;
 int max_bracount;
@@ -6731,7 +6774,7 @@ branch_chain bc;
 bc.outer = bcptr;
 bc.current_branch = code;
 
-firstbyte = reqbyte = REQ_UNSET;
+firstchar = reqchar = REQ_UNSET;
 
 /* Accumulate the length for use in the pre-compile phase. Start with the
 length of the BRA and KET and any extra bytes that are required at the
@@ -6790,8 +6833,8 @@ for (;;)
   /* Now compile the branch; in the pre-compile phase its length gets added
   into the length. */
 
-  if (!compile_branch(&options, &code, &ptr, errorcodeptr, &branchfirstbyte,
-        &branchreqbyte, &bc, cond_depth, cd,
+  if (!compile_branch(&options, &code, &ptr, errorcodeptr, &branchfirstchar,
+        &branchreqchar, &bc, cond_depth, cd,
         (lengthptr == NULL)? NULL : &length))
     {
     *ptrptr = ptr;
@@ -6807,43 +6850,43 @@ for (;;)
 
   if (lengthptr == NULL)
     {
-    /* If this is the first branch, the firstbyte and reqbyte values for the
+    /* If this is the first branch, the firstchar and reqchar values for the
     branch become the values for the regex. */
 
     if (*last_branch != OP_ALT)
       {
-      firstbyte = branchfirstbyte;
-      reqbyte = branchreqbyte;
+      firstchar = branchfirstchar;
+      reqchar = branchreqchar;
       }
 
-    /* If this is not the first branch, the first char and reqbyte have to
+    /* If this is not the first branch, the first char and reqchar have to
     match the values from all the previous branches, except that if the
-    previous value for reqbyte didn't have REQ_VARY set, it can still match,
+    previous value for reqchar didn't have REQ_VARY set, it can still match,
     and we set REQ_VARY for the regex. */
 
     else
       {
-      /* If we previously had a firstbyte, but it doesn't match the new branch,
-      we have to abandon the firstbyte for the regex, but if there was
-      previously no reqbyte, it takes on the value of the old firstbyte. */
+      /* If we previously had a firstchar, but it doesn't match the new branch,
+      we have to abandon the firstchar for the regex, but if there was
+      previously no reqchar, it takes on the value of the old firstchar. */
 
-      if (firstbyte >= 0 && firstbyte != branchfirstbyte)
+      if (firstchar >= 0 && firstchar != branchfirstchar)
         {
-        if (reqbyte < 0) reqbyte = firstbyte;
-        firstbyte = REQ_NONE;
+        if (reqchar < 0) reqchar = firstchar;
+        firstchar = REQ_NONE;
         }
 
-      /* If we (now or from before) have no firstbyte, a firstbyte from the
-      branch becomes a reqbyte if there isn't a branch reqbyte. */
+      /* If we (now or from before) have no firstchar, a firstchar from the
+      branch becomes a reqchar if there isn't a branch reqchar. */
 
-      if (firstbyte < 0 && branchfirstbyte >= 0 && branchreqbyte < 0)
-          branchreqbyte = branchfirstbyte;
+      if (firstchar < 0 && branchfirstchar >= 0 && branchreqchar < 0)
+          branchreqchar = branchfirstchar;
 
-      /* Now ensure that the reqbytes match */
+      /* Now ensure that the reqchars match */
 
-      if ((reqbyte & ~REQ_VARY) != (branchreqbyte & ~REQ_VARY))
-        reqbyte = REQ_NONE;
-      else reqbyte |= branchreqbyte;   /* To "or" REQ_VARY */
+      if ((reqchar & ~REQ_VARY) != (branchreqchar & ~REQ_VARY))
+        reqchar = REQ_NONE;
+      else reqchar |= branchreqchar;   /* To "or" REQ_VARY */
       }
 
     /* If lookbehind, check that this branch matches a fixed-length string, and
@@ -6933,8 +6976,8 @@ for (;;)
 
     *codeptr = code;
     *ptrptr = ptr;
-    *firstbyteptr = firstbyte;
-    *reqbyteptr = reqbyte;
+    *firstcharptr = firstchar;
+    *reqcharptr = reqchar;
     if (lengthptr != NULL)
       {
       if (OFLOW_MAX - *lengthptr < length)
@@ -7313,7 +7356,8 @@ pcre16_compile2(PCRE_SPTR16 pattern, int options, int *errorcodeptr,
 {
 real_pcre *re;
 int length = 1;  /* For final END opcode */
-int firstbyte, reqbyte, newline;
+pcre_int32 firstchar, reqchar;
+int newline;
 int errorcode = 0;
 int skipatstart = 0;
 BOOL utf8;
@@ -7541,7 +7585,7 @@ ptr += skipatstart;
 code = cworkspace;
 *code = OP_BRA;
 (void)compile_regex(cd->external_options, &code, &ptr, &errorcode, FALSE,
-  FALSE, 0, 0, &firstbyte, &reqbyte, NULL, cd, &length);
+  FALSE, 0, 0, &firstchar, &reqchar, NULL, cd, &length);
 if (errorcode != 0) goto PCRE_EARLY_ERROR_RETURN;
 
 DPRINTF(("end pre-compile: length=%d workspace=%d\n", length,
@@ -7578,8 +7622,8 @@ re->size = (int)size;
 re->options = cd->external_options;
 re->flags = cd->external_flags;
 re->dummy1 = 0;
-re->first_byte = 0;
-re->req_byte = 0;
+re->first_char = 0;
+re->req_char = 0;
 re->name_table_offset = sizeof(real_pcre) / sizeof(pcre_uchar);
 re->name_entry_size = cd->name_entry_size;
 re->name_count = cd->names_found;
@@ -7615,12 +7659,12 @@ ptr = (const pcre_uchar *)pattern + skipatstart;
 code = (pcre_uchar *)codestart;
 *code = OP_BRA;
 (void)compile_regex(re->options, &code, &ptr, &errorcode, FALSE, FALSE, 0, 0,
-  &firstbyte, &reqbyte, NULL, cd, NULL);
+  &firstchar, &reqchar, NULL, cd, NULL);
 re->top_bracket = cd->bracount;
 re->top_backref = cd->top_backref;
 re->flags = cd->external_flags;
 
-if (cd->had_accept) reqbyte = REQ_NONE;   /* Must disable after (*ACCEPT) */
+if (cd->had_accept) reqchar = REQ_NONE;   /* Must disable after (*ACCEPT) */
 
 /* If not reached end of pattern on success, there's an excess bracket. */
 
@@ -7726,13 +7770,21 @@ if ((re->options & PCRE_ANCHORED) == 0)
     re->options |= PCRE_ANCHORED;
   else
     {
-    if (firstbyte < 0)
-      firstbyte = find_firstassertedchar(codestart, FALSE);
-    if (firstbyte >= 0)   /* Remove caseless flag for non-caseable chars */
+    if (firstchar < 0)
+      firstchar = find_firstassertedchar(codestart, FALSE);
+    if (firstchar >= 0)   /* Remove caseless flag for non-caseable chars */
       {
-      int ch = firstbyte & 255;
-      re->first_byte = ((firstbyte & REQ_CASELESS) != 0 &&
-         cd->fcc[ch] == ch)? ch : firstbyte;
+#ifdef COMPILE_PCRE8
+      re->first_char = firstchar & 0xff;
+#else
+#ifdef COMPILE_PCRE16
+      re->first_char = firstchar & 0xffff;
+#endif
+#endif
+      if ((firstchar & REQ_CASELESS) != 0 && MAX_255(re->first_char)
+        && cd->fcc[re->first_char] != re->first_char)
+        re->flags |= PCRE_FCH_CASELESS;
+
       re->flags |= PCRE_FIRSTSET;
       }
     else if (is_startline(codestart, 0, cd->backref_map))
@@ -7744,12 +7796,20 @@ if ((re->options & PCRE_ANCHORED) == 0)
 variable length item in the regex. Remove the caseless flag for non-caseable
 bytes. */
 
-if (reqbyte >= 0 &&
-     ((re->options & PCRE_ANCHORED) == 0 || (reqbyte & REQ_VARY) != 0))
+if (reqchar >= 0 &&
+     ((re->options & PCRE_ANCHORED) == 0 || (reqchar & REQ_VARY) != 0))
   {
-  int ch = reqbyte & 255;
-  re->req_byte = ((reqbyte & REQ_CASELESS) != 0 &&
-    cd->fcc[ch] == ch)? (reqbyte & ~REQ_CASELESS) : reqbyte;
+#ifdef COMPILE_PCRE8
+  re->req_char = reqchar & 0xff;
+#else
+#ifdef COMPILE_PCRE16
+  re->req_char = reqchar & 0xffff;
+#endif
+#endif
+  if ((reqchar & REQ_CASELESS) != 0 && MAX_255(re->req_char)
+    && cd->fcc[re->req_char] != re->req_char)
+    re->flags |= PCRE_RCH_CASELESS;
+
   re->flags |= PCRE_REQCHSET;
   }
 
@@ -7764,19 +7824,19 @@ printf("Options=%08x\n", re->options);
 
 if ((re->flags & PCRE_FIRSTSET) != 0)
   {
-  int ch = re->first_byte & 255;
-  const char *caseless = ((re->first_byte & REQ_CASELESS) == 0)?
-    "" : " (caseless)";
-  if (isprint(ch)) printf("First char = %c%s\n", ch, caseless);
+  pcre_uchar ch = re->first_char;
+  const char *caseless =
+    ((re->flags & PCRE_FCH_CASELESS) == 0)? "" : " (caseless)";
+  if (PRINTABLE(ch)) printf("First char = %c%s\n", ch, caseless);
     else printf("First char = \\x%02x%s\n", ch, caseless);
   }
 
 if ((re->flags & PCRE_REQCHSET) != 0)
   {
-  int ch = re->req_byte & 255;
-  const char *caseless = ((re->req_byte & REQ_CASELESS) == 0)?
-    "" : " (caseless)";
-  if (isprint(ch)) printf("Req char = %c%s\n", ch, caseless);
+  pcre_uchar ch = re->req_char;
+  const char *caseless =
+    ((re->flags & PCRE_RCH_CASELESS) == 0)? "" : " (caseless)";
+  if (PRINTABLE(ch)) printf("Req char = %c%s\n", ch, caseless);
     else printf("Req char = \\x%02x%s\n", ch, caseless);
   }
 

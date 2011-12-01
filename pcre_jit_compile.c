@@ -375,7 +375,7 @@ enum {
 /* Max limit of recursions. */
 #define CALL_LIMIT       (5 * sizeof(sljit_w))
 /* Last known position of the requested byte. */
-#define REQ_BYTE_PTR     (6 * sizeof(sljit_w))
+#define REQ_CHAR_PTR     (6 * sizeof(sljit_w))
 /* End pointer of the first line. */
 #define FIRSTLINE_END    (7 * sizeof(sljit_w))
 /* The output vector is stored on the stack, and contains pointers
@@ -1279,7 +1279,7 @@ if (common->utf8)
 else
 #endif
   c = *cc;
-return common->fcc[c] != c;
+return MAX_255(c) ? common->fcc[c] != c : FALSE;
 }
 
 static SLJIT_INLINE unsigned int char_othercase(compiler_common *common, unsigned int c)
@@ -1295,7 +1295,7 @@ if (common->utf8 && c > 127)
 #endif
   }
 #endif
-return common->fcc[c];
+return TABLE_GET(c, common->fcc, c);
 }
 
 static unsigned int char_get_othercase_bit(compiler_common *common, pcre_uchar* cc)
@@ -1728,13 +1728,13 @@ if (newlinecheck)
 return mainloop;
 }
 
-static SLJIT_INLINE void fast_forward_first_byte(compiler_common *common, pcre_uint16 firstbyte, BOOL firstline)
+static SLJIT_INLINE void fast_forward_first_char(compiler_common *common, pcre_uchar firstchar, BOOL caseless, BOOL firstline)
 {
 DEFINE_COMPILER;
 struct sljit_label *start;
 struct sljit_jump *leave;
 struct sljit_jump *found;
-pcre_uint16 oc, bit;
+pcre_uchar oc, bit;
 
 if (firstline)
   {
@@ -1744,23 +1744,24 @@ if (firstline)
 
 start = LABEL();
 leave = CMP(SLJIT_C_GREATER_EQUAL, STR_PTR, 0, STR_END, 0);
-OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
+OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
 
-if ((firstbyte & REQ_CASELESS) == 0)
-  found = CMP(SLJIT_C_EQUAL, TMP1, 0, SLJIT_IMM, firstbyte & 0xff);
+oc = firstchar;
+if (caseless)
+  oc = TABLE_GET(firstchar, common->fcc, firstchar);
+if (firstchar == oc)
+  found = CMP(SLJIT_C_EQUAL, TMP1, 0, SLJIT_IMM, firstchar);
 else
   {
-  firstbyte &= 0xff;
-  oc = common->fcc[firstbyte];
-  bit = firstbyte ^ oc;
+  bit = firstchar ^ oc;
   if (ispowerof2(bit))
     {
     OP2(SLJIT_OR, TMP2, 0, TMP1, 0, SLJIT_IMM, bit);
-    found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, firstbyte | bit);
+    found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, firstchar | bit);
     }
   else
     {
-    OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, firstbyte);
+    OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, firstchar);
     COND_VALUE(SLJIT_MOV, TMP2, 0, SLJIT_C_EQUAL);
     OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, oc);
     COND_VALUE(SLJIT_OR | SLJIT_SET_E, TMP2, 0, SLJIT_C_EQUAL);
@@ -1915,7 +1916,7 @@ if (firstline)
   OP1(SLJIT_MOV, STR_END, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), POSSESSIVE0);
 }
 
-static SLJIT_INLINE struct sljit_jump *search_requested_char(compiler_common *common, pcre_uint16 reqbyte, BOOL has_firstbyte)
+static SLJIT_INLINE struct sljit_jump *search_requested_char(compiler_common *common, pcre_uchar reqchar, BOOL caseless, BOOL has_firstchar)
 {
 DEFINE_COMPILER;
 struct sljit_label *loop;
@@ -1924,14 +1925,14 @@ struct sljit_jump *alreadyfound;
 struct sljit_jump *found;
 struct sljit_jump *foundoc = NULL;
 struct sljit_jump *notfound;
-pcre_uint16 oc, bit;
+pcre_uchar oc, bit;
 
-OP1(SLJIT_MOV, TMP2, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), REQ_BYTE_PTR);
+OP1(SLJIT_MOV, TMP2, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), REQ_CHAR_PTR);
 OP2(SLJIT_ADD, TMP1, 0, STR_PTR, 0, SLJIT_IMM, REQ_BYTE_MAX);
 toolong = CMP(SLJIT_C_LESS, TMP1, 0, STR_END, 0);
 alreadyfound = CMP(SLJIT_C_LESS, STR_PTR, 0, TMP2, 0);
 
-if (has_firstbyte)
+if (has_firstchar)
   OP2(SLJIT_ADD, TMP1, 0, STR_PTR, 0, SLJIT_IMM, 1);
 else
   OP1(SLJIT_MOV, TMP1, 0, STR_PTR, 0);
@@ -1940,21 +1941,22 @@ loop = LABEL();
 notfound = CMP(SLJIT_C_GREATER_EQUAL, TMP1, 0, STR_END, 0);
 
 OP1(SLJIT_MOV_UB, TMP2, 0, SLJIT_MEM1(TMP1), 0);
-if ((reqbyte & REQ_CASELESS) == 0)
-  found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, reqbyte & 0xff);
+oc = reqchar;
+if (caseless)
+  oc = TABLE_GET(reqchar, common->fcc, reqchar);
+if (reqchar == oc)
+  found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, reqchar);
 else
   {
-  reqbyte &= 0xff;
-  oc = common->fcc[reqbyte];
-  bit = reqbyte ^ oc;
+  bit = reqchar ^ oc;
   if (ispowerof2(bit))
     {
     OP2(SLJIT_OR, TMP2, 0, TMP2, 0, SLJIT_IMM, bit);
-    found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, reqbyte | bit);
+    found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, reqchar | bit);
     }
   else
     {
-    found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, reqbyte);
+    found = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, reqchar);
     foundoc = CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, oc);
     }
   }
@@ -1964,7 +1966,7 @@ JUMPTO(SLJIT_JUMP, loop);
 JUMPHERE(found);
 if (foundoc)
   JUMPHERE(foundoc);
-OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), REQ_BYTE_PTR, TMP1, 0);
+OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), REQ_CHAR_PTR, TMP1, 0);
 JUMPHERE(alreadyfound);
 JUMPHERE(toolong);
 return notfound;
@@ -3092,16 +3094,16 @@ switch(type)
 
   case OP_CHAR:
   case OP_CHARI:
-  length = IN_UCHARS(1);
+  length = 1;
 #ifdef SUPPORT_UTF8
   if (common->utf8 && *cc >= 0xc0) length += PRIV(utf8_table4)[*cc & 0x3f];
 #endif
   if (type == OP_CHAR || !char_has_othercase(common, cc) || char_get_othercase_bit(common, cc) != 0)
     {
-    OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, length);
+    OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(length));
     add_jump(compiler, fallbacks, CMP(SLJIT_C_GREATER, STR_PTR, 0, STR_END, 0));
 
-    context.length = length;
+    context.length = IN_UCHARS(length);
     context.sourcereg = -1;
 #if defined SLJIT_UNALIGNED && SLJIT_UNALIGNED
     context.ucharptr = 0;
@@ -3307,7 +3309,6 @@ if (context.length > 0)
   context.ucharptr = 0;
 #endif
   do cc = byte_sequence_compare(common, *cc == OP_CHARI, cc + 1, &context, fallbacks); while (context.length > 0);
-sljit_emit_op0(compiler, SLJIT_NOP);
   return cc;
   }
 
@@ -6291,7 +6292,7 @@ sljit_emit_enter(compiler, 1, 5, 5, common->localsize);
 /* Register init. */
 reset_ovector(common, (re->top_bracket + 1) * 2);
 if ((re->flags & PCRE_REQCHSET) != 0)
-  OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), REQ_BYTE_PTR, SLJIT_TEMPORARY_REG1, 0);
+  OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), REQ_CHAR_PTR, SLJIT_TEMPORARY_REG1, 0);
 
 OP1(SLJIT_MOV, ARGUMENTS, 0, SLJIT_GENERAL_REG1, 0);
 OP1(SLJIT_MOV, TMP1, 0, SLJIT_GENERAL_REG1, 0);
@@ -6309,14 +6310,14 @@ if ((re->options & PCRE_ANCHORED) == 0)
   mainloop = mainloop_entry(common, (re->flags & PCRE_HASCRORLF) != 0, (re->options & PCRE_FIRSTLINE) != 0);
   /* Forward search if possible. */
   if ((re->flags & PCRE_FIRSTSET) != 0)
-    fast_forward_first_byte(common, re->first_byte, (re->options & PCRE_FIRSTLINE) != 0);
+    fast_forward_first_char(common, re->first_char, (re->flags & PCRE_FCH_CASELESS) != 0, (re->options & PCRE_FIRSTLINE) != 0);
   else if ((re->flags & PCRE_STARTLINE) != 0)
     fast_forward_newline(common, (re->options & PCRE_FIRSTLINE) != 0);
   else if ((re->flags & PCRE_STARTLINE) == 0 && study != NULL && (study->flags & PCRE_STUDY_MAPPED) != 0)
     fast_forward_start_bits(common, (sljit_uw)study->start_bits, (re->options & PCRE_FIRSTLINE) != 0);
   }
 if ((re->flags & PCRE_REQCHSET) != 0)
-  reqbyte_notfound = search_requested_char(common, re->req_byte, (re->flags & PCRE_FIRSTSET) != 0);
+  reqbyte_notfound = search_requested_char(common, re->req_char, (re->flags & PCRE_RCH_CASELESS) != 0, (re->flags & PCRE_FIRSTSET) != 0);
 
 /* Store the current STR_PTR in OVECTOR(0). */
 OP1(SLJIT_MOV, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(0), STR_PTR, 0);

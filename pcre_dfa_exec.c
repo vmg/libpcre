@@ -3013,13 +3013,14 @@ pcre_study_data internal_study;
 const pcre_study_data *study = NULL;
 real_pcre internal_re;
 
-const pcre_uint8 *req_byte_ptr;
+const pcre_uchar *req_char_ptr;
 const pcre_uint8 *start_bits = NULL;
-BOOL first_byte_caseless = FALSE;
-BOOL req_byte_caseless = FALSE;
-int first_byte = -1;
-int req_byte = -1;
-int req_byte2 = -1;
+BOOL has_first_char = FALSE;
+BOOL has_req_char = FALSE;
+pcre_uchar first_char = 0;
+pcre_uchar first_char2 = 0;
+pcre_uchar req_char = 0;
+pcre_uchar req_char2 = 0;
 int newline;
 
 /* Plausibility checks */
@@ -3069,7 +3070,7 @@ if (re->magic_number != MAGIC_NUMBER)
 
 current_subject = (const unsigned char *)subject + start_offset;
 end_subject = (const unsigned char *)subject + length;
-req_byte_ptr = current_subject - 1;
+req_char_ptr = current_subject - 1;
 
 #ifdef SUPPORT_UTF8
 utf8 = (re->options & PCRE_UTF8) != 0;
@@ -3189,9 +3190,10 @@ if (!anchored)
   {
   if ((re->flags & PCRE_FIRSTSET) != 0)
     {
-    first_byte = re->first_byte & 255;
-    if ((first_byte_caseless = ((re->first_byte & REQ_CASELESS) != 0)) == TRUE)
-      first_byte = lcc[first_byte];
+    has_first_char = TRUE;
+    first_char = first_char2 = re->first_char;
+    if ((re->flags & PCRE_FCH_CASELESS) != 0)
+      first_char2 = TABLE_GET(first_char, md->tables + fcc_offset, first_char);
     }
   else
     {
@@ -3206,9 +3208,10 @@ character" set. */
 
 if ((re->flags & PCRE_REQCHSET) != 0)
   {
-  req_byte = re->req_byte & 255;
-  req_byte_caseless = (re->req_byte & REQ_CASELESS) != 0;
-  req_byte2 = (md->tables + fcc_offset)[req_byte];  /* case flipped */
+  has_req_char = TRUE;
+  req_char = req_char2 = re->req_char;
+  if ((re->flags & PCRE_RCH_CASELESS) != 0)
+    req_char2 = TABLE_GET(req_char, md->tables + fcc_offset, req_char);
   }
 
 /* Call the main matching function, looping for a non-anchored regex after a
@@ -3254,17 +3257,17 @@ for (;;)
 
     if (((options | re->options) & PCRE_NO_START_OPTIMIZE) == 0)
       {
-      /* Advance to a known first byte. */
+      /* Advance to a known first char. */
 
-      if (first_byte >= 0)
+      if (has_first_char)
         {
-        if (first_byte_caseless)
+        if (first_char != first_char2)
           while (current_subject < end_subject &&
-                 lcc[*current_subject] != first_byte)
+              *current_subject != first_char && *current_subject != first_char2)
             current_subject++;
         else
           while (current_subject < end_subject &&
-                 *current_subject != first_byte)
+                 *current_subject != first_char)
             current_subject++;
         }
 
@@ -3344,8 +3347,8 @@ for (;;)
           (pcre_uint32)(end_subject - current_subject) < study->minlength)
         return PCRE_ERROR_NOMATCH;
 
-      /* If req_byte is set, we know that that character must appear in the
-      subject for the match to succeed. If the first character is set, req_byte
+      /* If req_char is set, we know that that character must appear in the
+      subject for the match to succeed. If the first character is set, req_char
       must be later in the subject; otherwise the test starts at the match
       point. This optimization can save a huge amount of work in patterns with
       nested unlimited repeats that aren't going to match. Writing separate
@@ -3357,28 +3360,28 @@ for (;;)
       patterns. This showed up when somebody was matching /^C/ on a 32-megabyte
       string... so we don't do this when the string is sufficiently long. */
 
-      if (req_byte >= 0 && end_subject - current_subject < REQ_BYTE_MAX)
+      if (has_req_char && end_subject - current_subject < REQ_BYTE_MAX)
         {
-        register const pcre_uchar *p = current_subject + ((first_byte >= 0)? 1 : 0);
+        register PCRE_PUCHAR p = current_subject + (has_first_char? 1:0);
 
         /* We don't need to repeat the search if we haven't yet reached the
         place we found it at last time. */
 
-        if (p > req_byte_ptr)
+        if (p > req_char_ptr)
           {
-          if (req_byte_caseless)
+          if (req_char != req_char2)
             {
             while (p < end_subject)
               {
               register int pp = *p++;
-              if (pp == req_byte || pp == req_byte2) { p--; break; }
+              if (pp == req_char || pp == req_char2) { p--; break; }
               }
             }
           else
             {
             while (p < end_subject)
               {
-              if (*p++ == req_byte) { p--; break; }
+              if (*p++ == req_char) { p--; break; }
               }
             }
 
@@ -3391,7 +3394,7 @@ for (;;)
           found it, so that we don't search again next time round the loop if
           the start hasn't passed this character yet. */
 
-          req_byte_ptr = p;
+          req_char_ptr = p;
           }
         }
       }

@@ -5964,17 +5964,18 @@ pcre16_exec(const pcre *argument_re, const pcre_extra *extra_data,
 #endif
 {
 int rc, ocount, arg_offset_max;
-int first_byte = -1;
-int req_byte = -1;
-int req_byte2 = -1;
 int newline;
 BOOL using_temporary_offsets = FALSE;
 BOOL anchored;
 BOOL startline;
 BOOL firstline;
-BOOL first_byte_caseless = FALSE;
-BOOL req_byte_caseless = FALSE;
 BOOL utf8;
+BOOL has_first_char = FALSE;
+BOOL has_req_char = FALSE;
+pcre_uchar first_char = 0;
+pcre_uchar first_char2 = 0;
+pcre_uchar req_char = 0;
+pcre_uchar req_char2 = 0;
 match_data match_block;
 match_data *md = &match_block;
 const pcre_uint8 *tables;
@@ -5982,7 +5983,7 @@ const pcre_uint8 *start_bits = NULL;
 PCRE_PUCHAR start_match = (PCRE_PUCHAR)subject + start_offset;
 PCRE_PUCHAR end_subject;
 PCRE_PUCHAR start_partial = NULL;
-PCRE_PUCHAR req_byte_ptr = start_match - 1;
+PCRE_PUCHAR req_char_ptr = start_match - 1;
 
 pcre_study_data internal_study;
 const pcre_study_data *study;
@@ -6252,7 +6253,7 @@ if (md->offset_vector != NULL)
   md->offset_vector[0] = md->offset_vector[1] = -1;
   }
 
-/* Set up the first character to match, if available. The first_byte value is
+/* Set up the first character to match, if available. The first_char value is
 never set for an anchored regular expression, but the anchoring may be forced
 at run time, so we have to test for anchoring. The first char may be unset for
 an unanchored pattern, of course. If there's no first char and the pattern was
@@ -6262,9 +6263,10 @@ if (!anchored)
   {
   if ((re->flags & PCRE_FIRSTSET) != 0)
     {
-    first_byte = re->first_byte & 255;
-    if ((first_byte_caseless = ((re->first_byte & REQ_CASELESS) != 0)) == TRUE)
-      first_byte = md->lcc[first_byte];
+    has_first_char = TRUE;
+    first_char = first_char2 = re->first_char;
+    if ((re->flags & PCRE_FCH_CASELESS) != 0)
+      first_char2 = TABLE_GET(first_char, tables + fcc_offset, first_char);
     }
   else
     if (!startline && study != NULL &&
@@ -6277,12 +6279,11 @@ character" set. */
 
 if ((re->flags & PCRE_REQCHSET) != 0)
   {
-  req_byte = re->req_byte & 255;
-  req_byte_caseless = (re->req_byte & REQ_CASELESS) != 0;
-  req_byte2 = (tables + fcc_offset)[req_byte];  /* case flipped */
+  has_req_char = TRUE;
+  req_char = req_char2 = re->req_char;
+  if ((re->flags & PCRE_RCH_CASELESS) != 0)
+    req_char2 = TABLE_GET(req_char, tables + fcc_offset, req_char);
   }
-
-
 
 
 /* ==========================================================================*/
@@ -6327,15 +6328,16 @@ for(;;)
 
   if (((options | re->options) & PCRE_NO_START_OPTIMIZE) == 0)
     {
-    /* Advance to a unique first byte if there is one. */
+    /* Advance to a unique first char if there is one. */
 
-    if (first_byte >= 0)
+    if (has_first_char)
       {
-      if (first_byte_caseless)
-        while (start_match < end_subject && md->lcc[*start_match] != first_byte)
+      if (first_char != first_char2)
+        while (start_match < end_subject &&
+            *start_match != first_char && *start_match != first_char2)
           start_match++;
       else
-        while (start_match < end_subject && *start_match != first_byte)
+        while (start_match < end_subject && *start_match != first_char)
           start_match++;
       }
 
@@ -6418,8 +6420,8 @@ for(;;)
       break;
       }
 
-    /* If req_byte is set, we know that that character must appear in the
-    subject for the match to succeed. If the first character is set, req_byte
+    /* If req_char is set, we know that that character must appear in the
+    subject for the match to succeed. If the first character is set, req_char
     must be later in the subject; otherwise the test starts at the match point.
     This optimization can save a huge amount of backtracking in patterns with
     nested unlimited repeats that aren't going to match. Writing separate code
@@ -6432,28 +6434,28 @@ for(;;)
     32-megabyte string... so we don't do this when the string is sufficiently
     long. */
 
-    if (req_byte >= 0 && end_subject - start_match < REQ_BYTE_MAX)
+    if (has_req_char && end_subject - start_match < REQ_BYTE_MAX)
       {
-      register PCRE_PUCHAR p = start_match + ((first_byte >= 0)? 1 : 0);
+      register PCRE_PUCHAR p = start_match + (has_first_char? 1:0);
 
       /* We don't need to repeat the search if we haven't yet reached the
       place we found it at last time. */
 
-      if (p > req_byte_ptr)
+      if (p > req_char_ptr)
         {
-        if (req_byte_caseless)
+        if (req_char != req_char2)
           {
           while (p < end_subject)
             {
             register int pp = *p++;
-            if (pp == req_byte || pp == req_byte2) { p--; break; }
+            if (pp == req_char || pp == req_char2) { p--; break; }
             }
           }
         else
           {
           while (p < end_subject)
             {
-            if (*p++ == req_byte) { p--; break; }
+            if (*p++ == req_char) { p--; break; }
             }
           }
 
@@ -6470,7 +6472,7 @@ for(;;)
         found it, so that we don't search again next time round the loop if
         the start hasn't passed this character yet. */
 
-        req_byte_ptr = p;
+        req_char_ptr = p;
         }
       }
     }

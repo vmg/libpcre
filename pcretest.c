@@ -1920,10 +1920,10 @@ while (!done)
         (pcre_uint16)byteflip(rre->top_bracket, sizeof(rre->top_bracket));
       rre->top_backref =
         (pcre_uint16)byteflip(rre->top_backref, sizeof(rre->top_backref));
-      rre->first_byte =
-        (pcre_uint16)byteflip(rre->first_byte, sizeof(rre->first_byte));
-      rre->req_byte =
-        (pcre_uint16)byteflip(rre->req_byte, sizeof(rre->req_byte));
+      rre->first_char =
+        (pcre_uint16)byteflip(rre->first_char, sizeof(rre->first_char));
+      rre->req_char =
+        (pcre_uint16)byteflip(rre->req_char, sizeof(rre->req_char));
       rre->name_table_offset = (pcre_uint16)byteflip(rre->name_table_offset,
         sizeof(rre->name_table_offset));
       rre->name_entry_size = (pcre_uint16)byteflip(rre->name_entry_size,
@@ -2079,13 +2079,14 @@ while (!done)
         }
       else
         {
-        int ch = first_char & 255;
-        const char *caseless = ((first_char & REQ_CASELESS) == 0)?
+        const char *caseless =
+          ((((real_pcre *)re)->flags & PCRE_FCH_CASELESS) == 0)?
           "" : " (caseless)";
-        if (PRINTHEX(ch))
-          fprintf(outfile, "First char = \'%c\'%s\n", ch, caseless);
+
+        if (PRINTHEX(first_char))
+          fprintf(outfile, "First char = \'%c\'%s\n", first_char, caseless);
         else
-          fprintf(outfile, "First char = %d%s\n", ch, caseless);
+          fprintf(outfile, "First char = %d%s\n", first_char, caseless);
         }
 
       if (need_char < 0)
@@ -2094,13 +2095,14 @@ while (!done)
         }
       else
         {
-        int ch = need_char & 255;
-        const char *caseless = ((need_char & REQ_CASELESS) == 0)?
+        const char *caseless =
+          ((((real_pcre *)re)->flags & PCRE_RCH_CASELESS) == 0)?
           "" : " (caseless)";
-        if (PRINTHEX(ch))
-          fprintf(outfile, "Need char = \'%c\'%s\n", ch, caseless);
+
+        if (PRINTHEX(need_char))
+          fprintf(outfile, "Need char = \'%c\'%s\n", need_char, caseless);
         else
-          fprintf(outfile, "Need char = %d%s\n", ch, caseless);
+          fprintf(outfile, "Need char = %d%s\n", need_char, caseless);
         }
 
       /* Don't output study size; at present it is in any case a fixed

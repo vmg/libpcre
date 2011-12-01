@@ -230,15 +230,26 @@ by "configure". */
 /* All character handling must be done as unsigned characters. Otherwise there
 are problems with top-bit-set characters and functions such as isspace().
 However, we leave the interface to the outside world as char * or short *,
-because that should make things easier for callers. We define a short type
-for the current character representation (either 8 or 16 bit) to save lots
-of typing. I tried "uchar", but it causes problems on Digital Unix, where
-it is defined in sys/types, so use "uschar" instead. */
+because that should make things easier for callers. This character type is
+called pcre_uchar.
+
+The IN_UCHARS macro multiply its argument with the byte size of the current
+pcre_uchar type. Useful for memcpy and such operations, whose require the
+byte size of their input/output buffers.
+
+The MAX_255 macro checks whether its pcre_uchar input is less than 256.
+
+The TABLE_GET macro is designed for accessing elements of tables whose contain
+exactly 256 items. When the character is able to contain more than 256
+items, some check is needed before accessing these tables.
+*/
 
 #ifdef COMPILE_PCRE8
 
 typedef unsigned char pcre_uchar;
 #define IN_UCHARS(x) (x)
+#define MAX_255(c) 1
+#define TABLE_GET(c, table, default) ((table)[c])
 
 #else
 
@@ -248,8 +259,11 @@ typedef unsigned char pcre_uchar;
 pcre.h(.in) and disable (comment out) this message. */
 #error Warning: PCRE_SCHAR16 is not a 16 bit data type.
 #endif
+
 typedef pcre_uint16 pcre_uchar;
 #define IN_UCHARS(x) ((x) << 1)
+#define MAX_255(c) ((c) <= 255u)
+#define TABLE_GET(c, table, default) (MAX_255(c)? ((table)[c]):(default))
 
 #else
 #error Unsupported compiling mode
@@ -693,12 +707,14 @@ the restrictions on partial matching have been lifted. It remains for backwards
 compatibility. */
 
 #define PCRE_NOPARTIAL     0x0001  /* can't use partial with this regex */
-#define PCRE_FIRSTSET      0x0002  /* first_byte is set */
+#define PCRE_FIRSTSET      0x0002  /* first_char is set */
 #define PCRE_REQCHSET      0x0004  /* req_byte is set */
 #define PCRE_STARTLINE     0x0008  /* start after \n for multiline */
 #define PCRE_JCHANGED      0x0010  /* j option used in regex */
 #define PCRE_HASCRORLF     0x0020  /* explicit \r or \n in pattern */
 #define PCRE_HASTHEN       0x0040  /* pattern contains (*THEN) */
+#define PCRE_FCH_CASELESS  0x0080  /* caseless first char */
+#define PCRE_RCH_CASELESS  0x0100  /* caseless requested char */
 
 /* Flags for the "extra" block produced by pcre_study(). */
 
@@ -746,12 +762,6 @@ to detect whether a pattern was compiled on a host of different endianness. */
 req_byte match. */
 
 #define REQ_BYTE_MAX 1000
-
-/* Flags added to firstbyte or reqbyte; a "non-literal" item is either a
-variable-length repeat, or a anything other than literal characters. */
-
-#define REQ_CASELESS 0x0100    /* indicates caselessness */
-#define REQ_VARY     0x0200    /* reqbyte followed non-literal item */
 
 /* Miscellaneous definitions. The #ifndef is to pacify compiler warnings in
 environments where these macros are defined elsewhere. Unfortunately, there
@@ -1801,8 +1811,8 @@ typedef struct real_pcre {
   pcre_uint16 dummy1;             /* For future use */
   pcre_uint16 top_bracket;
   pcre_uint16 top_backref;
-  pcre_uint16 first_byte;
-  pcre_uint16 req_byte;
+  pcre_uint16 first_char;         /* Starting character */
+  pcre_uint16 req_char;           /* This character must be seen */
   pcre_uint16 name_table_offset;  /* Offset to name table that follows */
   pcre_uint16 name_entry_size;    /* Size of any name items */
   pcre_uint16 name_count;         /* Number of name items */
