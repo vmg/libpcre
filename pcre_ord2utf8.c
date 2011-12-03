@@ -52,21 +52,28 @@ character value into a UTF8 string. */
 *       Convert character value to UTF-8         *
 *************************************************/
 
-/* This function takes an integer value in the range 0 - 0x7fffffff
-and encodes it as a UTF-8 character in 0 to 6 bytes.
+/* This function takes an integer value in the range 0 - 0x10ffff
+and encodes it as a UTF-8 character in 1 to 6 pcre_uchars.
 
 Arguments:
   cvalue     the character value
-  buffer     pointer to buffer for result - at least 6 bytes long
+  buffer     pointer to buffer for result - at least 6 pcre_uchars long
 
 Returns:     number of characters placed in the buffer
 */
 
 int
-PRIV(ord2utf8)(int cvalue, pcre_uint8 *buffer)
+PRIV(ord2utf)(pcre_uint32 cvalue, pcre_uchar *buffer)
 {
 #ifdef SUPPORT_UTF8
+
 register int i, j;
+
+/* Checking invalid cvalue character, encoded as invalid UTF-16 character.
+Should never happen in practice. */
+if ((cvalue & 0xf800) == 0xd800 || cvalue >= 0x110000)
+  cvalue = 0xfffe;
+
 for (i = 0; i < PRIV(utf8_table1_size); i++)
   if (cvalue <= PRIV(utf8_table1)[i]) break;
 buffer += i;
@@ -77,10 +84,13 @@ for (j = i; j > 0; j--)
  }
 *buffer = PRIV(utf8_table2)[i] | cvalue;
 return i + 1;
+
 #else
+
 (void)(cvalue);  /* Keep compiler happy; this function won't ever be */
 (void)(buffer);  /* called when SUPPORT_UTF8 is not defined. */
 return 0;
+
 #endif
 }
 

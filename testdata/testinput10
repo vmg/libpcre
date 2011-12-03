@@ -52,11 +52,9 @@ is required for these tests. --/
 
 /\x{100000}/8BM
 
-/\x{1000000}/8BM
+/\x{10ffff}/8BM
 
-/\x{4000000}/8BM
-
-/\x{7fffFFFF}/8BM
+/\x{110000}/8BM
 
 /[\x{ff}]/8BM
 

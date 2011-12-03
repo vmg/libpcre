@@ -78,11 +78,11 @@ Returns:       = 0    if the string is a valid UTF-16 string
 */
 
 int
-PRIV(valid_utf16)(PCRE_PUCHAR string, int length, int *erroroffset)
+PRIV(valid_utf)(PCRE_PUCHAR string, int length, int *erroroffset)
 {
 #ifdef SUPPORT_UTF16
 register PCRE_PUCHAR p;
-register uschar c;
+register pcre_uchar c;
 
 if (length < 0)
   {

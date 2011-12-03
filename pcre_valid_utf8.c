@@ -103,7 +103,7 @@ Returns:       = 0    if the string is a valid UTF-8 string
 */
 
 int
-PRIV(valid_utf8)(PCRE_PUCHAR string, int length, int *erroroffset)
+PRIV(valid_utf)(PCRE_PUCHAR string, int length, int *erroroffset)
 {
 #ifdef SUPPORT_UTF8
 register PCRE_PUCHAR p;

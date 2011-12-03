@@ -414,9 +414,9 @@ const pcre_uchar *end_subject = md->end_subject;
 const pcre_uchar *start_code = md->start_code;
 
 #ifdef SUPPORT_UTF8
-BOOL utf8 = (md->poptions & PCRE_UTF8) != 0;
+BOOL utf = (md->poptions & PCRE_UTF8) != 0;
 #else
-BOOL utf8 = FALSE;
+BOOL utf = FALSE;
 #endif
 
 rlevel++;
@@ -474,7 +474,7 @@ if (*first_op == OP_REVERSE)
 #ifdef SUPPORT_UTF8
   /* In character mode we have to step back character by character */
 
-  if (utf8)
+  if (utf)
     {
     for (gone_back = 0; gone_back < max_back; gone_back++)
       {
@@ -606,7 +606,7 @@ for (;;)
     {
     clen = 1;        /* Number of bytes in the character */
 #ifdef SUPPORT_UTF8
-    if (utf8) { GETCHARLEN(c, ptr, clen); } else
+    if (utf) { GETCHARLEN(c, ptr, clen); } else
 #endif  /* SUPPORT_UTF8 */
     c = *ptr;
     }
@@ -695,7 +695,7 @@ for (;;)
       {
       dlen = 1;
 #ifdef SUPPORT_UTF8
-      if (utf8) { GETCHARLEN(d, (code + coptable[codevalue]), dlen); } else
+      if (utf) { GETCHARLEN(d, (code + coptable[codevalue]), dlen); } else
 #endif  /* SUPPORT_UTF8 */
       d = code[coptable[codevalue]];
       if (codevalue >= OP_TYPESTAR)
@@ -960,7 +960,7 @@ for (;;)
           const pcre_uchar *temp = ptr - 1;
           if (temp < md->start_used_ptr) md->start_used_ptr = temp;
 #ifdef SUPPORT_UTF8
-          if (utf8) BACKCHAR(temp);
+          if (utf) BACKCHAR(temp);
 #endif
           GETCHARTEST(d, temp);
 #ifdef SUPPORT_UCP
@@ -1986,7 +1986,7 @@ for (;;)
       if (clen == 0) break;
 
 #ifdef SUPPORT_UTF8
-      if (utf8)
+      if (utf)
         {
         if (c == d) { ADD_NEW(state_offset + dlen + 1, 0); } else
           {
@@ -2007,8 +2007,7 @@ for (;;)
         }
       else
 #endif  /* SUPPORT_UTF8 */
-
-      /* Non-UTF-8 mode */
+      /* Not UTF mode */
         {
         if (lcc[c] == lcc[d]) { ADD_NEW(state_offset + 2, 0); }
         }
@@ -2211,7 +2210,7 @@ for (;;)
         if (caseless)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && d >= 128)
+          if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
             otherd = UCD_OTHERCASE(d);
@@ -2258,7 +2257,7 @@ for (;;)
         if (caseless)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && d >= 128)
+          if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
             otherd = UCD_OTHERCASE(d);
@@ -2303,7 +2302,7 @@ for (;;)
         if (caseless)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && d >= 128)
+          if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
             otherd = UCD_OTHERCASE(d);
@@ -2340,7 +2339,7 @@ for (;;)
         if (caseless)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && d >= 128)
+          if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
             otherd = UCD_OTHERCASE(d);
@@ -2384,7 +2383,7 @@ for (;;)
         if (caseless)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && d >= 128)
+          if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
             otherd = UCD_OTHERCASE(d);
@@ -3005,7 +3004,7 @@ pcre_dfa_exec(const pcre *argument_re, const pcre_extra *extra_data,
 real_pcre *re = (real_pcre *)argument_re;
 dfa_match_data match_block;
 dfa_match_data *md = &match_block;
-BOOL utf8, anchored, startline, firstline;
+BOOL utf, anchored, startline, firstline;
 const pcre_uchar *current_subject, *end_subject;
 const pcre_uint8 *lcc;
 
@@ -3073,9 +3072,10 @@ end_subject = (const unsigned char *)subject + length;
 req_char_ptr = current_subject - 1;
 
 #ifdef SUPPORT_UTF8
-utf8 = (re->options & PCRE_UTF8) != 0;
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+utf = (re->options & PCRE_UTF8) != 0;
 #else
-utf8 = FALSE;
+utf = FALSE;
 #endif
 
 anchored = (options & (PCRE_ANCHORED|PCRE_DFA_RESTART)) != 0 ||
@@ -3147,10 +3147,10 @@ else
 back the character offset. */
 
 #ifdef SUPPORT_UTF8
-if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
+if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
-  int errorcode = PRIV(valid_utf8)((pcre_uchar *)subject, length, &erroroffset);
+  int errorcode = PRIV(valid_utf)((pcre_uchar *)subject, length, &erroroffset);
   if (errorcode != 0)
     {
     if (offsetcount >= 2)
@@ -3235,7 +3235,7 @@ for (;;)
       {
       PCRE_PUCHAR t = current_subject;
 #ifdef SUPPORT_UTF8
-      if (utf8)
+      if (utf)
         {
         while (t < md->end_subject && !IS_NEWLINE(t))
           {
@@ -3278,7 +3278,7 @@ for (;;)
         if (current_subject > md->start_subject + start_offset)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8)
+          if (utf)
             {
             while (current_subject < end_subject &&
                    !WAS_NEWLINE(current_subject))
@@ -3317,7 +3317,7 @@ for (;;)
             {
             current_subject++;
 #ifdef SUPPORT_UTF8
-            if (utf8)
+            if (utf)
               while(current_subject < end_subject &&
                     (*current_subject & 0xc0) == 0x80) current_subject++;
 #endif
@@ -3426,7 +3426,7 @@ for (;;)
 
   if (firstline && IS_NEWLINE(current_subject)) break;
   current_subject++;
-  if (utf8)
+  if (utf)
     {
     while (current_subject < end_subject && (*current_subject & 0xc0) == 0x80)
       current_subject++;

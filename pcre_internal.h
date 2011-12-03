@@ -292,8 +292,8 @@ start/end of string field names are. */
 #define IS_NEWLINE(p) \
   ((NLBLOCK->nltype != NLTYPE_FIXED)? \
     ((p) < NLBLOCK->PSEND && \
-     PRIV(is_newline)((p), NLBLOCK->nltype, NLBLOCK->PSEND, &(NLBLOCK->nllen),\
-       utf8)) \
+     PRIV(is_newline)((p), NLBLOCK->nltype, NLBLOCK->PSEND, \
+       &(NLBLOCK->nllen), utf)) \
     : \
     ((p) <= NLBLOCK->PSEND - NLBLOCK->nllen && \
      (p)[0] == NLBLOCK->nl[0] && \
@@ -307,7 +307,7 @@ start/end of string field names are. */
   ((NLBLOCK->nltype != NLTYPE_FIXED)? \
     ((p) > NLBLOCK->PSSTART && \
      PRIV(was_newline)((p), NLBLOCK->nltype, NLBLOCK->PSSTART, \
-       &(NLBLOCK->nllen), utf8)) \
+       &(NLBLOCK->nllen), utf)) \
     : \
     ((p) >= NLBLOCK->PSSTART + NLBLOCK->nllen && \
      (p)[-NLBLOCK->nllen] == NLBLOCK->nl[0] && \
@@ -581,7 +581,7 @@ pointer. */
 
 #define GETCHARTEST(c, eptr) \
   c = *eptr; \
-  if (utf8 && c >= 0xc0) GETUTF8(c, eptr);
+  if (utf && c >= 0xc0) GETUTF8(c, eptr);
 
 /* Base macro to pick up the remaining bytes of a UTF-8 character, advancing
 the pointer. */
@@ -629,7 +629,7 @@ This is called when we don't know if we are in UTF-8 mode. */
 
 #define GETCHARINCTEST(c, eptr) \
   c = *eptr++; \
-  if (utf8 && c >= 0xc0) GETUTF8INC(c, eptr);
+  if (utf && c >= 0xc0) GETUTF8INC(c, eptr);
 
 /* Base macro to pick up the remaining bytes of a UTF-8 character, not
 advancing the pointer, incrementing the length. */
@@ -681,7 +681,7 @@ do not know if we are in UTF-8 mode. */
 
 #define GETCHARLENTEST(c, eptr, len) \
   c = *eptr; \
-  if (utf8 && c >= 0xc0) GETUTF8LEN(c, eptr, len);
+  if (utf && c >= 0xc0) GETUTF8LEN(c, eptr, len);
 
 /* If the pointer is not at the start of a character, move it back until
 it is. This is called only in UTF-8 mode - we don't put a test within the macro
@@ -1366,7 +1366,7 @@ value such as \n. They must have non-zero values, as check_escape() returns
 their negation. Also, they must appear in the same order as in the opcode
 definitions below, up to ESC_z. There's a dummy for OP_ALLANY because it
 corresponds to "." in DOTALL mode rather than an escape sequence. It is also
-used for [^] in JavaScript compatibility mode, and for \C in non-utf8 mode. In
+used for [^] in JavaScript compatibility mode, and for \C in non-utf mode. In
 non-DOTALL mode, "." behaves like \N.
 
 The special values ESC_DU, ESC_du, etc. are used instead of ESC_D, ESC_d, etc.
@@ -1784,7 +1784,7 @@ enum { ERR0,  ERR1,  ERR2,  ERR3,  ERR4,  ERR5,  ERR6,  ERR7,  ERR8,  ERR9,
        ERR40, ERR41, ERR42, ERR43, ERR44, ERR45, ERR46, ERR47, ERR48, ERR49,
        ERR50, ERR51, ERR52, ERR53, ERR54, ERR55, ERR56, ERR57, ERR58, ERR59,
        ERR60, ERR61, ERR62, ERR63, ERR64, ERR65, ERR66, ERR67, ERR68, ERR69,
-       ERR70, ERRCOUNT };
+       ERR70, ERR71, ERRCOUNT };
 
 /* The real format of the start of the pcre block; the index of names and the
 code vector run on as long as necessary after the end. We store an explicit
@@ -1934,7 +1934,7 @@ typedef struct match_data {
   BOOL   offset_overflow;         /* Set if too many extractions */
   BOOL   notbol;                  /* NOTBOL flag */
   BOOL   noteol;                  /* NOTEOL flag */
-  BOOL   utf8;                    /* UTF8 flag */
+  BOOL   utf;                     /* UTF-8 / UTF-16 flag */
   BOOL   jscript_compat;          /* JAVASCRIPT_COMPAT flag */
   BOOL   use_ucp;                 /* PCRE_UCP flag */
   BOOL   endonly;                 /* Dollar not before final \n */
@@ -2103,14 +2103,10 @@ extern unsigned int      PRIV(strlen_uc)(const pcre_uchar *str);
 extern const pcre_uchar *PRIV(find_bracket)(const pcre_uchar *, BOOL, int);
 extern BOOL              PRIV(is_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
-extern int               PRIV(ord2utf8)(int, pcre_uint8 *);
+extern int               PRIV(ord2utf)(pcre_uint32, pcre_uchar *);
 extern real_pcre        *PRIV(try_flipped)(const real_pcre *, real_pcre *,
                            const pcre_study_data *, pcre_study_data *);
-#ifndef COMPILE_PCRE16
-extern int               PRIV(valid_utf8)(PCRE_PUCHAR, int, int *);
-#else
-extern int               PRIV(valid_utf16)(PCRE_PUCHAR, int, int *);
-#endif
+extern int               PRIV(valid_utf)(PCRE_PUCHAR, int, int *);
 extern BOOL              PRIV(was_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
 extern BOOL              PRIV(xclass)(int, const pcre_uchar *);

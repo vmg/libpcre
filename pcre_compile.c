@@ -470,6 +470,7 @@ static const char error_texts[] =
   "\\k is not followed by a braced, angle-bracketed, or quoted name\0"
   /* 70 */
   "internal error: unknown opcode in find_fixedlength()\0"
+  "Not allowed UTF-8 / UTF-16 code point (>= 0xd800 && <= 0xdfff)\0"
   ;
 
 /* Table to identify digits and hex digits. This is used when compiling
@@ -538,7 +539,7 @@ static const pcre_uint8 digitab[] =
 
 /* This is the "abnormal" case, for EBCDIC systems not running in UTF-8 mode. */
 
-static const pcre_unit8 digitab[] =
+static const pcre_uint8 digitab[] =
   {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, /*   0-  7  0 */
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00, /*   8- 15    */
@@ -706,9 +707,11 @@ static int
 check_escape(const pcre_uchar **ptrptr, int *errorcodeptr, int bracount,
   int options, BOOL isclass)
 {
-BOOL utf8 = (options & PCRE_UTF8) != 0;
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+BOOL utf = (options & PCRE_UTF8) != 0;
 const pcre_uchar *ptr = *ptrptr + 1;
-int c, i;
+pcre_int32 c;
+int i;
 
 GETCHARINCTEST(c, ptr);           /* Get character value, increment pointer */
 ptr--;                            /* Set pointer back to the last byte */
@@ -940,12 +943,12 @@ else
     c -= CHAR_0;
     while(i++ < 2 && ptr[1] >= CHAR_0 && ptr[1] <= CHAR_7)
         c = c * 8 + *(++ptr) - CHAR_0;
-    if (!utf8 && c > 0xff) *errorcodeptr = ERR51;
+    if (!utf && c > 0xff) *errorcodeptr = ERR51;
     break;
 
     /* \x is complicated. \x{ddd} is a character number which can be greater
-    than 0xff in utf8 mode, but only if the ddd are hex digits. If not, { is
-    treated as a data character. */
+    than 0xff in utf or non-8bit mode, but only if the ddd are hex digits.
+    If not, { is treated as a data character. */
 
     case CHAR_x:
     if ((options & PCRE_JAVASCRIPT_COMPAT) != 0)
@@ -974,14 +977,12 @@ else
     if (ptr[1] == CHAR_LEFT_CURLY_BRACKET)
       {
       const pcre_uchar *pt = ptr + 2;
-      int count = 0;
 
       c = 0;
       while (MAX_255(*pt) && (digitab[*pt] & ctype_xdigit) != 0)
         {
         register int cc = *pt++;
         if (c == 0 && cc == CHAR_0) continue;     /* Leading zeroes */
-        count++;
 
 #ifndef EBCDIC  /* ASCII/UTF-8 coding */
         if (cc >= CHAR_a) cc -= 32;               /* Convert to upper case */
@@ -990,17 +991,25 @@ else
         if (cc >= CHAR_a && cc <= CHAR_z) cc += 64;  /* Convert to upper case */
         c = (c << 4) + cc - ((cc >= CHAR_0)? CHAR_0 : (CHAR_A - 10));
 #endif
+
+#ifdef COMPILE_PCRE8
+        if (c > (utf ? 0x10ffff : 0xff)) { c = -1; break; }
+#else
+#ifdef COMPILE_PCRE16
+        if (c > (utf ? 0x10ffff : 0xffff)) { c = -1; break; }
+#endif
+#endif
+        }
+
+      if (c < 0)
+        {
+        while (MAX_255(*pt) && (digitab[*pt] & ctype_xdigit) != 0) pt++;
+        *errorcodeptr = ERR34;
         }
 
       if (*pt == CHAR_RIGHT_CURLY_BRACKET)
         {
-#ifdef COMPILE_PCRE8
-        if (c < 0 || count > (utf8? 8:2)) *errorcodeptr = ERR34;
-#else
-#ifdef COMPILE_PCRE16
-        if (c < 0 || count > (utf8? 8:4)) *errorcodeptr = ERR34;
-#endif
-#endif
+        if (utf && c >= 0xd800 && c <= 0xdfff) *errorcodeptr = ERR71;
         ptr = pt;
         break;
         }
@@ -1281,7 +1290,7 @@ Arguments:
   name         name to seek, or NULL if seeking a numbered subpattern
   lorn         name length, or subpattern number if name is NULL
   xmode        TRUE if we are in /x mode
-  utf8         TRUE if we are in UTF-8 mode
+  utf          TRUE if we are in UTF-8 / UTF-16 mode
   count        pointer to the current capturing subpattern number (updated)
 
 Returns:       the number of the named subpattern, or -1 if not found
@@ -1289,7 +1298,7 @@ Returns:       the number of the named subpattern, or -1 if not found
 
 static int
 find_parens_sub(pcre_uchar **ptrptr, compile_data *cd, const pcre_uchar *name, int lorn,
-  BOOL xmode, BOOL utf8, int *count)
+  BOOL xmode, BOOL utf, int *count)
 {
 pcre_uchar *ptr = *ptrptr;
 int start_count = *count;
@@ -1458,7 +1467,7 @@ for (; ptr < cd->end_pattern; ptr++)
       if (IS_NEWLINE(ptr)) { ptr += cd->nllen - 1; break; }
       ptr++;
 #ifdef SUPPORT_UTF8
-      if (utf8) while ((*ptr & 0xc0) == 0x80) ptr++;
+      if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
 #endif
       }
     if (*ptr == 0) goto FAIL_EXIT;
@@ -1469,7 +1478,7 @@ for (; ptr < cd->end_pattern; ptr++)
 
   if (*ptr == CHAR_LEFT_PARENTHESIS)
     {
-    int rc = find_parens_sub(&ptr, cd, name, lorn, xmode, utf8, count);
+    int rc = find_parens_sub(&ptr, cd, name, lorn, xmode, utf, count);
     if (rc > 0) return rc;
     if (*ptr == 0) goto FAIL_EXIT;
     }
@@ -1515,14 +1524,14 @@ Arguments:
   name         name to seek, or NULL if seeking a numbered subpattern
   lorn         name length, or subpattern number if name is NULL
   xmode        TRUE if we are in /x mode
-  utf8         TRUE if we are in UTF-8 mode
+  utf          TRUE if we are in UTF-8 / UTF-16 mode
 
 Returns:       the number of the found subpattern, or -1 if not found
 */
 
 static int
 find_parens(compile_data *cd, const pcre_uchar *name, int lorn, BOOL xmode,
-  BOOL utf8)
+  BOOL utf)
 {
 pcre_uchar *ptr = (pcre_uchar *)cd->start_pattern;
 int count = 0;
@@ -1535,7 +1544,7 @@ matching closing parens. That is why we have to have a loop. */
 
 for (;;)
   {
-  rc = find_parens_sub(&ptr, cd, name, lorn, xmode, utf8, &count);
+  rc = find_parens_sub(&ptr, cd, name, lorn, xmode, utf, &count);
   if (rc > 0 || *ptr++ == 0) break;
   }
 
@@ -1618,7 +1627,7 @@ and doing the check at the end; a flag specifies which mode we are running in.
 
 Arguments:
   code     points to the start of the pattern (the bracket)
-  utf8     TRUE in UTF-8 mode
+  utf      TRUE in UTF-8 / UTF-16 mode
   atend    TRUE if called when the pattern is complete
   cd       the "compile data" structure
 
@@ -1630,7 +1639,7 @@ Returns:   the fixed length,
 */
 
 static int
-find_fixedlength(pcre_uchar *code, BOOL utf8, BOOL atend, compile_data *cd)
+find_fixedlength(pcre_uchar *code, BOOL utf, BOOL atend, compile_data *cd)
 {
 int length = -1;
 
@@ -1657,7 +1666,7 @@ for (;;)
     case OP_ONCE:
     case OP_ONCE_NC:
     case OP_COND:
-    d = find_fixedlength(cc + ((op == OP_CBRA)? IMM2_SIZE : 0), utf8, atend, cd);
+    d = find_fixedlength(cc + ((op == OP_CBRA)? IMM2_SIZE : 0), utf, atend, cd);
     if (d < 0) return d;
     branchlength += d;
     do cc += GET(cc, 1); while (*cc == OP_ALT);
@@ -1691,7 +1700,7 @@ for (;;)
     cs = ce = (pcre_uchar *)cd->start_code + GET(cc, 1);  /* Start subpattern */
     do ce += GET(ce, 1); while (*ce == OP_ALT);           /* End subpattern */
     if (cc > cs && cc < ce) return -1;                    /* Recursion */
-    d = find_fixedlength(cs + 2, utf8, atend, cd);
+    d = find_fixedlength(cs + 2, utf, atend, cd);
     if (d < 0) return d;
     branchlength += d;
     cc += 1 + LINK_SIZE;
@@ -1751,7 +1760,7 @@ for (;;)
     branchlength++;
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -1765,7 +1774,7 @@ for (;;)
     branchlength += GET2(cc,1);
     cc += 2 + IMM2_SIZE;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -1945,14 +1954,14 @@ length.
 
 Arguments:
   code        points to start of expression
-  utf8        TRUE in UTF-8 mode
+  utf         TRUE in UTF-8 / UTF-16 mode
   number      the required bracket number or negative to find a lookbehind
 
 Returns:      pointer to the opcode for the bracket, or NULL if not found
 */
 
 const pcre_uchar *
-PRIV(find_bracket)(const pcre_uchar *code, BOOL utf8, int number)
+PRIV(find_bracket)(const pcre_uchar *code, BOOL utf, int number)
 {
 for (;;)
   {
@@ -2033,7 +2042,7 @@ for (;;)
   arrange to skip the extra bytes. */
 
 #ifdef SUPPORT_UTF8
-    if (utf8) switch(c)
+    if (utf) switch(c)
       {
       case OP_CHAR:
       case OP_CHARI:
@@ -2067,7 +2076,7 @@ for (;;)
       break;
       }
 #else
-    (void)(utf8);  /* Keep compiler happy by referencing function argument */
+    (void)(utf);  /* Keep compiler happy by referencing function argument */
 #endif
     }
   }
@@ -2084,13 +2093,13 @@ instance of OP_RECURSE.
 
 Arguments:
   code        points to start of expression
-  utf8        TRUE in UTF-8 mode
+  utf         TRUE in UTF-8 / UTF-16 mode
 
 Returns:      pointer to the opcode for OP_RECURSE, or NULL if not found
 */
 
 static const pcre_uchar *
-find_recurse(const pcre_uchar *code, BOOL utf8)
+find_recurse(const pcre_uchar *code, BOOL utf)
 {
 for (;;)
   {
@@ -2153,7 +2162,7 @@ for (;;)
     to arrange to skip the extra bytes. */
 
 #ifdef SUPPORT_UTF8
-    if (utf8) switch(c)
+    if (utf) switch(c)
       {
       case OP_CHAR:
       case OP_CHARI:
@@ -2187,7 +2196,7 @@ for (;;)
       break;
       }
 #else
-    (void)(utf8);  /* Keep compiler happy by referencing function argument */
+    (void)(utf);  /* Keep compiler happy by referencing function argument */
 #endif
     }
   }
@@ -2210,7 +2219,7 @@ bracket whose current branch will already have been scanned.
 Arguments:
   code        points to start of search
   endcode     points to where to stop
-  utf8        TRUE if in UTF8 mode
+  utf         TRUE if in UTF-8 / UTF-16 mode
   cd          contains pointers to tables etc.
 
 Returns:      TRUE if what is matched could be empty
@@ -2218,7 +2227,7 @@ Returns:      TRUE if what is matched could be empty
 
 static BOOL
 could_be_empty_branch(const pcre_uchar *code, const pcre_uchar *endcode,
-  BOOL utf8, compile_data *cd)
+  BOOL utf, compile_data *cd)
 {
 register int c;
 for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
@@ -2266,7 +2275,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
 
     do
       {
-      if (could_be_empty_branch(scode, endcode, utf8, cd))
+      if (could_be_empty_branch(scode, endcode, utf, cd))
         {
         empty_branch = TRUE;
         break;
@@ -2322,7 +2331,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
       empty_branch = FALSE;
       do
         {
-        if (!empty_branch && could_be_empty_branch(code, endcode, utf8, cd))
+        if (!empty_branch && could_be_empty_branch(code, endcode, utf, cd))
           empty_branch = TRUE;
         code += GET(code, 1);
         }
@@ -2456,7 +2465,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_MINQUERYI:
     case OP_POSQUERY:
     case OP_POSQUERYI:
-    if (utf8 && code[1] >= 0xc0) code += PRIV(utf8_table4)[code[1] & 0x3f];
+    if (utf && code[1] >= 0xc0) code += PRIV(utf8_table4)[code[1] & 0x3f];
     break;
 
     case OP_UPTO:
@@ -2465,7 +2474,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_MINUPTOI:
     case OP_POSUPTO:
     case OP_POSUPTOI:
-    if (utf8 && code[1 + IMM2_SIZE] >= 0xc0) code += PRIV(utf8_table4)[code[1 + IMM2_SIZE] & 0x3f];
+    if (utf && code[1 + IMM2_SIZE] >= 0xc0) code += PRIV(utf8_table4)[code[1 + IMM2_SIZE] & 0x3f];
     break;
 #endif
 
@@ -2509,7 +2518,7 @@ Arguments:
   code        points to start of the recursion
   endcode     points to where to stop (current RECURSE item)
   bcptr       points to the chain of current (unclosed) branch starts
-  utf8        TRUE if in UTF-8 mode
+  utf         TRUE if in UTF-8 / UTF-16 mode
   cd          pointers to tables etc
 
 Returns:      TRUE if what is matched could be empty
@@ -2517,11 +2526,11 @@ Returns:      TRUE if what is matched could be empty
 
 static BOOL
 could_be_empty(const pcre_uchar *code, const pcre_uchar *endcode,
-  branch_chain *bcptr, BOOL utf8, compile_data *cd)
+  branch_chain *bcptr, BOOL utf, compile_data *cd)
 {
 while (bcptr != NULL && bcptr->current_branch >= code)
   {
-  if (!could_be_empty_branch(bcptr->current_branch, endcode, utf8, cd))
+  if (!could_be_empty_branch(bcptr->current_branch, endcode, utf, cd))
     return FALSE;
   bcptr = bcptr->outer;
   }
@@ -2656,7 +2665,7 @@ value in the reference (which is a group number).
 Arguments:
   group      points to the start of the group
   adjust     the amount by which the group is to be moved
-  utf8       TRUE in UTF-8 mode
+  utf        TRUE in UTF-8 / UTF-16 mode
   cd         contains pointers to tables etc.
   save_hwm   the hwm forward reference pointer at the start of the group
 
@@ -2664,12 +2673,12 @@ Returns:     nothing
 */
 
 static void
-adjust_recurse(pcre_uchar *group, int adjust, BOOL utf8, compile_data *cd,
+adjust_recurse(pcre_uchar *group, int adjust, BOOL utf, compile_data *cd,
   pcre_uchar *save_hwm)
 {
 pcre_uchar *ptr = group;
 
-while ((ptr = (pcre_uchar *)find_recurse(ptr, utf8)) != NULL)
+while ((ptr = (pcre_uchar *)find_recurse(ptr, utf)) != NULL)
   {
   int offset;
   pcre_uchar *hc;
@@ -2875,7 +2884,7 @@ sense to automatically possessify the repeated item.
 
 Arguments:
   previous      pointer to the repeated opcode
-  utf8          TRUE in UTF-8 mode
+  utf           TRUE in UTF-8 / UTF-16 mode
   ptr           next character in pattern
   options       options bits
   cd            contains pointers to tables etc.
@@ -2884,7 +2893,7 @@ Returns:        TRUE if possessifying is wanted
 */
 
 static BOOL
-check_auto_possessive(const pcre_uchar *previous, BOOL utf8,
+check_auto_possessive(const pcre_uchar *previous, BOOL utf,
   const pcre_uchar *ptr, int options, compile_data *cd)
 {
 int c, next;
@@ -2905,7 +2914,7 @@ if ((options & PCRE_EXTENDED) != 0)
         if (IS_NEWLINE(ptr)) { ptr += cd->nllen; break; }
         ptr++;
 #ifdef SUPPORT_UTF8
-        if (utf8) while ((*ptr & 0xc0) == 0x80) ptr++;
+        if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
 #endif
         }
       }
@@ -2927,7 +2936,7 @@ if (*ptr == CHAR_BACKSLASH)
 else if ((cd->ctypes[*ptr] & ctype_meta) == 0)
   {
 #ifdef SUPPORT_UTF8
-  if (utf8) { GETCHARINC(next, ptr); } else
+  if (utf) { GETCHARINC(next, ptr); } else
 #endif
   next = *ptr++;
   }
@@ -2949,7 +2958,7 @@ if ((options & PCRE_EXTENDED) != 0)
         if (IS_NEWLINE(ptr)) { ptr += cd->nllen; break; }
         ptr++;
 #ifdef SUPPORT_UTF8
-        if (utf8) while ((*ptr & 0xc0) == 0x80) ptr++;
+        if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
 #endif
         }
       }
@@ -2988,7 +2997,7 @@ if (next >= 0) switch(op_code)
 #endif
   if (c == next) return FALSE;
 #ifdef SUPPORT_UTF8
-  if (utf8)
+  if (utf)
     {
     unsigned int othercase;
     if (next < 128) othercase = cd->fcc[next]; else
@@ -3013,7 +3022,7 @@ if (next >= 0) switch(op_code)
   case OP_NOTI:
   if ((c = *previous) == next) return TRUE;
 #ifdef SUPPORT_UTF8
-  if (utf8)
+  if (utf)
     {
     unsigned int othercase;
     if (next < 128) othercase = cd->fcc[next]; else
@@ -3348,10 +3357,11 @@ must not do this for other options (e.g. PCRE_EXTENDED) because they may change
 dynamically as we process the pattern. */
 
 #ifdef SUPPORT_UTF8
-BOOL utf8 = (options & PCRE_UTF8) != 0;
-pcre_uint8 utf8_char[6];
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+BOOL utf = (options & PCRE_UTF8) != 0;
+pcre_uchar utf_chars[6];
 #else
-BOOL utf8 = FALSE;
+BOOL utf = FALSE;
 #endif
 
 /* Helper variables for OP_XCLASS opcode (for characters > 255). */
@@ -3459,8 +3469,8 @@ for (;; ptr++)
       }
 
     *lengthptr += (int)(code - last_code);
-    DPRINTF(("length=%d added %d c=%c\n", *lengthptr, (int)(code - last_code),
-      c));
+    DPRINTF(("length=%d added %d c=%c (0x%x)\n", *lengthptr,
+      (int)(code - last_code), c, c));
 
     /* If "previous" is set and it is not at the start of the work space, move
     it back to there, in order to avoid filling up the work space. Otherwise,
@@ -3547,7 +3557,7 @@ for (;; ptr++)
         if (IS_NEWLINE(ptr)) { ptr += cd->nllen - 1; break; }
         ptr++;
 #ifdef SUPPORT_UTF8
-        if (utf8) while ((*ptr & 0xc0) == 0x80) ptr++;
+        if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
 #endif
         }
       if (*ptr != 0) continue;
@@ -3727,7 +3737,7 @@ for (;; ptr++)
       const pcre_uchar *oldptr;
 
 #ifdef SUPPORT_UTF8
-      if (utf8 && c > 127)
+      if (utf && c > 127)
         {                           /* Braces are required because the */
         GETCHARLEN(c, ptr, ptr);    /* macro generates multiple statements */
         }
@@ -3945,22 +3955,22 @@ for (;; ptr++)
             SETBIT(classbits, 0x20); /* SPACE */
             SETBIT(classbits, 0xa0); /* NSBP */
 #ifdef SUPPORT_UTF
-            if (utf8)
+            if (utf)
               {
               xclass = TRUE;
               *class_uchardata++ = XCL_SINGLE;
-              class_uchardata += PRIV(ord2utf8)(0x1680, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x1680, class_uchardata);
               *class_uchardata++ = XCL_SINGLE;
-              class_uchardata += PRIV(ord2utf8)(0x180e, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x180e, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x2000, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x200A, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2000, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x200A, class_uchardata);
               *class_uchardata++ = XCL_SINGLE;
-              class_uchardata += PRIV(ord2utf8)(0x202f, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x202f, class_uchardata);
               *class_uchardata++ = XCL_SINGLE;
-              class_uchardata += PRIV(ord2utf8)(0x205f, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x205f, class_uchardata);
               *class_uchardata++ = XCL_SINGLE;
-              class_uchardata += PRIV(ord2utf8)(0x3000, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x3000, class_uchardata);
               }
 #endif
             continue;
@@ -3980,30 +3990,30 @@ for (;; ptr++)
               }
 
 #ifdef SUPPORT_UTF
-            if (utf8)
+            if (utf)
               {
               xclass = TRUE;
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x0100, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x167f, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x0100, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x167f, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x1681, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x180d, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x1681, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x180d, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x180f, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x1fff, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x180f, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x1fff, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x200B, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x202e, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x200B, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x202e, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x2030, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x205e, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2030, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x205e, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x2060, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x2fff, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2060, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2fff, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x3001, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x7fffffff, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x3001, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x10ffff, class_uchardata);
               }
 #endif
             continue;
@@ -4015,12 +4025,12 @@ for (;; ptr++)
             SETBIT(classbits, 0x0d); /* CR */
             SETBIT(classbits, 0x85); /* NEL */
 #ifdef SUPPORT_UTF
-            if (utf8)
+            if (utf)
               {
               xclass = TRUE;
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x2028, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x2029, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2028, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2029, class_uchardata);
               }
 #endif
             continue;
@@ -4043,15 +4053,15 @@ for (;; ptr++)
               }
 
 #ifdef SUPPORT_UTF
-            if (utf8)
+            if (utf)
               {
               xclass = TRUE;
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x0100, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x2027, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x0100, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2027, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf8)(0x2029, class_uchardata);
-              class_uchardata += PRIV(ord2utf8)(0x7fffffff, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x2029, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x10ffff, class_uchardata);
               }
 #endif
             continue;
@@ -4139,7 +4149,7 @@ for (;; ptr++)
           }
 
 #ifdef SUPPORT_UTF8
-        if (utf8)
+        if (utf)
           {                           /* Braces are required because the */
           GETCHARLEN(d, ptr, ptr);    /* macro generates multiple statements */
           }
@@ -4189,7 +4199,7 @@ for (;; ptr++)
         available. */
 
 #ifdef SUPPORT_UTF
-        if (utf8 && (d > 255 || ((options & PCRE_CASELESS) != 0 && d > 127)))
+        if (utf && (d > 255 || ((options & PCRE_CASELESS) != 0 && d > 127)))
 #endif
 #ifndef COMPILE_PCRE8
         if (d > 255)
@@ -4234,9 +4244,9 @@ for (;; ptr++)
               else
                 {
                 *class_uchardata++ = XCL_RANGE;
-                class_uchardata += PRIV(ord2utf8)(occ, class_uchardata);
+                class_uchardata += PRIV(ord2utf)(occ, class_uchardata);
                 }
-              class_uchardata += PRIV(ord2utf8)(ocd, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(ocd, class_uchardata);
               }
             }
 #endif  /* SUPPORT_UCP */
@@ -4246,8 +4256,8 @@ for (;; ptr++)
 
           *class_uchardata++ = XCL_RANGE;
 #ifdef SUPPORT_UTF
-          class_uchardata += PRIV(ord2utf8)(c, class_uchardata);
-          class_uchardata += PRIV(ord2utf8)(d, class_uchardata);
+          class_uchardata += PRIV(ord2utf)(c, class_uchardata);
+          class_uchardata += PRIV(ord2utf)(d, class_uchardata);
 #else
           *class_uchardata++ = c;
           *class_uchardata++ = d;
@@ -4304,7 +4314,7 @@ for (;; ptr++)
       /* Handle a character that cannot go in the bit map */
 
 #ifdef SUPPORT_UTF
-      if (utf8 && (c > 255 || ((options & PCRE_CASELESS) != 0 && c > 127)))
+      if (utf && (c > 255 || ((options & PCRE_CASELESS) != 0 && c > 127)))
 #endif
 #ifndef COMPILE_PCRE8
       if (c > 255)
@@ -4314,7 +4324,7 @@ for (;; ptr++)
         xclass = TRUE;
         *class_uchardata++ = XCL_SINGLE;
 #ifdef SUPPORT_UTF
-        class_uchardata += PRIV(ord2utf8)(c, class_uchardata);
+        class_uchardata += PRIV(ord2utf)(c, class_uchardata);
 #else
         *class_uchardata++ = c;
 #endif
@@ -4326,7 +4336,7 @@ for (;; ptr++)
           if ((othercase = UCD_OTHERCASE(c)) != c)
             {
             *class_uchardata++ = XCL_SINGLE;
-            class_uchardata += PRIV(ord2utf8)(othercase, class_uchardata);
+            class_uchardata += PRIV(ord2utf)(othercase, class_uchardata);
             }
           }
 #endif  /* SUPPORT_UCP */
@@ -4384,11 +4394,9 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF
     if (class_charcount == 1 && !xclass &&
-      (!utf8 || !negate_class || class_lastchar < 128))
-#elif defined COMPILE_PCRE8
-    if (class_charcount == 1)
+      (!utf || !negate_class || class_lastchar < 128))
 #else
-    if (class_charcount == 1 && !xclass)
+    if (class_charcount == 1)
 #endif
       {
       zeroreqchar = reqchar;
@@ -4408,8 +4416,8 @@ for (;; ptr++)
       then we can handle this with the normal one-character code. */
 
 #ifdef SUPPORT_UTF8
-      if (utf8 && class_lastchar > 127)
-        mclength = PRIV(ord2utf8)(class_lastchar, mcbuffer);
+      if (utf && class_lastchar > 127)
+        mclength = PRIV(ord2utf)(class_lastchar, mcbuffer);
       else
 #endif
         {
@@ -4599,12 +4607,12 @@ for (;; ptr++)
       length rather than a small character. */
 
 #ifdef SUPPORT_UTF8
-      if (utf8 && (code[-1] & 0x80) != 0)
+      if (utf && (code[-1] & 0x80) != 0)
         {
         pcre_uchar *lastchar = code - 1;
         while((*lastchar & 0xc0) == 0x80) lastchar--;
         c = code - lastchar;            /* Length of UTF-8 character */
-        memcpy(utf8_char, lastchar, c); /* Save the char */
+        memcpy(utf_chars, lastchar, c); /* Save the char */
         c |= 0x80;                      /* Flag c as a length */
         }
       else
@@ -4625,7 +4633,7 @@ for (;; ptr++)
 
       if (!possessive_quantifier &&
           repeat_max < 0 &&
-          check_auto_possessive(previous, utf8, ptr + 1, options, cd))
+          check_auto_possessive(previous, utf, ptr + 1, options, cd))
         {
         repeat_type = 0;    /* Force greedy */
         possessive_quantifier = TRUE;
@@ -4646,7 +4654,7 @@ for (;; ptr++)
       c = previous[1];
       if (!possessive_quantifier &&
           repeat_max < 0 &&
-          check_auto_possessive(previous, utf8, ptr + 1, options, cd))
+          check_auto_possessive(previous, utf, ptr + 1, options, cd))
         {
         repeat_type = 0;    /* Force greedy */
         possessive_quantifier = TRUE;
@@ -4670,7 +4678,7 @@ for (;; ptr++)
 
       if (!possessive_quantifier &&
           repeat_max < 0 &&
-          check_auto_possessive(previous, utf8, ptr + 1, options, cd))
+          check_auto_possessive(previous, utf, ptr + 1, options, cd))
         {
         repeat_type = 0;    /* Force greedy */
         possessive_quantifier = TRUE;
@@ -4755,9 +4763,9 @@ for (;; ptr++)
         if (repeat_max < 0)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && c >= 128)
+          if (utf && c >= 128)
             {
-            memcpy(code, utf8_char, c & 7);
+            memcpy(code, utf_chars, c & 7);
             code += c & 7;
             }
           else
@@ -4780,9 +4788,9 @@ for (;; ptr++)
         else if (repeat_max != repeat_min)
           {
 #ifdef SUPPORT_UTF8
-          if (utf8 && c >= 128)
+          if (utf && c >= 128)
             {
-            memcpy(code, utf8_char, c & 7);
+            memcpy(code, utf_chars, c & 7);
             code += c & 7;
             }
           else
@@ -4810,9 +4818,9 @@ for (;; ptr++)
       /* The character or character type itself comes last in all cases. */
 
 #ifdef SUPPORT_UTF8
-      if (utf8 && c >= 128)
+      if (utf && c >= 128)
         {
-        memcpy(code, utf8_char, c & 7);
+        memcpy(code, utf_chars, c & 7);
         code += c & 7;
         }
       else
@@ -4939,7 +4947,7 @@ for (;; ptr++)
         if (repeat_max <= 1)    /* Covers 0, 1, and unlimited */
           {
           *code = OP_END;
-          adjust_recurse(previous, 1, utf8, cd, save_hwm);
+          adjust_recurse(previous, 1, utf, cd, save_hwm);
           memmove(previous + 1, previous, IN_UCHARS(len));
           code++;
           if (repeat_max == 0)
@@ -4963,7 +4971,7 @@ for (;; ptr++)
           {
           int offset;
           *code = OP_END;
-          adjust_recurse(previous, 2 + LINK_SIZE, utf8, cd, save_hwm);
+          adjust_recurse(previous, 2 + LINK_SIZE, utf, cd, save_hwm);
           memmove(previous + 2 + LINK_SIZE, previous, IN_UCHARS(len));
           code += 2 + LINK_SIZE;
           *previous++ = OP_BRAZERO + repeat_type;
@@ -5165,7 +5173,7 @@ for (;; ptr++)
             pcre_uchar *scode = bracode;
             do
               {
-              if (could_be_empty_branch(scode, ketcode, utf8, cd))
+              if (could_be_empty_branch(scode, ketcode, utf, cd))
                 {
                 *bracode += OP_SBRA - OP_BRA;
                 break;
@@ -5188,7 +5196,7 @@ for (;; ptr++)
               {
               int nlen = (int)(code - bracode);
               *code = OP_END;
-              adjust_recurse(bracode, 1 + LINK_SIZE, utf8, cd, save_hwm);
+              adjust_recurse(bracode, 1 + LINK_SIZE, utf, cd, save_hwm);
               memmove(bracode + 1 + LINK_SIZE, bracode, IN_UCHARS(nlen));
               code += 1 + LINK_SIZE;
               nlen += 1 + LINK_SIZE;
@@ -5266,7 +5274,7 @@ for (;; ptr++)
         {
         tempcode += PRIV(OP_lengths)[*tempcode];
 #ifdef SUPPORT_UTF8
-        if (utf8 && tempcode[-1] >= 0xc0)
+        if (utf && tempcode[-1] >= 0xc0)
           tempcode += PRIV(utf8_table4)[tempcode[-1] & 0x3f];
 #endif
         }
@@ -5304,7 +5312,7 @@ for (;; ptr++)
 
         default:
         *code = OP_END;
-        adjust_recurse(tempcode, 1 + LINK_SIZE, utf8, cd, save_hwm);
+        adjust_recurse(tempcode, 1 + LINK_SIZE, utf, cd, save_hwm);
         memmove(tempcode + 1 + LINK_SIZE, tempcode, IN_UCHARS(len));
         code += 1 + LINK_SIZE;
         len += 1 + LINK_SIZE;
@@ -5613,7 +5621,7 @@ for (;; ptr++)
         /* Search the pattern for a forward reference */
 
         else if ((i = find_parens(cd, name, namelen,
-                        (options & PCRE_EXTENDED) != 0, utf8)) > 0)
+                        (options & PCRE_EXTENDED) != 0, utf)) > 0)
           {
           PUT2(code, 2+LINK_SIZE, i);
           code[1+LINK_SIZE]++;
@@ -5958,7 +5966,7 @@ for (;; ptr++)
           temp = cd->end_pattern;
           cd->end_pattern = ptr;
           recno = find_parens(cd, name, namelen,
-            (options & PCRE_EXTENDED) != 0, utf8);
+            (options & PCRE_EXTENDED) != 0, utf);
           cd->end_pattern = temp;
           if (recno < 0) recno = 0;    /* Forward ref; set dummy number */
           }
@@ -5985,7 +5993,7 @@ for (;; ptr++)
             }
           else if ((recno =                /* Forward back reference */
                     find_parens(cd, name, namelen,
-                      (options & PCRE_EXTENDED) != 0, utf8)) <= 0)
+                      (options & PCRE_EXTENDED) != 0, utf)) <= 0)
             {
             *errorcodeptr = ERR15;
             goto FAILED;
@@ -6089,14 +6097,14 @@ for (;; ptr++)
             {
             *code = OP_END;
             if (recno != 0)
-              called = PRIV(find_bracket)(cd->start_code, utf8, recno);
+              called = PRIV(find_bracket)(cd->start_code, utf, recno);
 
             /* Forward reference */
 
             if (called == NULL)
               {
               if (find_parens(cd, NULL, recno,
-                    (options & PCRE_EXTENDED) != 0, utf8) < 0)
+                    (options & PCRE_EXTENDED) != 0, utf) < 0)
                 {
                 *errorcodeptr = ERR15;
                 goto FAILED;
@@ -6120,7 +6128,7 @@ for (;; ptr++)
             conditional subpatterns will be picked up then. */
 
             else if (GET(called, 1) == 0 && cond_depth <= 0 &&
-                     could_be_empty(called, code, bcptr, utf8, cd))
+                     could_be_empty(called, code, bcptr, utf, cd))
               {
               *errorcodeptr = ERR40;
               goto FAILED;
@@ -6618,7 +6626,7 @@ for (;; ptr++)
          
           {  
           previous = (-c > ESC_b && -c < ESC_Z)? code : NULL;
-          *code++ = (!utf8 && c == -ESC_C)? OP_ALLANY : -c;
+          *code++ = (!utf && c == -ESC_C)? OP_ALLANY : -c;
           }
         }
       continue;
@@ -6629,8 +6637,8 @@ for (;; ptr++)
     handle it as a data character. */
 
 #ifdef SUPPORT_UTF8
-    if (utf8 && c > 127)
-      mclength = PRIV(ord2utf8)(c, mcbuffer);
+    if (utf && c > 127)
+      mclength = PRIV(ord2utf)(c, mcbuffer);
     else
 #endif
 
@@ -6652,7 +6660,7 @@ for (;; ptr++)
     mcbuffer[0] = c;
 
 #ifdef SUPPORT_UTF8
-    if (utf8 && c >= 0xc0)
+    if (utf && c >= 0xc0)
       {
       while ((ptr[1] & 0xc0) == 0x80)
         mcbuffer[mclength++] = *(++ptr);
@@ -7360,7 +7368,7 @@ pcre_int32 firstchar, reqchar;
 int newline;
 int errorcode = 0;
 int skipatstart = 0;
-BOOL utf8;
+BOOL utf;
 size_t size;
 pcre_uchar *code;
 const pcre_uchar *codestart;
@@ -7458,22 +7466,23 @@ while (ptr[skipatstart] == CHAR_LEFT_PARENTHESIS &&
   else break;
   }
 
-utf8 = (options & PCRE_UTF8) != 0;
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+utf = (options & PCRE_UTF8) != 0;
 
 /* Can't support UTF8 unless PCRE has been compiled to include the code. The
-return of an error code from PRIV(valid_utf8)() is a new feature, introduced in
+return of an error code from PRIV(valid_utf)() is a new feature, introduced in
 release 8.13. It is passed back from pcre_[dfa_]exec(), but at the moment is
 not used here. */
 
 #ifdef SUPPORT_UTF8
-if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0 &&
-     (errorcode = PRIV(valid_utf8)((PCRE_PUCHAR)pattern, -1, erroroffset)) != 0)
+if (utf && (options & PCRE_NO_UTF8_CHECK) == 0 &&
+     (errorcode = PRIV(valid_utf)((PCRE_PUCHAR)pattern, -1, erroroffset)) != 0)
   {
   errorcode = ERR44;
   goto PCRE_EARLY_ERROR_RETURN2;
   }
 #else
-if (utf8)
+if (utf)
   {
   errorcode = ERR32;
   goto PCRE_EARLY_ERROR_RETURN;
@@ -7688,7 +7697,7 @@ while (errorcode == 0 && cd->hwm > cworkspace)
   cd->hwm -= LINK_SIZE;
   offset = GET(cd->hwm, 0);
   recno = GET(codestart, offset);
-  groupptr = PRIV(find_bracket)(codestart, utf8, recno);
+  groupptr = PRIV(find_bracket)(codestart, utf, recno);
   if (groupptr == NULL) errorcode = ERR53;
     else PUT(((pcre_uchar *)codestart), offset, (int)(groupptr - codestart));
   }
@@ -7715,9 +7724,9 @@ if (cd->check_lookbehind)
   of zero, but that is a pathological case, and it does no harm.) When we find
   one, we temporarily terminate the branch it is in while we scan it. */
 
-  for (cc = (pcre_uchar *)PRIV(find_bracket)(codestart, utf8, -1);
+  for (cc = (pcre_uchar *)PRIV(find_bracket)(codestart, utf, -1);
        cc != NULL;
-       cc = (pcre_uchar *)PRIV(find_bracket)(cc, utf8, -1))
+       cc = (pcre_uchar *)PRIV(find_bracket)(cc, utf, -1))
     {
     if (GET(cc, 1) == 0)
       {

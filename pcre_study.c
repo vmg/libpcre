@@ -82,7 +82,8 @@ find_minlength(const pcre_uchar *code, const pcre_uchar *startcode, int options,
   int recurse_depth)
 {
 int length = -1;
-BOOL utf8 = (options & PCRE_UTF8) != 0;
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+BOOL utf = (options & PCRE_UTF8) != 0;
 BOOL had_recurse = FALSE;
 register int branchlength = 0;
 register pcre_uchar *cc = (pcre_uchar *)code + 1 + LINK_SIZE;
@@ -224,7 +225,7 @@ for (;;)
     branchlength++;
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -245,7 +246,7 @@ for (;;)
     branchlength += GET2(cc,1);
     cc += 2 + IMM2_SIZE;
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -293,7 +294,7 @@ for (;;)
 
     case OP_ANYBYTE:
 #ifdef SUPPORT_UTF8
-    if (utf8) return -1;
+    if (utf) return -1;
 #endif
     branchlength++;
     cc++;
@@ -374,7 +375,7 @@ for (;;)
     case OP_REFI:
     if ((options & PCRE_JAVASCRIPT_COMPAT) == 0)
       {
-      ce = cs = (pcre_uchar *)PRIV(find_bracket)(startcode, utf8, GET2(cc, 1));
+      ce = cs = (pcre_uchar *)PRIV(find_bracket)(startcode, utf, GET2(cc, 1));
       if (cs == NULL) return -2;
       do ce += GET(ce, 1); while (*ce == OP_ALT);
       if (cc > cs && cc < ce)
@@ -486,7 +487,7 @@ for (;;)
 
     cc += PRIV(OP_lengths)[op];
 #ifdef SUPPORT_UTF8
-    if (utf8 && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
 #endif
     break;
 
@@ -537,29 +538,29 @@ Arguments:
   p             points to the character
   caseless      the caseless flag
   cd            the block with char table pointers
-  utf8          TRUE for UTF-8 mode
+  utf           TRUE for UTF-8 / UTF-16 mode
 
 Returns:        pointer after the character
 */
 
 static const pcre_uchar *
 set_table_bit(pcre_uint8 *start_bits, const pcre_uchar *p, BOOL caseless,
-  compile_data *cd, BOOL utf8)
+  compile_data *cd, BOOL utf)
 {
 unsigned int c = *p;
 
 SET_BIT(c);
 
 #ifdef SUPPORT_UTF8
-if (utf8 && c > 127)
+if (utf && c > 127)
   {
   GETCHARINC(c, p);
 #ifdef SUPPORT_UCP
   if (caseless)
     {
-    pcre_uint8 buff[8];
+    pcre_uchar buff[6];
     c = UCD_OTHERCASE(c);
-    (void)PRIV(ord2utf8)(c, buff);
+    (void)PRIV(ord2utf)(c, buff);
     SET_BIT(buff[0]);
     }
 #endif
@@ -607,8 +608,8 @@ for (c = 128; c < 256; c++)
   {
   if ((cd->cbits[c/8] & (1 << (c&7))) != 0)
     {
-    pcre_uint8 buff[8];
-    (void)PRIV(ord2utf8)(c, buff);
+    pcre_uchar buff[6];
+    (void)PRIV(ord2utf)(c, buff);
     SET_BIT(buff[0]);
     }
   }
@@ -663,7 +664,7 @@ function fails unless the result is SSB_DONE.
 Arguments:
   code         points to an expression
   start_bits   points to a 32-byte table, initialized to 0
-  utf8         TRUE if in UTF-8 mode
+  utf          TRUE if in UTF-8 / UTF-16 mode
   cd           the block with char table pointers
 
 Returns:       SSB_FAIL     => Failed to find any starting bytes
@@ -673,12 +674,12 @@ Returns:       SSB_FAIL     => Failed to find any starting bytes
 */
 
 static int
-set_start_bits(const pcre_uchar *code, pcre_uint8 *start_bits, BOOL utf8,
+set_start_bits(const pcre_uchar *code, pcre_uint8 *start_bits, BOOL utf,
   compile_data *cd)
 {
 register int c;
 int yield = SSB_DONE;
-int table_limit = utf8? 16:32;
+int table_limit = utf? 16:32;
 
 #if 0
 /* ========================================================================= */
@@ -817,7 +818,7 @@ do
       case OP_ONCE:
       case OP_ONCE_NC:
       case OP_ASSERT:
-      rc = set_start_bits(tcode, start_bits, utf8, cd);
+      rc = set_start_bits(tcode, start_bits, utf, cd);
       if (rc == SSB_FAIL || rc == SSB_UNKNOWN) return rc;
       if (rc == SSB_DONE) try_next = FALSE; else
         {
@@ -864,7 +865,7 @@ do
       case OP_BRAZERO:
       case OP_BRAMINZERO:
       case OP_BRAPOSZERO:
-      rc = set_start_bits(++tcode, start_bits, utf8, cd);
+      rc = set_start_bits(++tcode, start_bits, utf, cd);
       if (rc == SSB_FAIL || rc == SSB_UNKNOWN) return rc;
 /* =========================================================================
       See the comment at the head of this function concerning the next line,
@@ -891,7 +892,7 @@ do
       case OP_QUERY:
       case OP_MINQUERY:
       case OP_POSQUERY:
-      tcode = set_table_bit(start_bits, tcode + 1, FALSE, cd, utf8);
+      tcode = set_table_bit(start_bits, tcode + 1, FALSE, cd, utf);
       break;
 
       case OP_STARI:
@@ -900,7 +901,7 @@ do
       case OP_QUERYI:
       case OP_MINQUERYI:
       case OP_POSQUERYI:
-      tcode = set_table_bit(start_bits, tcode + 1, TRUE, cd, utf8);
+      tcode = set_table_bit(start_bits, tcode + 1, TRUE, cd, utf);
       break;
 
       /* Single-char upto sets the bit and tries the next */
@@ -908,13 +909,13 @@ do
       case OP_UPTO:
       case OP_MINUPTO:
       case OP_POSUPTO:
-      tcode = set_table_bit(start_bits, tcode + 1 + IMM2_SIZE, FALSE, cd, utf8);
+      tcode = set_table_bit(start_bits, tcode + 1 + IMM2_SIZE, FALSE, cd, utf);
       break;
 
       case OP_UPTOI:
       case OP_MINUPTOI:
       case OP_POSUPTOI:
-      tcode = set_table_bit(start_bits, tcode + 1 + IMM2_SIZE, TRUE, cd, utf8);
+      tcode = set_table_bit(start_bits, tcode + 1 + IMM2_SIZE, TRUE, cd, utf);
       break;
 
       /* At least one single char sets the bit and stops */
@@ -926,7 +927,7 @@ do
       case OP_PLUS:
       case OP_MINPLUS:
       case OP_POSPLUS:
-      (void)set_table_bit(start_bits, tcode + 1, FALSE, cd, utf8);
+      (void)set_table_bit(start_bits, tcode + 1, FALSE, cd, utf);
       try_next = FALSE;
       break;
 
@@ -937,7 +938,7 @@ do
       case OP_PLUSI:
       case OP_MINPLUSI:
       case OP_POSPLUSI:
-      (void)set_table_bit(start_bits, tcode + 1, TRUE, cd, utf8);
+      (void)set_table_bit(start_bits, tcode + 1, TRUE, cd, utf);
       try_next = FALSE;
       break;
 
@@ -950,7 +951,7 @@ do
       case OP_HSPACE:
       SET_BIT(0x09);
       SET_BIT(0x20);
-      if (utf8)
+      if (utf)
         {
         SET_BIT(0xC2);  /* For U+00A0 */
         SET_BIT(0xE1);  /* For U+1680, U+180E */
@@ -967,7 +968,7 @@ do
       SET_BIT(0x0B);
       SET_BIT(0x0C);
       SET_BIT(0x0D);
-      if (utf8)
+      if (utf)
         {
         SET_BIT(0xC2);  /* For U+0085 */
         SET_BIT(0xE2);  /* For U+2028, U+2029 */
@@ -1057,7 +1058,7 @@ do
         case OP_HSPACE:
         SET_BIT(0x09);
         SET_BIT(0x20);
-        if (utf8)
+        if (utf)
           {
           SET_BIT(0xC2);  /* For U+00A0 */
           SET_BIT(0xE1);  /* For U+1680, U+180E */
@@ -1073,7 +1074,7 @@ do
         SET_BIT(0x0B);
         SET_BIT(0x0C);
         SET_BIT(0x0D);
-        if (utf8)
+        if (utf)
           {
           SET_BIT(0xC2);  /* For U+0085 */
           SET_BIT(0xE2);  /* For U+2028, U+2029 */
@@ -1126,7 +1127,7 @@ do
 
       case OP_NCLASS:
 #ifdef SUPPORT_UTF8
-      if (utf8)
+      if (utf)
         {
         start_bits[24] |= 0xf0;              /* Bits for 0xc4 - 0xc8 */
         memset(start_bits+25, 0xff, 7);      /* Bits for 0xc9 - 0xff */
@@ -1147,7 +1148,7 @@ do
         characters in the range 128 - 255. */
 
 #ifdef SUPPORT_UTF8
-        if (utf8)
+        if (utf)
           {
           for (c = 0; c < 16; c++) start_bits[c] |= map[c];
           for (c = 128; c < 256; c++)

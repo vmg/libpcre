@@ -155,6 +155,7 @@ static const int eint[] = {
   REG_BADPAT,  /* \k is not followed by a braced, angle-bracketed, or quoted name */
   /* 70 */
   REG_BADPAT,  /* internal error: unknown opcode in find_fixedlength() */ 
+  REG_BADPAT,  /* Not allowed UTF-8 / UTF-16 code point (>= 0xd800 && <= 0xdfff) */
 };
 
 /* Table of texts corresponding to POSIX error codes */

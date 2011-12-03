@@ -214,6 +214,7 @@ libpcre16_la_SOURCES = \
   pcre16_exec.c \
   pcre16_jit_compile.c \
   pcre16_newline.c \
+  pcre16_ord2utf16.c \
   pcre16_string_utils.c \
   pcre16_study.c \
   pcre16_tables.c \

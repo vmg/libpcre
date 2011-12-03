@@ -183,7 +183,7 @@ if (caseless)
   {
 #ifdef SUPPORT_UTF8
 #ifdef SUPPORT_UCP
-  if (md->utf8)
+  if (md->utf)
     {
     /* Match characters up to the end of the reference. NOTE: the number of
     bytes matched may differ, because there are some characters whose upper and
@@ -385,7 +385,7 @@ typedef struct heapframe {
   int Xprop_value;
   int Xprop_fail_result;
   int Xoclength;
-  pcre_uint8 Xocchars[8];
+  pcre_uchar Xocchars[6];
 #endif
 
   int Xcodelink;
@@ -450,7 +450,7 @@ the subject. */
 
 
 /* Performance note: It might be tempting to extract commonly used fields from
-the md structure (e.g. utf8, end_subject) into individual variables to improve
+the md structure (e.g. utf, end_subject) into individual variables to improve
 performance. Tests using gcc on a SPARC disproved this; in the first case, it
 made performance worse.
 
@@ -485,7 +485,7 @@ so they can be ordinary variables in all cases. Mark some of them with
 register int  rrc;         /* Returns from recursive calls */
 register int  i;           /* Used for loops not involving calls to RMATCH() */
 register unsigned int c;   /* Character values not kept over RMATCH() calls */
-register BOOL utf8;        /* Local copy of UTF-8 flag for speed */
+register BOOL utf;         /* Local copy of UTF flag for speed */
 
 BOOL minimize, possessive; /* Quantifier options */
 BOOL caseless;
@@ -606,7 +606,7 @@ int prop_type;
 int prop_value;
 int prop_fail_result;
 int oclength;
-pcre_uint8 occhars[8];
+pcre_uchar occhars[6];
 #endif
 
 int codelink;
@@ -660,9 +660,9 @@ complicated macro. It has to be used in one particular way. This shouldn't,
 however, impact performance when true recursion is being used. */
 
 #ifdef SUPPORT_UTF8
-utf8 = md->utf8;       /* Local copy of the flag */
+utf = md->utf;       /* Local copy of the flag */
 #else
-utf8 = FALSE;
+utf = FALSE;
 #endif
 
 /* First check that we haven't called match() too many times, or that we
@@ -1597,7 +1597,7 @@ for (;;)
 
     case OP_REVERSE:
 #ifdef SUPPORT_UTF8
-    if (utf8)
+    if (utf)
       {
       i = GET(ecode, 1);
       while (i-- > 0)
@@ -2070,7 +2070,7 @@ for (;;)
       partial matching. */
 
 #ifdef SUPPORT_UTF8
-      if (utf8)
+      if (utf)
         {
         /* Get status of previous character */
 
@@ -2189,7 +2189,7 @@ for (;;)
       MRRETURN(MATCH_NOMATCH);
       }
     eptr++;
-    if (utf8) while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+    if (utf) while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
     ecode++;
     break;
 
@@ -2546,7 +2546,7 @@ for (;;)
     while (eptr < md->end_subject)
       {
       int len = 1;
-      if (!utf8) c = *eptr; else { GETCHARLEN(c, eptr, len); }
+      if (!utf) c = *eptr; else { GETCHARLEN(c, eptr, len); }
       if (UCD_CATEGORY(c) != ucp_M) break;
       eptr += len;
       }
@@ -2744,8 +2744,7 @@ for (;;)
       /* First, ensure the minimum number of matches are present. */
 
 #ifdef SUPPORT_UTF
-      /* UTF-8 mode */
-      if (utf8)
+      if (utf)
         {
         for (i = 1; i <= min; i++)
           {
@@ -2765,7 +2764,7 @@ for (;;)
         }
       else
 #endif
-      /* Not UTF-8 mode */
+      /* Not UTF mode */
         {
         for (i = 1; i <= min; i++)
           {
@@ -2797,8 +2796,7 @@ for (;;)
       if (minimize)
         {
 #ifdef SUPPORT_UTF
-        /* UTF-8 mode */
-        if (utf8)
+        if (utf)
           {
           for (fi = min;; fi++)
             {
@@ -2821,7 +2819,7 @@ for (;;)
           }
         else
 #endif
-        /* Not UTF-8 mode */
+        /* Not UTF mode */
           {
           for (fi = min;; fi++)
             {
@@ -2854,8 +2852,7 @@ for (;;)
         pp = eptr;
 
 #ifdef SUPPORT_UTF
-        /* UTF mode */
-        if (utf8)
+        if (utf)
           {
           for (i = min; i < max; i++)
             {
@@ -3024,7 +3021,7 @@ for (;;)
           if (rrc != MATCH_NOMATCH) RRETURN(rrc);
           if (eptr-- == pp) break;        /* Stop if tried at original pos */
 #ifdef SUPPORT_UTF
-          if (utf8) BACKCHAR(eptr);
+          if (utf) BACKCHAR(eptr);
 #endif
           }
         MRRETURN(MATCH_NOMATCH);
@@ -3038,7 +3035,7 @@ for (;;)
 
     case OP_CHAR:
 #ifdef SUPPORT_UTF8
-    if (utf8)
+    if (utf)
       {
       length = 1;
       ecode++;
@@ -3052,8 +3049,7 @@ for (;;)
       }
     else
 #endif
-
-    /* Non-UTF-8 mode */
+    /* Not UTF mode */
       {
       if (md->end_subject - eptr < 1)
         {
@@ -3069,7 +3065,7 @@ for (;;)
 
     case OP_CHARI:
 #ifdef SUPPORT_UTF8
-    if (utf8)
+    if (utf)
       {
       length = 1;
       ecode++;
@@ -3112,7 +3108,7 @@ for (;;)
     else
 #endif   /* SUPPORT_UTF8 */
 
-    /* Non-UTF-8 mode */
+    /* Not UTF mode */
       {
       if (md->end_subject - eptr < 1)
         {
@@ -3193,7 +3189,7 @@ for (;;)
 
     REPEATCHAR:
 #ifdef SUPPORT_UTF8
-    if (utf8)
+    if (utf)
       {
       length = 1;
       charptr = ecode;
@@ -3209,7 +3205,7 @@ for (;;)
         unsigned int othercase;
         if (op >= OP_STARI &&     /* Caseless */
             (othercase = UCD_OTHERCASE(fc)) != fc)
-          oclength = PRIV(ord2utf8)(othercase, occhars);
+          oclength = PRIV(ord2utf)(othercase, occhars);
         else oclength = 0;
 #endif  /* SUPPORT_UCP */
 
@@ -3220,7 +3216,7 @@ for (;;)
 #ifdef SUPPORT_UCP
           else if (oclength > 0 &&
                    eptr <= md->end_subject - oclength &&
-                   memcmp(eptr, occhars, oclength) == 0) eptr += oclength;
+                   memcmp(eptr, occhars, IN_UCHARS(oclength)) == 0) eptr += oclength;
 #endif  /* SUPPORT_UCP */
           else
             {
@@ -3243,7 +3239,7 @@ for (;;)
 #ifdef SUPPORT_UCP
             else if (oclength > 0 &&
                      eptr <= md->end_subject - oclength &&
-                     memcmp(eptr, occhars, oclength) == 0) eptr += oclength;
+                     memcmp(eptr, occhars, IN_UCHARS(oclength)) == 0) eptr += oclength;
 #endif  /* SUPPORT_UCP */
             else
               {
@@ -3264,7 +3260,7 @@ for (;;)
 #ifdef SUPPORT_UCP
             else if (oclength > 0 &&
                      eptr <= md->end_subject - oclength &&
-                     memcmp(eptr, occhars, oclength) == 0) eptr += oclength;
+                     memcmp(eptr, occhars, IN_UCHARS(oclength)) == 0) eptr += oclength;
 #endif  /* SUPPORT_UCP */
             else
               {
@@ -3548,8 +3544,7 @@ for (;;)
       fc = md->lcc[fc];
 
 #ifdef SUPPORT_UTF8
-      /* UTF-8 mode */
-      if (utf8)
+      if (utf)
         {
         register unsigned int d;
         for (i = 1; i <= min; i++)
@@ -3566,8 +3561,7 @@ for (;;)
         }
       else
 #endif
-
-      /* Not UTF-8 mode */
+      /* Not UTF mode */
         {
         for (i = 1; i <= min; i++)
           {
@@ -3585,8 +3579,7 @@ for (;;)
       if (minimize)
         {
 #ifdef SUPPORT_UTF8
-        /* UTF-8 mode */
-        if (utf8)
+        if (utf)
           {
           register unsigned int d;
           for (fi = min;; fi++)
@@ -3606,7 +3599,7 @@ for (;;)
           }
         else
 #endif
-        /* Not UTF-8 mode */
+        /* Not UTF mode */
           {
           for (fi = min;; fi++)
             {
@@ -3631,8 +3624,7 @@ for (;;)
         pp = eptr;
 
 #ifdef SUPPORT_UTF8
-        /* UTF-8 mode */
-        if (utf8)
+        if (utf)
           {
           register unsigned int d;
           for (i = min; i < max; i++)
@@ -3659,7 +3651,7 @@ for (;;)
           }
         else
 #endif
-        /* Not UTF-8 mode */
+        /* Not UTF mode */
           {
           for (i = min; i < max; i++)
             {
@@ -3690,8 +3682,7 @@ for (;;)
     else
       {
 #ifdef SUPPORT_UTF8
-      /* UTF-8 mode */
-      if (utf8)
+      if (utf)
         {
         register unsigned int d;
         for (i = 1; i <= min; i++)
@@ -3707,7 +3698,7 @@ for (;;)
         }
       else
 #endif
-      /* Not UTF-8 mode */
+      /* Not UTF mode */
         {
         for (i = 1; i <= min; i++)
           {
@@ -3725,8 +3716,7 @@ for (;;)
       if (minimize)
         {
 #ifdef SUPPORT_UTF8
-        /* UTF-8 mode */
-        if (utf8)
+        if (utf)
           {
           register unsigned int d;
           for (fi = min;; fi++)
@@ -3745,7 +3735,7 @@ for (;;)
           }
         else
 #endif
-        /* Not UTF-8 mode */
+        /* Not UTF mode */
           {
           for (fi = min;; fi++)
             {
@@ -3770,8 +3760,7 @@ for (;;)
         pp = eptr;
 
 #ifdef SUPPORT_UTF8
-        /* UTF-8 mode */
-        if (utf8)
+        if (utf)
           {
           register unsigned int d;
           for (i = min; i < max; i++)
@@ -3797,7 +3786,7 @@ for (;;)
           }
         else
 #endif
-        /* Not UTF-8 mode */
+        /* Not UTF mode */
           {
           for (i = min; i < max; i++)
             {
@@ -4073,7 +4062,7 @@ for (;;)
           while (eptr < md->end_subject)
             {
             int len = 1;
-            if (!utf8) c = *eptr; else { GETCHARLEN(c, eptr, len); }
+            if (!utf) c = *eptr; else { GETCHARLEN(c, eptr, len); }
             if (UCD_CATEGORY(c) != ucp_M) break;
             eptr += len;
             }
@@ -4086,7 +4075,7 @@ for (;;)
 /* Handle all other cases when the coding is UTF-8 */
 
 #ifdef SUPPORT_UTF8
-      if (utf8) switch(ctype)
+      if (utf) switch(ctype)
         {
         case OP_ANY:
         for (i = 1; i <= min; i++)
@@ -4794,7 +4783,7 @@ for (;;)
           while (eptr < md->end_subject)
             {
             int len = 1;
-            if (!utf8) c = *eptr; else { GETCHARLEN(c, eptr, len); }
+            if (!utf) c = *eptr; else { GETCHARLEN(c, eptr, len); }
             if (UCD_CATEGORY(c) != ucp_M) break;
             eptr += len;
             }
@@ -4804,8 +4793,7 @@ for (;;)
 #endif     /* SUPPORT_UCP */
 
 #ifdef SUPPORT_UTF8
-      /* UTF-8 mode */
-      if (utf8)
+      if (utf)
         {
         for (fi = min;; fi++)
           {
@@ -4968,7 +4956,7 @@ for (;;)
         }
       else
 #endif
-      /* Not UTF-8 mode */
+      /* Not UTF mode */
         {
         for (fi = min;; fi++)
           {
@@ -5267,7 +5255,7 @@ for (;;)
           RMATCH(eptr, ecode, offset_top, md, eptrb, RM44);
           if (rrc != MATCH_NOMATCH) RRETURN(rrc);
           if (eptr-- == pp) break;        /* Stop if tried at original pos */
-          if (utf8) BACKCHAR(eptr);
+          if (utf) BACKCHAR(eptr);
           }
         }
 
@@ -5284,13 +5272,13 @@ for (;;)
             SCHECK_PARTIAL();
             break;
             }
-          if (!utf8) c = *eptr; else { GETCHARLEN(c, eptr, len); }
+          if (!utf) c = *eptr; else { GETCHARLEN(c, eptr, len); }
           if (UCD_CATEGORY(c) == ucp_M) break;
           eptr += len;
           while (eptr < md->end_subject)
             {
             len = 1;
-            if (!utf8) c = *eptr; else { GETCHARLEN(c, eptr, len); }
+            if (!utf) c = *eptr; else { GETCHARLEN(c, eptr, len); }
             if (UCD_CATEGORY(c) != ucp_M) break;
             eptr += len;
             }
@@ -5307,7 +5295,7 @@ for (;;)
           if (eptr-- == pp) break;        /* Stop if tried at original pos */
           for (;;)                        /* Move back over one extended */
             {
-            if (!utf8) c = *eptr; else
+            if (!utf) c = *eptr; else
               {
               BACKCHAR(eptr);
               GETCHAR(c, eptr);
@@ -5322,9 +5310,7 @@ for (;;)
 #endif   /* SUPPORT_UCP */
 
 #ifdef SUPPORT_UTF8
-      /* UTF-8 mode */
-
-      if (utf8)
+      if (utf)
         {
         switch(ctype)
           {
@@ -5607,8 +5593,7 @@ for (;;)
         }
       else
 #endif  /* SUPPORT_UTF8 */
-
-      /* Not UTF-8 mode */
+      /* Not UTF mode */
         {
         switch(ctype)
           {
@@ -5969,7 +5954,7 @@ BOOL using_temporary_offsets = FALSE;
 BOOL anchored;
 BOOL startline;
 BOOL firstline;
-BOOL utf8;
+BOOL utf;
 BOOL has_first_char = FALSE;
 BOOL has_req_char = FALSE;
 pcre_uchar first_char = 0;
@@ -6005,7 +5990,8 @@ follows immediately afterwards. Other values in the md block are used only
 during "normal" pcre_exec() processing, not when the JIT support is in use,
 so they are set up later. */
 
-utf8 = md->utf8 = (re->options & PCRE_UTF8) != 0;
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+utf = md->utf = (re->options & PCRE_UTF8) != 0;
 md->partial = ((options & PCRE_PARTIAL_HARD) != 0)? 2 :
               ((options & PCRE_PARTIAL_SOFT) != 0)? 1 : 0;
 
@@ -6013,10 +5999,10 @@ md->partial = ((options & PCRE_PARTIAL_HARD) != 0)? 2 :
 code for an invalid string if a results vector is available. */
 
 #ifdef SUPPORT_UTF8
-if (utf8 && (options & PCRE_NO_UTF8_CHECK) == 0)
+if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
-  int errorcode = PRIV(valid_utf8)((PCRE_PUCHAR)subject, length, &erroroffset);
+  int errorcode = PRIV(valid_utf)((PCRE_PUCHAR)subject, length, &erroroffset);
   if (errorcode != 0)
     {
     if (offsetcount >= 2)
@@ -6306,7 +6292,7 @@ for(;;)
     {
     PCRE_PUCHAR t = start_match;
 #ifdef SUPPORT_UTF8
-    if (utf8)
+    if (utf)
       {
       while (t < md->end_subject && !IS_NEWLINE(t))
         {
@@ -6348,7 +6334,7 @@ for(;;)
       if (start_match > md->start_subject + start_offset)
         {
 #ifdef SUPPORT_UTF8
-        if (utf8)
+        if (utf)
           {
           while (start_match < end_subject && !WAS_NEWLINE(start_match))
             {
@@ -6389,7 +6375,7 @@ for(;;)
           {
           start_match++;
 #ifdef SUPPORT_UTF8
-          if (utf8)
+          if (utf)
             while(start_match < end_subject && (*start_match & 0xc0) == 0x80)
               start_match++;
 #endif
@@ -6521,7 +6507,7 @@ for(;;)
     case MATCH_THEN:
     new_start_match = start_match + 1;
 #ifdef SUPPORT_UTF8
-    if (utf8)
+    if (utf)
       while(new_start_match < end_subject && (*new_start_match & 0xc0) == 0x80)
         new_start_match++;
 #endif

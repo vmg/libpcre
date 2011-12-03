@@ -49,41 +49,20 @@ Options: utf8
 First char = 244
 Need char = 128
 
-/\x{1000000}/8DZ
+/\x{10ffff}/8DZ
 ------------------------------------------------------------------
         Bra
-        \x{1000000}
+        \x{10ffff}
         Ket
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
 Options: utf8
-First char = 249
-Need char = 128
-
-/\x{4000000}/8DZ
-------------------------------------------------------------------
-        Bra
-        \x{4000000}
-        Ket
-        End
-------------------------------------------------------------------
-Capturing subpattern count = 0
-Options: utf8
-First char = 252
-Need char = 128
-
-/\x{7fffFFFF}/8DZ
-------------------------------------------------------------------
-        Bra
-        \x{7fffffff}
-        Ket
-        End
-------------------------------------------------------------------
-Capturing subpattern count = 0
-Options: utf8
-First char = 253
+First char = 244
 Need char = 191
+
+/\x{110000}/8DZ
+Failed: character value in \x{...} sequence is too large at offset 9
 
 /[\x{ff}]/8DZ
 ------------------------------------------------------------------
@@ -114,6 +93,16 @@ Failed: character value in \x{...} sequence is too large at offset 11
 
 /\x{100000000}/8
 Failed: character value in \x{...} sequence is too large at offset 12
+
+/\x{d800}/8
+Failed: Not allowed UTF-8 / UTF-16 code point (>= 0xd800 && <= 0xdfff) at offset 7
+
+/\x{dfff}/8
+Failed: Not allowed UTF-8 / UTF-16 code point (>= 0xd800 && <= 0xdfff) at offset 7
+
+/\x{d7ff}/8
+
+/\x{e000}/8
 
 /^\x{100}a\x{1234}/8
     \x{100}a\x{1234}bcd
@@ -1436,7 +1425,7 @@ No match
 /[\H]/8BZ
 ------------------------------------------------------------------
         Bra
-        [\x00-\x08\x0a-\x1f!-\x9f\xa1-\xff\x{100}-\x{167f}\x{1681}-\x{180d}\x{180f}-\x{1fff}\x{200b}-\x{202e}\x{2030}-\x{205e}\x{2060}-\x{2fff}\x{3001}-\x{7fffffff}]
+        [\x00-\x08\x0a-\x1f!-\x9f\xa1-\xff\x{100}-\x{167f}\x{1681}-\x{180d}\x{180f}-\x{1fff}\x{200b}-\x{202e}\x{2030}-\x{205e}\x{2060}-\x{2fff}\x{3001}-\x{10ffff}]
         Ket
         End
 ------------------------------------------------------------------
@@ -1444,7 +1433,7 @@ No match
 /[\V]/8BZ
 ------------------------------------------------------------------
         Bra
-        [\x00-\x09\x0e-\x84\x86-\xff\x{100}-\x{2027}\x{2029}-\x{7fffffff}]
+        [\x00-\x09\x0e-\x84\x86-\xff\x{100}-\x{2027}\x{2029}-\x{10ffff}]
         Ket
         End
 ------------------------------------------------------------------
