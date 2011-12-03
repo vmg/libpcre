@@ -72,17 +72,20 @@ static const char *OP_names[] = { OP_NAME_LIST };
 *************************************************/
 
 static int
-print_char(FILE *f, pcre_uchar *ptr, BOOL utf8)
+print_char(FILE *f, pcre_uchar *ptr, BOOL utf)
 {
 int c = *ptr;
 
-#ifndef SUPPORT_UTF8
-(void)utf8;  /* Avoid compiler warning */
+#ifndef SUPPORT_UTF
+(void)utf;  /* Avoid compiler warning */
 if (PRINTABLE(c)) fprintf(f, "%c", c); else fprintf(f, "\\x%02x", c);
 return 0;
 
 #else
-if (!utf8 || (c & 0xc0) != 0xc0)
+
+#ifdef COMPILE_PCRE8
+
+if (!utf || (c & 0xc0) != 0xc0)
   {
   if (PRINTABLE(c)) fprintf(f, "%c", c); else fprintf(f, "\\x%02x", c);
   return 0;
@@ -110,14 +113,45 @@ else
     s -= 6;
     c |= (ptr[i] & 0x3f) << s;
     }
-  if (c < 128) fprintf(f, "\\x%02x", c); else fprintf(f, "\\x{%x}", c);
+  fprintf(f, "\\x{%x}", c);
   return a;
   }
-#endif
+
+#else
+
+#ifdef COMPILE_PCRE16
+
+if (!utf || (c & 0xfc00) != 0xd800)
+  {
+  if (PRINTABLE(c)) fprintf(f, "%c", c); else fprintf(f, "\\x%02x", c);
+  return 0;
+  }
+else
+  {
+  /* This is a check for malformed UTF-16; it should only occur if the sanity
+  check has been turned off. Rather than swallow a low surrogate, just stop if
+  we hit a bad one. Print it with \X instead of \x as an indication. */
+
+  if ((ptr[1] & 0xfc00) != 0xdc00)
+    {
+    fprintf(f, "\\X{%x}", c);
+    return 0;
+    }
+
+  c = (((c & 0x3ff) << 10) | (ptr[1] & 0x3ff)) + 0x10000;
+  fprintf(f, "\\x{%x}", c);
+  return 1;
+  }
+
+#endif /* COMPILE_PCRE16 */
+
+#endif /* COMPILE_PCRE8 */
+
+#endif /* SUPPORT_UTF */
 }
 
 /*************************************************
-*  Print uchar string (regardless of utf8)       *
+*  Print uchar string (regardless of utf)        *
 *************************************************/
 
 static void
@@ -168,7 +202,7 @@ pcre_printint(pcre *external_re, FILE *f, BOOL print_lengths)
 {
 real_pcre *re = (real_pcre *)external_re;
 pcre_uchar *codestart, *code;
-BOOL utf8;
+BOOL utf;
 
 unsigned int options = re->options;
 int offset = re->name_table_offset;
@@ -187,7 +221,8 @@ if (re->magic_number != MAGIC_NUMBER)
   }
 
 code = codestart = (pcre_uchar *)re + offset + count * size;
-utf8 = (options & PCRE_UTF8) != 0;
+/* PCRE_UTF16 has the same value as PCRE_UTF8. */
+utf = (options & PCRE_UTF8) != 0;
 
 for(;;)
   {
@@ -232,7 +267,7 @@ for(;;)
     do
       {
       code++;
-      code += 1 + print_char(f, code, utf8);
+      code += 1 + print_char(f, code, utf);
       }
     while (*code == OP_CHAR);
     fprintf(f, "\n");
@@ -243,7 +278,7 @@ for(;;)
     do
       {
       code++;
-      code += 1 + print_char(f, code, utf8);
+      code += 1 + print_char(f, code, utf);
       }
     while (*code == OP_CHARI);
     fprintf(f, "\n");
@@ -349,7 +384,7 @@ for(;;)
         extra = 2;
         }
       }
-    else extra = print_char(f, code+1, utf8);
+    else extra = print_char(f, code+1, utf);
     fprintf(f, "%s", OP_names[*code]);
     break;
 
@@ -364,7 +399,7 @@ for(;;)
     case OP_MINUPTO:
     case OP_POSUPTO:
     fprintf(f, " %s ", flag);
-    extra = print_char(f, code + 1 + IMM2_SIZE, utf8);
+    extra = print_char(f, code + 1 + IMM2_SIZE, utf);
     fprintf(f, "{");
     if (*code != OP_EXACT && *code != OP_EXACTI) fprintf(f, "0,");
     fprintf(f, "%d}", GET2(code,1));
@@ -557,7 +592,7 @@ for(;;)
           }
         }
 
-      /* Indicate a non-UTF8 class which was created by negation */
+      /* Indicate a non-UTF class which was created by negation */
 
       fprintf(f, "]%s", (*code == OP_NCLASS)? " (neg)" : "");
 

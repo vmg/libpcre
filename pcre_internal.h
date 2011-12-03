@@ -531,7 +531,9 @@ not used when UTF-8 is not supported, so it is not defined, and BACKCHAR should
 never be called in byte mode. To make sure they can never even appear when
 UTF-8 support is omitted, we don't even define them. */
 
-#ifndef SUPPORT_UTF8
+/* #define HAS_EXTRALEN(c) */
+/* #define GET_EXTRALEN(c) */
+#ifndef SUPPORT_UTF
 #define GETCHAR(c, eptr) c = *eptr;
 #define GETCHARTEST(c, eptr) c = *eptr;
 #define GETCHARINC(c, eptr) c = *eptr++;
@@ -539,13 +541,26 @@ UTF-8 support is omitted, we don't even define them. */
 #define GETCHARLEN(c, eptr, len) c = *eptr;
 /* #define GETCHARLENTEST(c, eptr, len) */
 /* #define BACKCHAR(eptr) */
+/* #define FORWARDCHAR(eptr) */
+/* #define INTERNALCHAR(condition, eptr, action) */
 
-#else   /* SUPPORT_UTF8 */
+#else   /* SUPPORT_UTF */
+
+#ifdef COMPILE_PCRE8
 
 /* These macros were originally written in the form of loops that used data
 from the tables whose names start with PRIV(utf8_table). They were rewritten by
 a user so as not to use loops, because in some environments this gives a
 significant performance advantage, and it seems never to do any harm. */
+
+/* Tests whether the code point needs extra characters to decode. */
+
+#define HAS_EXTRALEN(c) ((c) >= 0xc0)
+
+/* Returns with the additional number of characters if IS_MULTICHAR(c) is TRUE.
+Otherwise it has an undefined behaviour. */
+
+#define GET_EXTRALEN(c) (PRIV(utf8_table4)[(c) & 0x3f])
 
 /* Base macro to pick up the remaining bytes of a UTF-8 character, not
 advancing the pointer. */
@@ -689,7 +704,107 @@ because almost all calls are already within a block of UTF-8 only code. */
 
 #define BACKCHAR(eptr) while((*eptr & 0xc0) == 0x80) eptr--
 
-#endif  /* SUPPORT_UTF8 */
+/* Same as above, just in the other direction. */
+#define FORWARDCHAR(eptr) while((*eptr & 0xc0) == 0x80) eptr++
+
+/* Same as above, but it allows a fully customizable form. */
+#define INTERNALCHAR(condition, eptr, action) \
+  while((condition) && ((eptr) & 0xc0) == 0x80) action
+
+#else /* COMPILE_PCRE8 */
+
+#ifdef COMPILE_PCRE16
+
+/* Tests whether the code point needs extra characters to decode. */
+
+#define HAS_EXTRALEN(c) (((c) & 0xfc00) == 0xd800)
+
+/* Returns with the additional number of characters if IS_MULTICHAR(c) is TRUE.
+Otherwise it has an undefined behaviour. */
+
+#define GET_EXTRALEN(c) 1
+
+/* Base macro to pick up the low surrogate of a UTF-16 character, not
+advancing the pointer. */
+
+#define GETUTF16(c, eptr) \
+   { c = (((c & 0x3ff) << 10) | (eptr[1] & 0x3ff)) + 0x10000; }
+
+/* Get the next UTF-16 character, not advancing the pointer. This is called when
+we know we are in UTF-16 mode. */
+
+#define GETCHAR(c, eptr) \
+  c = *eptr; \
+  if ((c & 0xfc00) == 0xd800) GETUTF16(c, eptr);
+
+/* Get the next UTF-16 character, testing for UTF-16 mode, and not advancing the
+pointer. */
+
+#define GETCHARTEST(c, eptr) \
+  c = *eptr; \
+  if (utf && (c & 0xfc00) == 0xd800) GETUTF16(c, eptr);
+
+/* Base macro to pick up the low surrogate of a UTF-16 character, advancing
+the pointer. */
+
+#define GETUTF16INC(c, eptr) \
+   { c = (((c & 0x3ff) << 10) | (eptr[1] & 0x3ff)) + 0x10000; eptr++; }
+
+/* Get the next UTF-16 character, advancing the pointer. This is called when we
+know we are in UTF-16 mode. */
+
+#define GETCHARINC(c, eptr) \
+  c = *eptr++; \
+  if ((c & 0xfc00) == 0xd800) GETUTF16INC(c, eptr);
+
+/* Get the next character, testing for UTF-16 mode, and advancing the pointer.
+This is called when we don't know if we are in UTF-16 mode. */
+
+#define GETCHARINCTEST(c, eptr) \
+  c = *eptr++; \
+  if (utf && (c & 0xfc00) == 0xd800) GETUTF16INC(c, eptr);
+
+/* Base macro to pick up the low surrogate of a UTF-16 character, not
+advancing the pointer, incrementing the length. */
+
+#define GETUTF16LEN(c, eptr, len) \
+   { c = (((c & 0x3ff) << 10) | (eptr[1] & 0x3ff)) + 0x10000; len++; }
+
+/* Get the next UTF-16 character, not advancing the pointer, incrementing
+length if there is a low surrogate. This is called when we know we are in
+UTF-16 mode. */
+
+#define GETCHARLEN(c, eptr, len) \
+  c = *eptr; \
+  if ((c & 0xfc00) == 0xd800) GETUTF16LEN(c, eptr, len);
+
+/* Get the next UTF-816character, testing for UTF-16 mode, not advancing the
+pointer, incrementing length if there is a low surrogate. This is called when
+we do not know if we are in UTF-16 mode. */
+
+#define GETCHARLENTEST(c, eptr, len) \
+  c = *eptr; \
+  if (utf && (c & 0xfc00) == 0xd800) GETUTF16LEN(c, eptr, len);
+
+/* If the pointer is not at the start of a character, move it back until
+it is. This is called only in UTF-16 mode - we don't put a test within the
+macro because almost all calls are already within a block of UTF-16 only
+code. */
+
+#define BACKCHAR(eptr) if ((*eptr & 0xfc00) == 0xdc00) eptr--
+
+/* Same as above, just in the other direction. */
+#define FORWARDCHAR(eptr) if ((*eptr & 0xfc00) == 0xdc00) eptr++
+
+/* Same as above, but it allows a fully customizable form. */
+#define INTERNALCHAR(condition, eptr, action) \
+  if ((condition) && ((eptr) & 0xfc00) == 0xdc00) action
+
+#endif
+
+#endif /* COMPILE_PCRE8 */
+
+#endif  /* SUPPORT_UTF */
 
 
 /* In case there is no definition of offsetof() provided - though any proper
@@ -2043,12 +2158,15 @@ of the exported public functions. They have to be "external" in the C sense,
 but are not part of the PCRE public API. The data for these tables is in the
 pcre_tables.c module. */
 
+#ifdef COMPILE_PCRE8
+
 extern const int            PRIV(utf8_table1)[];
+extern const int            PRIV(utf8_table1_size);
 extern const int            PRIV(utf8_table2)[];
 extern const int            PRIV(utf8_table3)[];
 extern const pcre_uint8     PRIV(utf8_table4)[];
 
-extern const int            PRIV(utf8_table1_size);
+#endif /* COMPILE_PCRE8 */
 
 extern const char           PRIV(utt_names)[];
 extern const ucp_type_table PRIV(utt)[];

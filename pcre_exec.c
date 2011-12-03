@@ -2077,7 +2077,7 @@ for (;;)
         if (eptr == md->start_subject) prev_is_word = FALSE; else
           {
           PCRE_PUCHAR lastptr = eptr - 1;
-          while((*lastptr & 0xc0) == 0x80) lastptr--;
+          BACKCHAR(lastptr);
           if (lastptr < md->start_used_ptr) md->start_used_ptr = lastptr;
           GETCHAR(c, lastptr);
 #ifdef SUPPORT_UCP
@@ -2189,7 +2189,9 @@ for (;;)
       MRRETURN(MATCH_NOMATCH);
       }
     eptr++;
-    if (utf) while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+#ifdef SUPPORT_UTF
+    if (utf) INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+#endif
     ecode++;
     break;
 
@@ -4074,7 +4076,7 @@ for (;;)
 
 /* Handle all other cases when the coding is UTF-8 */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf) switch(ctype)
         {
         case OP_ANY:
@@ -4087,7 +4089,7 @@ for (;;)
             }
           if (IS_NEWLINE(eptr)) MRRETURN(MATCH_NOMATCH);
           eptr++;
-          while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -4100,7 +4102,7 @@ for (;;)
             MRRETURN(MATCH_NOMATCH);
             }
           eptr++;
-          while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -4298,7 +4300,8 @@ for (;;)
             }
           if (*eptr < 128 && (md->ctypes[*eptr] & ctype_space) != 0)
             MRRETURN(MATCH_NOMATCH);
-          while (++eptr < md->end_subject && (*eptr & 0xc0) == 0x80);
+          eptr++;
+          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -4326,7 +4329,8 @@ for (;;)
             }
           if (*eptr < 128 && (md->ctypes[*eptr] & ctype_word) != 0)
             MRRETURN(MATCH_NOMATCH);
-          while (++eptr < md->end_subject && (*eptr & 0xc0) == 0x80);
+          eptr++;
+          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -5309,7 +5313,7 @@ for (;;)
       else
 #endif   /* SUPPORT_UCP */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         switch(ctype)
@@ -5326,7 +5330,7 @@ for (;;)
                 }
               if (IS_NEWLINE(eptr)) break;
               eptr++;
-              while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+              INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
               }
             }
 
@@ -5343,7 +5347,7 @@ for (;;)
                 }
               if (IS_NEWLINE(eptr)) break;
               eptr++;
-              while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+              INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
               }
             }
           break;
@@ -5359,7 +5363,7 @@ for (;;)
                 break;
                 }
               eptr++;
-              while (eptr < md->end_subject && (*eptr & 0xc0) == 0x80) eptr++;
+              INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
               }
             }
           else
@@ -6014,10 +6018,18 @@ if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
       PCRE_ERROR_SHORTUTF8 : PCRE_ERROR_BADUTF8;
     }
 
-  /* Check that a start_offset points to the start of a UTF-8 character. */
+  /* Check that a start_offset points to the start of a UTF character. */
+#ifdef COMPILE_PCRE8
   if (start_offset > 0 && start_offset < length &&
       (((PCRE_PUCHAR)subject)[start_offset] & 0xc0) == 0x80)
     return PCRE_ERROR_BADUTF8_OFFSET;
+#else
+#ifdef COMPILE_PCRE16
+  if (start_offset > 0 && start_offset < length &&
+      (((PCRE_PUCHAR)subject)[start_offset] & 0xfc00) == 0xdc00)
+    return PCRE_ERROR_BADUTF8_OFFSET;
+#endif /* COMPILE_PCRE16 */
+#endif /* COMPILE_PCRE8 */
   }
 #endif
 
@@ -6291,13 +6303,13 @@ for(;;)
   if (firstline)
     {
     PCRE_PUCHAR t = start_match;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf)
       {
       while (t < md->end_subject && !IS_NEWLINE(t))
         {
         t++;
-        while (t < end_subject && (*t & 0xc0) == 0x80) t++;
+        INTERNALCHAR(t < end_subject, *t, t++);
         }
       }
     else
@@ -6333,14 +6345,14 @@ for(;;)
       {
       if (start_match > md->start_subject + start_offset)
         {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf)
           {
           while (start_match < end_subject && !WAS_NEWLINE(start_match))
             {
             start_match++;
-            while(start_match < end_subject && (*start_match & 0xc0) == 0x80)
-              start_match++;
+            INTERNALCHAR(start_match < end_subject, *start_match,
+              start_match++);
             }
           }
         else
@@ -6366,7 +6378,7 @@ for(;;)
       {
       while (start_match < end_subject)
         {
-#ifdef COMPILE_PCRE8
+#ifdef COMPILE_PCRE
         register unsigned int c = *start_match;
 #else
         register unsigned int c = *start_match & 0xff;
@@ -6374,10 +6386,10 @@ for(;;)
         if ((start_bits[c/8] & (1 << (c&7))) == 0)
           {
           start_match++;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf)
-            while(start_match < end_subject && (*start_match & 0xc0) == 0x80)
-              start_match++;
+            INTERNALCHAR(start_match < end_subject, *start_match,
+              start_match++);
 #endif
           }
         else break;
@@ -6506,10 +6518,10 @@ for(;;)
     case MATCH_PRUNE:
     case MATCH_THEN:
     new_start_match = start_match + 1;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf)
-      while(new_start_match < end_subject && (*new_start_match & 0xc0) == 0x80)
-        new_start_match++;
+      INTERNALCHAR(new_start_match < end_subject, *new_start_match,
+        new_start_match++);
 #endif
     break;
 

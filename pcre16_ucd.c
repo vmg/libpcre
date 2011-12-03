@@ -6,7 +6,7 @@
 and semantics are as close as possible to those of the Perl 5 language.
 
                        Written by Philip Hazel
-           Copyright (c) 1997-2008 University of Cambridge
+           Copyright (c) 1997-2011 University of Cambridge
 
 -----------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
@@ -37,61 +37,9 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------------
 */
 
-
-/* This file contains a private PCRE function that converts an ordinal
-character value into a UTF16 string. */
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 /* Generate code with 16 bit character support. */
 #define COMPILE_PCRE16
 
-#include "pcre_internal.h"
+#include "pcre_ucd.c"
 
-/*************************************************
-*       Convert character value to UTF-16         *
-*************************************************/
-
-/* This function takes an integer value in the range 0 - 0x10ffff
-and encodes it as a UTF-16 character in 1 to 2 pcre_uchars.
-
-Arguments:
-  cvalue     the character value
-  buffer     pointer to buffer for result - at least 2 pcre_uchars long
-
-Returns:     number of characters placed in the buffer
-*/
-
-int
-PRIV(ord2utf)(pcre_uint32 cvalue, pcre_uchar *buffer)
-{
-#ifdef SUPPORT_UTF16
-
-/* Checking invalid cvalue character, encoded as invalid UTF-16 character.
-Should never happen in practice. */
-if ((cvalue & 0xf800) == 0xd800 || cvalue >= 0x110000)
-  cvalue = 0xfffe;
-
-if (cvalue <= 0xffff)
-  {
-  *buffer = (pcre_uchar)cvalue;
-  return 1;
-  }
-
-cvalue -= 0x10000;
-*buffer++ = 0xd800 | (cvalue >> 10);
-*buffer = 0xdc00 | (cvalue & 0x3ff);
-return 2;
-
-#else
-
-(void)(cvalue);  /* Keep compiler happy; this function won't ever be */
-(void)(buffer);  /* called when SUPPORT_UTF8 is not defined. */
-return 0;
-
-#endif
-}
-
-/* End of pcre16_ord2utf16.c */
+/* End of pcre16_ucd.c */

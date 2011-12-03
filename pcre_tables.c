@@ -65,7 +65,9 @@ const pcre_uint8 PRIV(OP_lengths)[] = { OP_LENGTHS };
 /* These are the breakpoints for different numbers of bytes in a UTF-8
 character. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
+
+#ifdef COMPILE_PCRE8
 
 const int PRIV(utf8_table1)[] =
   { 0x7f, 0x7ff, 0xffff, 0x1fffff, 0x3ffffff, 0x7fffffff};
@@ -86,6 +88,8 @@ const pcre_uint8 PRIV(utf8_table4)[] = {
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
   2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
   3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5 };
+
+#endif /* COMPILE_PCRE8 */
 
 /* Table to translate from particular type value to the general value. */
 
@@ -554,6 +558,6 @@ const ucp_type_table PRIV(utt)[] = {
 
 const int PRIV(utt_size) = sizeof(PRIV(utt)) / sizeof(ucp_type_table);
 
-#endif  /* SUPPORT_UTF8 */
+#endif /* SUPPORT_UTF */
 
 /* End of pcre_tables.c */

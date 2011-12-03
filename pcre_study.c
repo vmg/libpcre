@@ -225,7 +225,7 @@ for (;;)
     branchlength++;
     cc += 2;
 #ifdef SUPPORT_UTF8
-    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
 
@@ -246,7 +246,7 @@ for (;;)
     branchlength += GET2(cc,1);
     cc += 2 + IMM2_SIZE;
 #ifdef SUPPORT_UTF8
-    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
 
@@ -487,7 +487,7 @@ for (;;)
 
     cc += PRIV(OP_lengths)[op];
 #ifdef SUPPORT_UTF8
-    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+    if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
 

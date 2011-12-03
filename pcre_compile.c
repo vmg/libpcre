@@ -1466,8 +1466,8 @@ for (; ptr < cd->end_pattern; ptr++)
       {
       if (IS_NEWLINE(ptr)) { ptr += cd->nllen - 1; break; }
       ptr++;
-#ifdef SUPPORT_UTF8
-      if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
+#ifdef SUPPORT_UTF
+      if (utf) FORWARDCHAR(ptr);
 #endif
       }
     if (*ptr == 0) goto FAIL_EXIT;
@@ -1759,8 +1759,8 @@ for (;;)
     case OP_NOTI:
     branchlength++;
     cc += 2;
-#ifdef SUPPORT_UTF8
-    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+#ifdef SUPPORT_UTF
+    if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
 
@@ -1773,8 +1773,8 @@ for (;;)
     case OP_NOTEXACTI:
     branchlength += GET2(cc,1);
     cc += 2 + IMM2_SIZE;
-#ifdef SUPPORT_UTF8
-    if (utf && cc[-1] >= 0xc0) cc += PRIV(utf8_table4)[cc[-1] & 0x3f];
+#ifdef SUPPORT_UTF
+    if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
 
@@ -2041,7 +2041,7 @@ for (;;)
   a multi-byte character. The length in the table is a minimum, so we have to
   arrange to skip the extra bytes. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf) switch(c)
       {
       case OP_CHAR:
@@ -2072,7 +2072,7 @@ for (;;)
       case OP_MINQUERYI:
       case OP_POSQUERY:
       case OP_POSQUERYI:
-      if (code[-1] >= 0xc0) code += PRIV(utf8_table4)[code[-1] & 0x3f];
+      if (HAS_EXTRALEN(code[-1])) code += GET_EXTRALEN(code[-1]);
       break;
       }
 #else
@@ -2161,7 +2161,7 @@ for (;;)
     by a multi-byte character. The length in the table is a minimum, so we have
     to arrange to skip the extra bytes. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf) switch(c)
       {
       case OP_CHAR:
@@ -2192,7 +2192,7 @@ for (;;)
       case OP_MINQUERYI:
       case OP_POSQUERY:
       case OP_POSQUERYI:
-      if (code[-1] >= 0xc0) code += PRIV(utf8_table4)[code[-1] & 0x3f];
+      if (HAS_EXTRALEN(code[-1])) code += GET_EXTRALEN(code[-1]);
       break;
       }
 #else
@@ -2452,7 +2452,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     /* In UTF-8 mode, STAR, MINSTAR, POSSTAR, QUERY, MINQUERY, POSQUERY, UPTO,
     MINUPTO, and POSUPTO may be followed by a multibyte character */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     case OP_STAR:
     case OP_STARI:
     case OP_MINSTAR:
@@ -2465,7 +2465,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_MINQUERYI:
     case OP_POSQUERY:
     case OP_POSQUERYI:
-    if (utf && code[1] >= 0xc0) code += PRIV(utf8_table4)[code[1] & 0x3f];
+    if (utf && HAS_EXTRALEN(code[1])) code += GET_EXTRALEN(code[1]);
     break;
 
     case OP_UPTO:
@@ -2474,7 +2474,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_MINUPTOI:
     case OP_POSUPTO:
     case OP_POSUPTOI:
-    if (utf && code[1 + IMM2_SIZE] >= 0xc0) code += PRIV(utf8_table4)[code[1 + IMM2_SIZE] & 0x3f];
+    if (utf && HAS_EXTRALEN(code[1 + IMM2_SIZE])) code += GET_EXTRALEN(code[1 + IMM2_SIZE]);
     break;
 #endif
 
@@ -2913,8 +2913,8 @@ if ((options & PCRE_EXTENDED) != 0)
         {
         if (IS_NEWLINE(ptr)) { ptr += cd->nllen; break; }
         ptr++;
-#ifdef SUPPORT_UTF8
-        if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
+#ifdef SUPPORT_UTF
+        if (utf) FORWARDCHAR(ptr);
 #endif
         }
       }
@@ -2957,8 +2957,8 @@ if ((options & PCRE_EXTENDED) != 0)
         {
         if (IS_NEWLINE(ptr)) { ptr += cd->nllen; break; }
         ptr++;
-#ifdef SUPPORT_UTF8
-        if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
+#ifdef SUPPORT_UTF
+        if (utf) FORWARDCHAR(ptr);
 #endif
         }
       }
@@ -3424,7 +3424,7 @@ for (;; ptr++)
   int tempbracount;
   pcre_uchar mcbuffer[8];
 
-  /* Get next byte in the pattern */
+  /* Get next character in the pattern */
 
   c = *ptr;
 
@@ -3556,8 +3556,8 @@ for (;; ptr++)
         {
         if (IS_NEWLINE(ptr)) { ptr += cd->nllen - 1; break; }
         ptr++;
-#ifdef SUPPORT_UTF8
-        if (utf) while ((*ptr & 0xc0) == 0x80) ptr++;
+#ifdef SUPPORT_UTF
+        if (utf) FORWARDCHAR(ptr);
 #endif
         }
       if (*ptr != 0) continue;
@@ -4601,7 +4601,7 @@ for (;; ptr++)
       {
       op_type = (*previous == OP_CHAR)? 0 : OP_STARI - OP_STAR;
 
-      /* Deal with UTF-8 characters that take up more than one byte. It's
+      /* Deal with UTF characters that take up more than one character. It's
       easier to write this out separately than try to macrify it. Use c to
       hold the length of the character in bytes, plus 0x80 to flag that it's a
       length rather than a small character. */
@@ -4610,16 +4610,16 @@ for (;; ptr++)
       if (utf && (code[-1] & 0x80) != 0)
         {
         pcre_uchar *lastchar = code - 1;
-        while((*lastchar & 0xc0) == 0x80) lastchar--;
+        BACKCHAR(lastchar);
         c = code - lastchar;            /* Length of UTF-8 character */
-        memcpy(utf_chars, lastchar, c); /* Save the char */
+        memcpy(utf_chars, lastchar, IN_UCHARS(c)); /* Save the char */
         c |= 0x80;                      /* Flag c as a length */
         }
       else
 #endif
 
-      /* Handle the case of a single byte - either with no UTF8 support, or
-      with UTF-8 disabled, or for a UTF-8 character < 128. */
+      /* Handle the case of a single charater - either with no UTF support, or
+      with UTF disabled, or for a single character UTF character. */
 
         {
         c = code[-1];
@@ -5273,9 +5273,9 @@ for (;; ptr++)
       else if (*tempcode == OP_EXACT || *tempcode == OP_NOTEXACT)
         {
         tempcode += PRIV(OP_lengths)[*tempcode];
-#ifdef SUPPORT_UTF8
-        if (utf && tempcode[-1] >= 0xc0)
-          tempcode += PRIV(utf8_table4)[tempcode[-1] & 0x3f];
+#ifdef SUPPORT_UTF
+        if (utf && HAS_EXTRALEN(tempcode[-1]))
+          tempcode += GET_EXTRALEN(tempcode[-1]);
 #endif
         }
 
@@ -6659,11 +6659,10 @@ for (;; ptr++)
     mclength = 1;
     mcbuffer[0] = c;
 
-#ifdef SUPPORT_UTF8
-    if (utf && c >= 0xc0)
+#ifdef SUPPORT_UTF
+    if (utf && HAS_EXTRALEN(c))
       {
-      while ((ptr[1] & 0xc0) == 0x80)
-        mcbuffer[mclength++] = *(++ptr);
+      INTERNALCHAR(TRUE, ptr[1], mcbuffer[mclength++] = *(++ptr));
       }
 #endif
 

@@ -46,6 +46,9 @@ strings to host byte order. */
 #include "config.h"
 #endif
 
+/* Generate code with 16 bit character support. */
+#define COMPILE_PCRE16
+
 #include "pcre_internal.h"
 
 int

@@ -219,6 +219,7 @@ libpcre16_la_SOURCES = \
   pcre16_study.c \
   pcre16_tables.c \
   pcre16_try_flipped.c \
+  pcre16_ucd.c \
   pcre16_utf16_utils.c \
   pcre16_valid_utf16.c \
   pcre16_xclass.c

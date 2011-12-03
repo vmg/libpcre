@@ -480,9 +480,7 @@ if (*first_op == OP_REVERSE)
       {
       if (current_subject <= start_subject) break;
       current_subject--;
-      while (current_subject > start_subject &&
-             (*current_subject & 0xc0) == 0x80)
-        current_subject--;
+      INTERNALCHAR(current_subject > start_subject, *current_subject, current_subject--);
       }
     }
   else
@@ -3161,9 +3159,17 @@ if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
     return (errorcode <= PCRE_UTF8_ERR5 && (options & PCRE_PARTIAL_HARD) != 0)?
       PCRE_ERROR_SHORTUTF8 : PCRE_ERROR_BADUTF8;
     }
+#ifdef COMPILE_PCRE8
   if (start_offset > 0 && start_offset < length &&
         (((PCRE_PUCHAR)subject)[start_offset] & 0xc0) == 0x80)
     return PCRE_ERROR_BADUTF8_OFFSET;
+#else
+#ifdef COMPILE_PCRE16
+  if (start_offset > 0 && start_offset < length &&
+        (((PCRE_PUCHAR)subject)[start_offset] & 0xfc00) == 0xdc00)
+    return PCRE_ERROR_BADUTF8_OFFSET;
+#endif /* COMPILE_PCRE16 */
+#endif /* COMPILE_PCRE8 */
   }
 #endif
 
@@ -3234,13 +3240,13 @@ for (;;)
     if (firstline)
       {
       PCRE_PUCHAR t = current_subject;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         while (t < md->end_subject && !IS_NEWLINE(t))
           {
           t++;
-          while (t < end_subject && (*t & 0xc0) == 0x80) t++;
+          INTERNALCHAR(t < end_subject, *t, t++);
           }
         }
       else
@@ -3277,16 +3283,15 @@ for (;;)
         {
         if (current_subject > md->start_subject + start_offset)
           {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf)
             {
             while (current_subject < end_subject &&
                    !WAS_NEWLINE(current_subject))
               {
               current_subject++;
-              while(current_subject < end_subject &&
-                    (*current_subject & 0xc0) == 0x80)
-                current_subject++;
+              INTERNALCHAR(current_subject < end_subject, *current_subject,
+                current_subject++);
               }
             }
           else
@@ -3316,10 +3321,10 @@ for (;;)
           if ((start_bits[c/8] & (1 << (c&7))) == 0)
             {
             current_subject++;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
             if (utf)
-              while(current_subject < end_subject &&
-                    (*current_subject & 0xc0) == 0x80) current_subject++;
+              INTERNALCHAR(current_subject < end_subject, *current_subject,
+                current_subject++);
 #endif
             }
           else break;
@@ -3426,11 +3431,13 @@ for (;;)
 
   if (firstline && IS_NEWLINE(current_subject)) break;
   current_subject++;
+#ifdef SUPPORT_UTF
   if (utf)
     {
-    while (current_subject < end_subject && (*current_subject & 0xc0) == 0x80)
-      current_subject++;
+    INTERNALCHAR(current_subject < end_subject, *current_subject,
+      current_subject++);
     }
+#endif
   if (current_subject > end_subject) break;
 
   /* If we have just passed a CR and we are now at a LF, and the pattern does
