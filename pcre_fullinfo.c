@@ -65,9 +65,15 @@ Arguments:
 Returns:           0 if data returned, negative on error
 */
 
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
 pcre_fullinfo(const pcre *argument_re, const pcre_extra *extra_data, int what,
   void *where)
+#else
+PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
+pcre16_fullinfo(const pcre *argument_re, const pcre_extra *extra_data, int what,
+  void *where)
+#endif
 {
 real_pcre internal_re;
 pcre_study_data internal_study;

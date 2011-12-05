@@ -102,6 +102,10 @@ overrun before it actually does run off the end of the data block. */
 #define REQ_CASELESS   0x10000000l      /* Indicates caselessness */
 #define REQ_VARY       0x20000000l      /* Reqchar followed non-literal item */
 
+/* Repeated character flags. */
+
+#define UTF_LENGTH     0x10000000l      /* The char contains its length. */
+
 /* Table for handling escaped characters in the range '0'-'z'. Positive returns
 are simple data values; negative values are for special things like \d and so
 on. Zero means further processing is needed (for things like \x), or the escape
@@ -2896,7 +2900,7 @@ static BOOL
 check_auto_possessive(const pcre_uchar *previous, BOOL utf,
   const pcre_uchar *ptr, int options, compile_data *cd)
 {
-int c, next;
+pcre_int32 c, next;
 int op_code = *previous++;
 
 /* Skip whitespace and comments in extended mode */
@@ -2932,15 +2936,13 @@ if (*ptr == CHAR_BACKSLASH)
   if (temperrorcode != 0) return FALSE;
   ptr++;    /* Point after the escape sequence */
   }
-
-else if ((cd->ctypes[*ptr] & ctype_meta) == 0)
+else if (!MAX_255(*ptr) || (cd->ctypes[*ptr] & ctype_meta) == 0)
   {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   if (utf) { GETCHARINC(next, ptr); } else
 #endif
   next = *ptr++;
   }
-
 else return FALSE;
 
 /* Skip whitespace and comments in extended mode */
@@ -4603,20 +4605,25 @@ for (;; ptr++)
 
       /* Deal with UTF characters that take up more than one character. It's
       easier to write this out separately than try to macrify it. Use c to
-      hold the length of the character in bytes, plus 0x80 to flag that it's a
-      length rather than a small character. */
+      hold the length of the character in bytes, plus UTF_LENGTH to flag that
+      it's a length rather than a small character. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
+#ifdef COMPILE_PCRE8
       if (utf && (code[-1] & 0x80) != 0)
+#endif /* COMPILE_PCRE8 */
+#ifdef COMPILE_PCRE16
+      if (utf && (code[-1] & 0xfc00) == 0xdc00)
+#endif /* COMPILE_PCRE8 */
         {
         pcre_uchar *lastchar = code - 1;
         BACKCHAR(lastchar);
         c = code - lastchar;            /* Length of UTF-8 character */
         memcpy(utf_chars, lastchar, IN_UCHARS(c)); /* Save the char */
-        c |= 0x80;                      /* Flag c as a length */
+        c |= UTF_LENGTH;                /* Flag c as a length */
         }
       else
-#endif
+#endif /* SUPPORT_UTF */
 
       /* Handle the case of a single charater - either with no UTF support, or
       with UTF disabled, or for a single character UTF character. */
@@ -4758,14 +4765,14 @@ for (;; ptr++)
         we have to insert the character for the previous code. For a repeated
         Unicode property match, there are two extra bytes that define the
         required property. In UTF-8 mode, long characters have their length in
-        c, with the 0x80 bit as a flag. */
+        c, with the UTF_LENGTH bit as a flag. */
 
         if (repeat_max < 0)
           {
-#ifdef SUPPORT_UTF8
-          if (utf && c >= 128)
+#ifdef SUPPORT_UTF
+          if (utf && (c & UTF_LENGTH) != 0)
             {
-            memcpy(code, utf_chars, c & 7);
+            memcpy(code, utf_chars, IN_UCHARS(c & 7));
             code += c & 7;
             }
           else
@@ -4787,10 +4794,10 @@ for (;; ptr++)
 
         else if (repeat_max != repeat_min)
           {
-#ifdef SUPPORT_UTF8
-          if (utf && c >= 128)
+#ifdef SUPPORT_UTF
+          if (utf && (c & UTF_LENGTH) != 0)
             {
-            memcpy(code, utf_chars, c & 7);
+            memcpy(code, utf_chars, IN_UCHARS(c & 7));
             code += c & 7;
             }
           else
@@ -4817,10 +4824,10 @@ for (;; ptr++)
 
       /* The character or character type itself comes last in all cases. */
 
-#ifdef SUPPORT_UTF8
-      if (utf && c >= 128)
+#ifdef SUPPORT_UTF
+      if (utf && (c & UTF_LENGTH) != 0)
         {
-        memcpy(code, utf_chars, c & 7);
+        memcpy(code, utf_chars, IN_UCHARS(c & 7));
         code += c & 7;
         }
       else
@@ -6661,9 +6668,7 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF
     if (utf && HAS_EXTRALEN(c))
-      {
-      INTERNALCHAR(TRUE, ptr[1], mcbuffer[mclength++] = *(++ptr));
-      }
+      ACROSSCHAR(TRUE, ptr[1], mcbuffer[mclength++] = *(++ptr));
 #endif
 
     /* At this point we have the character's bytes in mcbuffer, and the length
@@ -7789,9 +7794,27 @@ if ((re->options & PCRE_ANCHORED) == 0)
       re->first_char = firstchar & 0xffff;
 #endif
 #endif
-      if ((firstchar & REQ_CASELESS) != 0 && MAX_255(re->first_char)
-        && cd->fcc[re->first_char] != re->first_char)
-        re->flags |= PCRE_FCH_CASELESS;
+      if ((firstchar & REQ_CASELESS) != 0)
+        {
+#if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
+        /* We ignore non-ASCII first chars in 8 bit mode. */
+        if (utf)
+          {
+          if (re->first_char < 128)
+            {
+            if (cd->fcc[re->first_char] != re->first_char)
+              re->flags |= PCRE_FCH_CASELESS;
+            }
+          else if ((options & PCRE_UCP) != 0
+              && UCD_OTHERCASE(re->first_char) != re->first_char)
+            re->flags |= PCRE_FCH_CASELESS;
+          }
+        else
+#endif
+        if (MAX_255(re->first_char)
+            && cd->fcc[re->first_char] != re->first_char)
+          re->flags |= PCRE_FCH_CASELESS;
+        }
 
       re->flags |= PCRE_FIRSTSET;
       }
@@ -7814,9 +7837,26 @@ if (reqchar >= 0 &&
   re->req_char = reqchar & 0xffff;
 #endif
 #endif
-  if ((reqchar & REQ_CASELESS) != 0 && MAX_255(re->req_char)
-    && cd->fcc[re->req_char] != re->req_char)
-    re->flags |= PCRE_RCH_CASELESS;
+  if ((reqchar & REQ_CASELESS) != 0)
+    {
+#if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
+    /* We ignore non-ASCII first chars in 8 bit mode. */
+    if (utf)
+      {
+      if (re->first_char < 128)
+        {
+        if (cd->fcc[re->first_char] != re->first_char)
+          re->flags |= PCRE_RCH_CASELESS;
+        }
+      else if ((options & PCRE_UCP) != 0
+          && UCD_OTHERCASE(re->first_char) != re->first_char)
+        re->flags |= PCRE_RCH_CASELESS;
+      }
+    else
+#endif
+    if (MAX_255(re->req_char) && cd->fcc[re->req_char] != re->req_char)
+      re->flags |= PCRE_RCH_CASELESS;
+    }
 
   re->flags |= PCRE_REQCHSET;
   }

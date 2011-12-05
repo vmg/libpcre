@@ -542,7 +542,7 @@ UTF-8 support is omitted, we don't even define them. */
 /* #define GETCHARLENTEST(c, eptr, len) */
 /* #define BACKCHAR(eptr) */
 /* #define FORWARDCHAR(eptr) */
-/* #define INTERNALCHAR(condition, eptr, action) */
+/* #define ACROSSCHAR(condition, eptr, action) */
 
 #else   /* SUPPORT_UTF */
 
@@ -708,7 +708,7 @@ because almost all calls are already within a block of UTF-8 only code. */
 #define FORWARDCHAR(eptr) while((*eptr & 0xc0) == 0x80) eptr++
 
 /* Same as above, but it allows a fully customizable form. */
-#define INTERNALCHAR(condition, eptr, action) \
+#define ACROSSCHAR(condition, eptr, action) \
   while((condition) && ((eptr) & 0xc0) == 0x80) action
 
 #else /* COMPILE_PCRE8 */
@@ -748,7 +748,7 @@ pointer. */
 the pointer. */
 
 #define GETUTF16INC(c, eptr) \
-   { c = (((c & 0x3ff) << 10) | (eptr[1] & 0x3ff)) + 0x10000; eptr++; }
+   { c = (((c & 0x3ff) << 10) | (*eptr++ & 0x3ff)) + 0x10000; }
 
 /* Get the next UTF-16 character, advancing the pointer. This is called when we
 know we are in UTF-16 mode. */
@@ -797,7 +797,7 @@ code. */
 #define FORWARDCHAR(eptr) if ((*eptr & 0xfc00) == 0xdc00) eptr++
 
 /* Same as above, but it allows a fully customizable form. */
-#define INTERNALCHAR(condition, eptr, action) \
+#define ACROSSCHAR(condition, eptr, action) \
   if ((condition) && ((eptr) & 0xfc00) == 0xdc00) action
 
 #endif

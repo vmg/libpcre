@@ -480,7 +480,7 @@ if (*first_op == OP_REVERSE)
       {
       if (current_subject <= start_subject) break;
       current_subject--;
-      INTERNALCHAR(current_subject > start_subject, *current_subject, current_subject--);
+      ACROSSCHAR(current_subject > start_subject, *current_subject, current_subject--);
       }
     }
   else
@@ -3199,7 +3199,13 @@ if (!anchored)
     has_first_char = TRUE;
     first_char = first_char2 = re->first_char;
     if ((re->flags & PCRE_FCH_CASELESS) != 0)
+      {
       first_char2 = TABLE_GET(first_char, md->tables + fcc_offset, first_char);
+#if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
+      if (first_char > 127 && utf && md->use_ucp)
+        first_char2 = UCD_OTHERCASE(first_char);
+#endif
+      }
     }
   else
     {
@@ -3217,7 +3223,13 @@ if ((re->flags & PCRE_REQCHSET) != 0)
   has_req_char = TRUE;
   req_char = req_char2 = re->req_char;
   if ((re->flags & PCRE_RCH_CASELESS) != 0)
+    {
     req_char2 = TABLE_GET(req_char, md->tables + fcc_offset, req_char);
+#if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
+    if (req_char > 127 && utf && md->use_ucp)
+      req_char2 = UCD_OTHERCASE(req_char);
+#endif
+    }
   }
 
 /* Call the main matching function, looping for a non-anchored regex after a
@@ -3246,7 +3258,7 @@ for (;;)
         while (t < md->end_subject && !IS_NEWLINE(t))
           {
           t++;
-          INTERNALCHAR(t < end_subject, *t, t++);
+          ACROSSCHAR(t < end_subject, *t, t++);
           }
         }
       else
@@ -3290,7 +3302,7 @@ for (;;)
                    !WAS_NEWLINE(current_subject))
               {
               current_subject++;
-              INTERNALCHAR(current_subject < end_subject, *current_subject,
+              ACROSSCHAR(current_subject < end_subject, *current_subject,
                 current_subject++);
               }
             }
@@ -3318,12 +3330,17 @@ for (;;)
         while (current_subject < end_subject)
           {
           register unsigned int c = *current_subject;
+#ifndef COMPILE_PCRE8
+          if (c > 255) c = 255;
+#endif
           if ((start_bits[c/8] & (1 << (c&7))) == 0)
             {
             current_subject++;
-#ifdef SUPPORT_UTF
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
+            /* In non 8-bit mode, the iteration will stop for
+            characters > 255 at the beginning or not stop at all. */
             if (utf)
-              INTERNALCHAR(current_subject < end_subject, *current_subject,
+              ACROSSCHAR(current_subject < end_subject, *current_subject,
                 current_subject++);
 #endif
             }
@@ -3434,7 +3451,7 @@ for (;;)
 #ifdef SUPPORT_UTF
   if (utf)
     {
-    INTERNALCHAR(current_subject < end_subject, *current_subject,
+    ACROSSCHAR(current_subject < end_subject, *current_subject,
       current_subject++);
     }
 #endif

@@ -72,8 +72,13 @@ Returns:        number of capturing subpatterns
                 or negative values on error
 */
 
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
-pcre_info(const pcre *argument_re, int *optptr, int *first_byte)
+pcre_info(const pcre *argument_re, int *optptr, int *first_char)
+#else
+PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
+pcre16_info(const pcre *argument_re, int *optptr, int *first_char)
+#endif
 {
 real_pcre internal_re;
 const real_pcre *re = (const real_pcre *)argument_re;
@@ -84,8 +89,8 @@ if (re->magic_number != MAGIC_NUMBER)
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   }
 if (optptr != NULL) *optptr = (int)(re->options & PUBLIC_COMPILE_OPTIONS);
-if (first_byte != NULL)
-  *first_byte = ((re->flags & PCRE_FIRSTSET) != 0)? re->first_char :
+if (first_char != NULL)
+  *first_char = ((re->flags & PCRE_FIRSTSET) != 0)? re->first_char :
      ((re->flags & PCRE_STARTLINE) != 0)? -1 : -2;
 return re->top_bracket;
 }

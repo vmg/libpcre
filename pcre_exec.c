@@ -2069,7 +2069,7 @@ for (;;)
       be "non-word" characters. Remember the earliest consulted character for
       partial matching. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         /* Get status of previous character */
@@ -2190,7 +2190,7 @@ for (;;)
       }
     eptr++;
 #ifdef SUPPORT_UTF
-    if (utf) INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+    if (utf) ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
 #endif
     ecode++;
     break;
@@ -3066,7 +3066,7 @@ for (;;)
     /* Match a single character, caselessly */
 
     case OP_CHARI:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf)
       {
       length = 1;
@@ -4089,7 +4089,7 @@ for (;;)
             }
           if (IS_NEWLINE(eptr)) MRRETURN(MATCH_NOMATCH);
           eptr++;
-          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+          ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -4102,7 +4102,7 @@ for (;;)
             MRRETURN(MATCH_NOMATCH);
             }
           eptr++;
-          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+          ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -4301,7 +4301,7 @@ for (;;)
           if (*eptr < 128 && (md->ctypes[*eptr] & ctype_space) != 0)
             MRRETURN(MATCH_NOMATCH);
           eptr++;
-          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+          ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -4330,7 +4330,7 @@ for (;;)
           if (*eptr < 128 && (md->ctypes[*eptr] & ctype_word) != 0)
             MRRETURN(MATCH_NOMATCH);
           eptr++;
-          INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+          ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
           }
         break;
 
@@ -5330,7 +5330,7 @@ for (;;)
                 }
               if (IS_NEWLINE(eptr)) break;
               eptr++;
-              INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+              ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
               }
             }
 
@@ -5347,7 +5347,7 @@ for (;;)
                 }
               if (IS_NEWLINE(eptr)) break;
               eptr++;
-              INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+              ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
               }
             }
           break;
@@ -5363,7 +5363,7 @@ for (;;)
                 break;
                 }
               eptr++;
-              INTERNALCHAR(eptr < md->end_subject, *eptr, eptr++);
+              ACROSSCHAR(eptr < md->end_subject, *eptr, eptr++);
               }
             }
           else
@@ -6264,7 +6264,13 @@ if (!anchored)
     has_first_char = TRUE;
     first_char = first_char2 = re->first_char;
     if ((re->flags & PCRE_FCH_CASELESS) != 0)
+      {
       first_char2 = TABLE_GET(first_char, tables + fcc_offset, first_char);
+#if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
+      if (first_char > 127 && utf && md->use_ucp)
+        first_char2 = UCD_OTHERCASE(first_char);
+#endif
+      }
     }
   else
     if (!startline && study != NULL &&
@@ -6280,7 +6286,13 @@ if ((re->flags & PCRE_REQCHSET) != 0)
   has_req_char = TRUE;
   req_char = req_char2 = re->req_char;
   if ((re->flags & PCRE_RCH_CASELESS) != 0)
+    {
     req_char2 = TABLE_GET(req_char, tables + fcc_offset, req_char);
+#if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
+    if (req_char > 127 && utf && md->use_ucp)
+      req_char2 = UCD_OTHERCASE(req_char);
+#endif
+    }
   }
 
 
@@ -6309,7 +6321,7 @@ for(;;)
       while (t < md->end_subject && !IS_NEWLINE(t))
         {
         t++;
-        INTERNALCHAR(t < end_subject, *t, t++);
+        ACROSSCHAR(t < end_subject, *t, t++);
         }
       }
     else
@@ -6351,7 +6363,7 @@ for(;;)
           while (start_match < end_subject && !WAS_NEWLINE(start_match))
             {
             start_match++;
-            INTERNALCHAR(start_match < end_subject, *start_match,
+            ACROSSCHAR(start_match < end_subject, *start_match,
               start_match++);
             }
           }
@@ -6378,17 +6390,18 @@ for(;;)
       {
       while (start_match < end_subject)
         {
-#ifdef COMPILE_PCRE
         register unsigned int c = *start_match;
-#else
-        register unsigned int c = *start_match & 0xff;
+#ifndef COMPILE_PCRE8
+        if (c > 255) c = 255;
 #endif
         if ((start_bits[c/8] & (1 << (c&7))) == 0)
           {
           start_match++;
-#ifdef SUPPORT_UTF
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
+          /* In non 8-bit mode, the iteration will stop for
+          characters > 255 at the beginning or not stop at all. */
           if (utf)
-            INTERNALCHAR(start_match < end_subject, *start_match,
+            ACROSSCHAR(start_match < end_subject, *start_match,
               start_match++);
 #endif
           }
@@ -6520,7 +6533,7 @@ for(;;)
     new_start_match = start_match + 1;
 #ifdef SUPPORT_UTF
     if (utf)
-      INTERNALCHAR(new_start_match < end_subject, *new_start_match,
+      ACROSSCHAR(new_start_match < end_subject, *new_start_match,
         new_start_match++);
 #endif
     break;

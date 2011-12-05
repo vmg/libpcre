@@ -224,7 +224,7 @@ for (;;)
     case OP_NOTPOSPLUSI:
     branchlength++;
     cc += 2;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
@@ -245,7 +245,7 @@ for (;;)
     case OP_NOTEXACTI:
     branchlength += GET2(cc,1);
     cc += 2 + IMM2_SIZE;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
@@ -293,7 +293,7 @@ for (;;)
     appear, but leave the code, just in case.) */
 
     case OP_ANYBYTE:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf) return -1;
 #endif
     branchlength++;
@@ -486,7 +486,7 @@ for (;;)
     case OP_NOTPOSQUERYI:
 
     cc += PRIV(OP_lengths)[op];
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf && HAS_EXTRALEN(cc[-1])) cc += GET_EXTRALEN(cc[-1]);
 #endif
     break;
@@ -549,9 +549,10 @@ set_table_bit(pcre_uint8 *start_bits, const pcre_uchar *p, BOOL caseless,
 {
 unsigned int c = *p;
 
+#ifdef COMPILE_PCRE8
 SET_BIT(c);
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (utf && c > 127)
   {
   GETCHARINC(c, p);
@@ -572,6 +573,33 @@ if (utf && c > 127)
 
 if (caseless && (cd->ctypes[c] & ctype_letter) != 0) SET_BIT(cd->fcc[c]);
 return p + 1;
+#endif
+
+#ifdef COMPILE_PCRE16
+if (c > 0xff)
+  c = 0xff;
+SET_BIT(c);
+
+#ifdef SUPPORT_UTF
+if (utf && c > 127)
+  {
+  GETCHARINC(c, p);
+#ifdef SUPPORT_UCP
+  if (caseless)
+    {
+    c = UCD_OTHERCASE(c);
+    if (c > 0xff)
+      c = 0xff;
+    SET_BIT(c);
+    }
+#endif
+  return p;
+  }
+#endif
+
+if (caseless && (cd->ctypes[c] & ctype_letter) != 0) SET_BIT(cd->fcc[c]);
+return p + 1;
+#endif
 }
 
 
@@ -602,7 +630,7 @@ set_type_bits(pcre_uint8 *start_bits, int cbit_type, int table_limit,
 {
 register int c;
 for (c = 0; c < table_limit; c++) start_bits[c] |= cd->cbits[c+cbit_type];
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
 if (table_limit == 32) return;
 for (c = 128; c < 256; c++)
   {
@@ -644,7 +672,9 @@ set_nottype_bits(pcre_uint8 *start_bits, int cbit_type, int table_limit,
 {
 register int c;
 for (c = 0; c < table_limit; c++) start_bits[c] |= ~cd->cbits[c+cbit_type];
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
 if (table_limit != 32) for (c = 24; c < 32; c++) start_bits[c] = 0xff;
+#endif
 }
 
 
@@ -679,7 +709,11 @@ set_start_bits(const pcre_uchar *code, pcre_uint8 *start_bits, BOOL utf,
 {
 register int c;
 int yield = SSB_DONE;
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
 int table_limit = utf? 16:32;
+#else
+int table_limit = 32;
+#endif
 
 #if 0
 /* ========================================================================= */
@@ -951,14 +985,23 @@ do
       case OP_HSPACE:
       SET_BIT(0x09);
       SET_BIT(0x20);
+#ifdef SUPPORT_UTF
       if (utf)
         {
+#ifdef COMPILE_PCRE8
         SET_BIT(0xC2);  /* For U+00A0 */
         SET_BIT(0xE1);  /* For U+1680, U+180E */
         SET_BIT(0xE2);  /* For U+2000 - U+200A, U+202F, U+205F */
         SET_BIT(0xE3);  /* For U+3000 */
+#endif
+#ifdef COMPILE_PCRE16
+        SET_BIT(0xA0);
+        SET_BIT(0xFF);  /* For characters > 255 */
+#endif
         }
-      else SET_BIT(0xA0);
+      else
+#endif /* SUPPORT_UTF */
+        SET_BIT(0xA0);
       try_next = FALSE;
       break;
 
@@ -968,12 +1011,21 @@ do
       SET_BIT(0x0B);
       SET_BIT(0x0C);
       SET_BIT(0x0D);
+#ifdef SUPPORT_UTF
       if (utf)
         {
+#ifdef COMPILE_PCRE8
         SET_BIT(0xC2);  /* For U+0085 */
         SET_BIT(0xE2);  /* For U+2028, U+2029 */
+#endif
+#ifdef COMPILE_PCRE16
+        SET_BIT(0x85);
+        SET_BIT(0xFF);  /* For characters > 255 */
+#endif
         }
-      else SET_BIT(0x85);
+      else
+#endif /* SUPPORT_UTF */
+        SET_BIT(0x85);
       try_next = FALSE;
       break;
 
@@ -1058,14 +1110,23 @@ do
         case OP_HSPACE:
         SET_BIT(0x09);
         SET_BIT(0x20);
+#ifdef COMPILE_PCRE8
         if (utf)
           {
+#ifdef COMPILE_PCRE8
           SET_BIT(0xC2);  /* For U+00A0 */
           SET_BIT(0xE1);  /* For U+1680, U+180E */
           SET_BIT(0xE2);  /* For U+2000 - U+200A, U+202F, U+205F */
           SET_BIT(0xE3);  /* For U+3000 */
+#endif
+#ifdef COMPILE_PCRE16
+          SET_BIT(0xA0);
+          SET_BIT(0xFF);  /* For characters > 255 */
+#endif
           }
-        else SET_BIT(0xA0);
+        else
+#endif /* SUPPORT_UTF */
+          SET_BIT(0xA0);
         break;
 
         case OP_ANYNL:
@@ -1074,12 +1135,21 @@ do
         SET_BIT(0x0B);
         SET_BIT(0x0C);
         SET_BIT(0x0D);
+#ifdef COMPILE_PCRE8
         if (utf)
           {
+#ifdef COMPILE_PCRE8
           SET_BIT(0xC2);  /* For U+0085 */
           SET_BIT(0xE2);  /* For U+2028, U+2029 */
+#endif
+#ifdef COMPILE_PCRE16
+          SET_BIT(0x85);
+          SET_BIT(0xFF);  /* For characters > 255 */
+#endif
           }
-        else SET_BIT(0x85);
+        else
+#endif /* SUPPORT_UTF */
+          SET_BIT(0x85);
         break;
 
         case OP_NOT_DIGIT:
@@ -1126,12 +1196,15 @@ do
       character with a value > 255. */
 
       case OP_NCLASS:
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
       if (utf)
         {
         start_bits[24] |= 0xf0;              /* Bits for 0xc4 - 0xc8 */
         memset(start_bits+25, 0xff, 7);      /* Bits for 0xc9 - 0xff */
         }
+#endif
+#ifdef COMPILE_PCRE16
+      SET_BIT(0xFF);                         /* For characters > 255 */
 #endif
       /* Fall through */
 
@@ -1147,7 +1220,7 @@ do
         value is > 127. In fact, there are only two possible starting bytes for
         characters in the range 128 - 255. */
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
         if (utf)
           {
           for (c = 0; c < 16; c++) start_bits[c] |= map[c];
@@ -1161,12 +1234,10 @@ do
               }
             }
           }
-
-        /* In non-UTF-8 mode, the two bit maps are completely compatible. */
-
         else
 #endif
           {
+          /* In non-UTF-8 mode, the two bit maps are completely compatible. */
           for (c = 0; c < 32; c++) start_bits[c] |= map[c];
           }
 
@@ -1341,6 +1412,18 @@ if (bits_set || min > 0
     study->flags |= PCRE_STUDY_MAPPED;
     memcpy(study->start_bits, start_bits, sizeof(start_bits));
     }
+
+#ifdef PCRE_DEBUG
+  if (bits_set)
+    {
+    pcre_uint8 *ptr = (pcre_uint32 *)start_bits;
+    int i;
+
+    printf("Start bits:\n");
+    for (i = 0; i < 32; i++)
+      printf("%3d: %02x%s", i * 8, *ptr++, ((i + 1) & 0x7) != 0? " " : "\n");
+    }
+#endif
 
   /* Always set the minlength value in the block, because the JIT compiler
   makes use of it. However, don't set the bit unless the length is greater than
