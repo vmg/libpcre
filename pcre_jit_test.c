@@ -51,18 +51,35 @@ POSSIBILITY OF SUCH DAMAGE.
 #define PCRE_BUG 0x80000000
 
 /*
- Hungarian utf8 characters
- \xc3\xa9 = 0xe9 = 233 (e') \xc3\x89 = 0xc9 = 201 (E')
- \xc3\xa1 = 0xe1 = 225 (a') \xc3\x81 = 0xc1 = 193 (A')
- \xe6\x92\xad = 0x64ad = 25773 (a valid kanji)
- \xc2\x85 = 0x85 (NExt Line = NEL)
- \xc2\xa1 = 0xa1 (Inverted Exclamation Mark)
- \xe2\x80\xa8 = 0x2028 (Line Separator)
- \xc8\xba = 570 \xe2\xb1\xa5 = 11365 (lowercase length != uppercase length)
- \xcc\x8d = 781 (Something with Mark property)
+ Letter characters:
+   \xe6\x92\xad = 0x64ad = 25773 (kanji)
+ Non-letter characters:
+   \xc2\xa1 = 0xa1 =  (Inverted Exclamation Mark)
+   \xf3\xa9\xb7\x80 = 0xe9dc0 = 957888
+ Newlines:
+   \xc2\x85 = 0x85 = 133 (NExt Line = NEL)
+   \xe2\x80\xa8 = 0x2028 = 8232 (Line Separator)
+ Othercase pairs:
+   \xc3\xa9 = 0xe9 = 233 (e')
+      \xc3\x89 = 0xc9 = 201 (E')
+   \xc3\xa1 = 0xe1 = 225 (a')
+      \xc3\x81 = 0xc1 = 193 (A')
+   \xc8\xba = 0x23a = 570
+      \xe2\xb1\xa5 = 0x2c65 = 11365
+   \xe1\xbd\xb8 = 0x1f78 = 8056
+      \xe1\xbf\xb8 = 0x1ff8 = 8184
+   \xf0\x90\x90\x80 = 0x10400 = 66560
+      \xf0\x90\x90\xa8 = 0x10428 = 66600
+ Mark property:
+   \xcc\x8d = 0x30d = 781
+ Special:
+   \xdf\xbf = 0x7ff = 2047 (highest 2 byte character)
+   \xe0\xa0\x80 = 0x800 = 2048 (lowest 2 byte character)
+   \xef\xbf\xbf = 0xffff = 65535 (highest 3 byte character)
+   \xf0\x90\x80\x80 = 0x10000 = 65536 (lowest 4 byte character)
+   \xf4\x8f\xbf\xbf = 0x10ffff = 1114111 (highest allowed utf character)
 */
 
-static void setstack(pcre_extra *extra);
 static int regression_tests(void);
 
 int main(void)
@@ -76,20 +93,11 @@ int main(void)
 	return regression_tests();
 }
 
-static pcre_jit_stack* callback(void *arg)
-{
-	return (pcre_jit_stack *)arg;
-}
-
-static void setstack(pcre_extra *extra)
-{
-	static pcre_jit_stack *stack;
-	if (stack) pcre_jit_stack_free(stack);
-	stack = pcre_jit_stack_alloc(1, 1024 * 1024);
-	pcre_assign_jit_stack(extra, callback, stack);
-}
-
 /* --------------------------------------------------------------------------------------- */
+
+#if !(defined SUPPORT_PCRE8) && !(defined SUPPORT_PCRE16)
+#error SUPPORT_PCRE8 or SUPPORT_PCRE16 must be defined
+#endif
 
 #define MUA     (PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANYCRLF)
 #define MUAP    (PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANYCRLF | PCRE_UCP)
@@ -139,6 +147,10 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0, "\\Ca", "CDA" },
 	{ MA, 0, "\\Cx", "cda" },
 	{ CMA, 0, "\\Cx", "CDA" },
+	{ CMUAP, 0, "\xf0\x90\x90\x80\xf0\x90\x90\xa8", "\xf0\x90\x90\xa8\xf0\x90\x90\x80" },
+	{ CMUAP, 0, "\xf0\x90\x90\x80{2}", "\xf0\x90\x90\x80#\xf0\x90\x90\xa8\xf0\x90\x90\x80" },
+	{ CMUAP, 0, "\xf0\x90\x90\xa8{2}", "\xf0\x90\x90\x80#\xf0\x90\x90\xa8\xf0\x90\x90\x80" },
+	{ CMUAP, 0, "\xe1\xbd\xb8\xe1\xbf\xb8", "\xe1\xbf\xb8\xe1\xbd\xb8" },
 
 	/* Assertions. */
 	{ MUA, 0, "\\b[^A]", "A_B#" },
@@ -151,6 +163,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUAP, 0, "\\b[^A]\\B[^c]\\b[^_]\\B", "_\xc3\xa1\xe2\x80\xa8" },
 	{ MUAP, 0, "\\b\\w+\\B", "\xc3\x89\xc2\xa1\xe6\x92\xad\xc3\x81\xc3\xa1" },
 	{ MUA, 0, "\\b.", "\xcd\xbe" },
+	{ CMUAP, 0, "\\By", "\xf0\x90\x90\xa8y" },
 	{ MA, 0, "\\R^", "\n" },
 	{ MA, 1, "^", "\n" },
 	{ 0, 0, "^ab", "ab" },
@@ -267,6 +280,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "\\b\\w+\\B", "x,a_cd" },
 	{ MUAP, 0, "\\b[^\xc2\xa1]+\\B", "\xc3\x89\xc2\xa1\xe6\x92\xad\xc3\x81\xc3\xa1" },
 	{ CMUA, 0, "[^b]+(a*)([^c]?d{3})", "aaaaddd" },
+	{ CMUAP, 0, "\xe1\xbd\xb8{2}", "\xe1\xbf\xb8#\xe1\xbf\xb8\xe1\xbd\xb8" },
 
 	/* Basic character sets. */
 	{ MUA, 0, "(?:\\s)+(?:\\S)+", "ab \t\xc3\xa9\xe6\x92\xad " },
@@ -449,6 +463,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUAP, 0, "(\\P{N})\\1{1,2}ww", "wwww" },
 	{ MUAP, 0, "(\\P{N})\\1{1,2}ww", "wwwww" },
 	{ PCRE_UCP, 0, "(\\P{N})\\1{2,}", ".www." },
+	{ CMUAP, 0, "(\xf0\x90\x90\x80)\\1", "\xf0\x90\x90\xa8\xf0\x90\x90\xa8" },
 
 	/* Assertions. */
 	{ MUA, 0, "(?=xx|yy|zz)\\w{4}", "abczzdefg" },
@@ -601,111 +616,328 @@ static struct regression_test_case regression_test_cases[] = {
 	{ 0, 0, NULL, NULL }
 };
 
+pcre_jit_stack* callback(void *arg)
+{
+	return (pcre_jit_stack *)arg;
+}
+
+static void setstack(pcre_extra *extra, int realloc)
+{
+	static pcre_jit_stack *stack;
+
+	if (realloc) {
+		if (stack)
+			pcre_jit_stack_free(stack);
+		stack = pcre_jit_stack_alloc(1, 1024 * 1024);
+	}
+	/* Extra can be NULL. */
+	pcre_assign_jit_stack(extra, callback, stack);
+}
+
+#ifdef SUPPORT_PCRE16
+
+static int convert_utf8_to_utf16(const char *input, PCRE_SCHAR16 *output, int *offsetmap, int max_length)
+{
+	unsigned char *ptr = (unsigned char*)input;
+	PCRE_SCHAR16 *optr = output;
+	unsigned int c;
+
+	if (max_length == 0)
+		return 0;
+
+	while (*ptr && max_length > 1) {
+		c = 0;
+		if (offsetmap)
+			*offsetmap++ = (int)(ptr - (unsigned char*)input);
+
+		if (!(*ptr & 0x80))
+			c = *ptr++;
+		else if (!(*ptr & 0x20)) {
+			c = ((ptr[0] & 0x1f) << 6) | (ptr[1] & 0x3f);
+			ptr += 2;
+		} else if (!(*ptr & 0x10)) {
+			c = ((ptr[0] & 0x0f) << 12) | ((ptr[1] & 0x3f) << 6) | (ptr[2] & 0x3f);
+			ptr += 3;
+		} else if (!(*ptr & 0x08)) {
+			c = ((ptr[0] & 0x07) << 18) | ((ptr[1] & 0x3f) << 12) | ((ptr[2] & 0x3f) << 6) | (ptr[3] & 0x3f);
+			ptr += 4;
+		}
+
+		if (c < 65536) {
+			*optr++ = c;
+			max_length--;
+		} else if (max_length <= 2) {
+			*optr = '\0';
+			return optr - output;
+		} else {
+			c -= 0x10000;
+			*optr++ = 0xd800 | ((c >> 10) & 0x3ff);
+			*optr++ = 0xdc00 | (c & 0x3ff);
+			max_length -= 2;
+			if (offsetmap)
+				offsetmap++;
+		}
+	}
+	if (offsetmap)
+		*offsetmap = (int)(ptr - (unsigned char*)input);
+	*optr = '\0';
+	return optr - output;
+}
+
+static int copy_char8_to_char16(const char *input, PCRE_SCHAR16 *output, int max_length)
+{
+	PCRE_SCHAR16 *optr = output;
+
+	if (max_length == 0)
+		return 0;
+
+	while (*input && max_length > 1) {
+		*optr++ = *input++;
+		max_length--;
+	}
+	*optr = '\0';
+	return optr - output;
+}
+
+#define REGTEST_MAX_LENGTH 4096
+static PCRE_SCHAR16 regtest_buf[REGTEST_MAX_LENGTH];
+static int regtest_offsetmap[REGTEST_MAX_LENGTH];
+
+#endif /* SUPPORT_PCRE16 */
+
 static int regression_tests(void)
 {
-	pcre *re;
 	struct regression_test_case *current = regression_test_cases;
 	const char *error;
-	pcre_extra *extra;
-	int utf8 = 0, ucp = 0;
-	int ovector1[32];
-	int ovector2[32];
-	int return_value1, return_value2;
-	int i, err_offs;
-	int total = 0, succesful = 0;
+	int i, err_offs, is_succesful;
+	int total = 0;
+	int succesful = 0;
 	int counter = 0;
-	int disabled_flags = PCRE_BUG;
+#ifdef SUPPORT_PCRE8
+	pcre *re8;
+	pcre_extra *extra8;
+	int ovector8_1[32];
+	int ovector8_2[32];
+	int return_value8_1, return_value8_2;
+	int utf8 = 0, ucp8 = 0;
+	int disabled_flags8 = PCRE_BUG;
+#endif
+#ifdef SUPPORT_PCRE16
+	pcre *re16;
+	pcre_extra *extra16;
+	int ovector16_1[32];
+	int ovector16_2[32];
+	int return_value16_1, return_value16_2;
+	int utf16 = 0, ucp16 = 0;
+	int disabled_flags16 = PCRE_BUG;
+	int length16;
+#endif
 
 	/* This test compares the behaviour of interpreter and JIT. Although disabling
-	utf8 or ucp may make tests fail, if the pcre_exec result is the SAME, it is
+	utf or ucp may make tests fail, if the pcre_exec result is the SAME, it is
 	still considered successful from pcre_jit_test point of view. */
 
-	pcre_config(PCRE_CONFIG_UTF8, &utf8);
-	pcre_config(PCRE_CONFIG_UNICODE_PROPERTIES, &ucp);
-	if (!utf8)
-		disabled_flags |= PCRE_UTF8;
-	if (!ucp)
-		disabled_flags |= PCRE_UCP;
+	printf("Running JIT regression\n");
 
-	printf("Running JIT regression tests with utf8 %s and ucp %s:\n", utf8 ? "enabled" : "disabled", ucp ? "enabled" : "disabled");
+#ifdef SUPPORT_PCRE8
+	pcre_config(PCRE_CONFIG_UTF8, &utf8);
+	pcre_config(PCRE_CONFIG_UNICODE_PROPERTIES, &ucp8);
+	if (!utf8)
+		disabled_flags8 |= PCRE_UTF8;
+	if (!ucp8)
+		disabled_flags8 |= PCRE_UCP;
+	printf(" in  8 bit mode with utf8  %s and ucp %s:\n", utf8 ? "enabled" : "disabled", ucp8 ? "enabled" : "disabled");
+#endif
+#ifdef SUPPORT_PCRE16
+	pcre16_config(PCRE_CONFIG_UTF16, &utf16);
+	pcre16_config(PCRE_CONFIG_UNICODE_PROPERTIES, &ucp16);
+	if (!utf16)
+		disabled_flags16 |= PCRE_UTF8;
+	if (!ucp16)
+		disabled_flags16 |= PCRE_UCP;
+	printf(" in 16 bit mode with utf16 %s and ucp %s:\n", utf16 ? "enabled" : "disabled", ucp16 ? "enabled" : "disabled");
+#endif
+
 	while (current->pattern) {
 		/* printf("\nPattern: %s :\n", current->pattern); */
 		total++;
 
 		error = NULL;
-		re = pcre_compile(current->pattern, current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags), &error, &err_offs, NULL);
+#ifdef SUPPORT_PCRE8
+		re8 = pcre_compile(current->pattern,
+			current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags8),
+			&error, &err_offs, NULL);
 
-		if (!re) {
-			if (utf8 && ucp)
-				printf("\nCannot compile pattern: %s\n", current->pattern);
-			else {
-				/* Some patterns cannot be compiled when either of utf8
-				or ucp is disabled. We just skip them. */
-				printf(".");
-				succesful++;
+		if (re8) {
+			error = NULL;
+			extra8 = pcre_study(re8, PCRE_STUDY_JIT_COMPILE, &error);
+			if (!extra8) {
+				printf("\n8 bit: Cannot study pattern: %s\n", current->pattern);
+				pcre_free(re8);
+				re8 = NULL;
 			}
-			current++;
-			continue;
-		}
-
-		error = NULL;
-		extra = pcre_study(re, PCRE_STUDY_JIT_COMPILE, &error);
-		if (!extra) {
-			printf("\nCannot study pattern: %s\n", current->pattern);
-			current++;
-			continue;
-		}
-
-		if (!(extra->flags & PCRE_EXTRA_EXECUTABLE_JIT)) {
-			printf("\nJIT compiler does not support: %s\n", current->pattern);
-			current++;
-			continue;
-		}
+			if (!(extra8->flags & PCRE_EXTRA_EXECUTABLE_JIT)) {
+				printf("\n8 bit: JIT compiler does not support: %s\n", current->pattern);
+				pcre_free_study(extra8);
+				pcre_free(re8);
+				re8 = NULL;
+			}
+		} else if (utf8 && ucp8)
+			printf("\n8 bit: Cannot compile pattern: %s\n", current->pattern);
+#endif
+#ifdef SUPPORT_PCRE16
+		convert_utf8_to_utf16(current->pattern, regtest_buf, NULL, REGTEST_MAX_LENGTH);
+		re16 = pcre16_compile(regtest_buf,
+			current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags16),
+			&error, &err_offs, NULL);
+		if (re16) {
+			error = NULL;
+			extra16 = pcre16_study(re16, PCRE_STUDY_JIT_COMPILE, &error);
+			if (!extra16) {
+				printf("\n16 bit: Cannot study pattern: %s\n", current->pattern);
+				pcre_free(re16);
+				re16 = NULL;
+			}
+			if (!(extra16->flags & PCRE_EXTRA_EXECUTABLE_JIT)) {
+				printf("\n16 bit: JIT compiler does not support: %s\n", current->pattern);
+				pcre_free_study(extra16);
+				pcre_free(re16);
+				re16 = NULL;
+			}
+		} else if (utf16 && ucp16)
+			printf("\n16 bit: Cannot compile pattern: %s\n", current->pattern);
+#endif
 
 		counter++;
 		if ((counter & 0x3) != 0)
-			setstack(extra);
+			setstack(NULL, 1);
 
-		for (i = 0; i < 32; ++i)
-			ovector1[i] = -2;
-		return_value1 = pcre_exec(re, extra, current->input, strlen(current->input), current->start_offset, current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector1, 32);
+#ifdef SUPPORT_PCRE8
+		if (re8) {
+			setstack(extra8, 0);
+			for (i = 0; i < 32; ++i)
+				ovector8_1[i] = -2;
+			return_value8_1 = pcre_exec(re8, extra8, current->input, strlen(current->input), current->start_offset,
+				current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector8_1, 32);
 
-		for (i = 0; i < 32; ++i)
-			ovector2[i] = -2;
-		return_value2 = pcre_exec(re, NULL, current->input, strlen(current->input), current->start_offset, current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector2, 32);
+			for (i = 0; i < 32; ++i)
+				ovector8_2[i] = -2;
+			return_value8_2 = pcre_exec(re8, NULL, current->input, strlen(current->input), current->start_offset,
+				current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector8_2, 32);
+		}
+#endif
+
+#ifdef SUPPORT_PCRE16
+		if (re16) {
+			setstack(extra16, 0);
+			if (current->flags & PCRE_UTF8)
+				length16 = convert_utf8_to_utf16(current->input, regtest_buf, regtest_offsetmap, REGTEST_MAX_LENGTH);
+			else
+				length16 = copy_char8_to_char16(current->input, regtest_buf, REGTEST_MAX_LENGTH);
+
+			for (i = 0; i < 32; ++i)
+				ovector16_1[i] = -2;
+			return_value16_1 = pcre16_exec(re16, extra16, regtest_buf, length16, current->start_offset,
+				current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector16_1, 32);
+
+			for (i = 0; i < 32; ++i)
+				ovector16_2[i] = -2;
+			return_value16_2 = pcre16_exec(re16, NULL, regtest_buf, length16, current->start_offset,
+				current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector16_2, 32);
+		}
+#endif
 
 		/* If PCRE_BUG is set, just run the test, but do not compare the results.
 		Segfaults can still be captured. */
-		if (!(current->flags & PCRE_BUG)) {
-			if (return_value1 != return_value2) {
-				printf("\nReturn value differs(%d:%d): '%s' @ '%s'\n", return_value1, return_value2, current->pattern, current->input);
-				current++;
-				continue;
-			}
 
-			if (return_value1 >= 0) {
-				return_value1 *= 2;
-				err_offs = 0;
-				for (i = 0; i < return_value1; ++i)
-					if (ovector1[i] != ovector2[i]) {
-						printf("\nOvector[%d] value differs(%d:%d): '%s' @ '%s' \n", i, ovector1[i], ovector2[i], current->pattern, current->input);
-						err_offs = 1;
+		is_succesful = 1;
+		if (!(current->flags & PCRE_BUG)) {
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+			if ((current->flags & PCRE_UTF8) && utf8 && utf16) {
+				/* All results must be the same. */
+				if (return_value8_1 != return_value8_2 || return_value8_1 != return_value16_1 || return_value8_1 != return_value16_2) {
+					printf("\n8 and 16 bit: Return value differs(%d:%d:%d:%d): [%d] '%s' @ '%s'\n",
+						return_value8_1, return_value8_2, return_value16_1, return_value16_2,
+						total, current->pattern, current->input);
+					is_succesful = 0;
+				} else if (return_value8_1 >= 0) {
+					return_value8_1 *= 2;
+					/* Transform back the results. */
+					for (i = 0; i < return_value8_1; ++i) {
+						if (ovector16_1[i] >= 0)
+							ovector16_1[i] = regtest_offsetmap[ovector16_1[i]];
+						if (ovector16_2[i] >= 0)
+							ovector16_2[i] = regtest_offsetmap[ovector16_2[i]];
 					}
-				if (err_offs) {
-					current++;
-					continue;
+
+					for (i = 0; i < return_value8_1; ++i)
+						if (ovector8_1[i] != ovector8_2[i] || ovector8_1[i] != ovector16_1[i] || ovector8_1[i] != ovector16_2[i]) {
+							printf("\n8 and 16 bit: Ovector[%d] value differs(%d:%d:%d:%d): [%d] '%s' @ '%s' \n",
+								i, ovector8_1[i], ovector8_2[i], ovector16_1[i], ovector16_2[i],
+								total, current->pattern, current->input);
+							is_succesful = 0;
+						}
 				}
+			} else {
+#endif /* SUPPORT_PCRE8 && SUPPORT_PCRE16 */
+				/* Only the 8 bit and 16 bit results must be equal. */
+#ifdef SUPPORT_PCRE8
+				if (return_value8_1 != return_value8_2) {
+					printf("\n8 bit: Return value differs(%d:%d): [%d] '%s' @ '%s'\n",
+						return_value8_1, return_value8_2, total, current->pattern, current->input);
+					is_succesful = 0;
+				} else if (return_value8_1 >= 0) {
+					return_value8_1 *= 2;
+					for (i = 0; i < return_value8_1; ++i)
+						if (ovector8_1[i] != ovector8_2[i]) {
+							printf("\n8 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s' \n",
+								i, ovector8_1[i], ovector8_2[i], total, current->pattern, current->input);
+							is_succesful = 0;
+						}
+				}
+#endif
+
+#ifdef SUPPORT_PCRE16
+				if (return_value16_1 != return_value16_2) {
+					printf("\n16 bit: Return value differs(%d:%d): [%d] '%s' @ '%s'\n",
+						return_value16_1, return_value16_2, total, current->pattern, current->input);
+					is_succesful = 0;
+				} else if (return_value16_1 >= 0) {
+					return_value16_1 *= 2;
+					for (i = 0; i < return_value16_1; ++i)
+						if (ovector16_1[i] != ovector16_2[i]) {
+							printf("\n16 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s' \n",
+								i, ovector16_1[i], ovector16_2[i], total, current->pattern, current->input);
+							is_succesful = 0;
+						}
+				}
+#endif
+
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
 			}
+#endif /* SUPPORT_PCRE8 && SUPPORT_PCRE16 */
 		}
 
-		pcre_free_study(extra);
-		pcre_free(re);
+		if (is_succesful)
+			succesful++;
+
+#ifdef SUPPORT_PCRE8
+		if (re8) {
+			pcre_free_study(extra8);
+			pcre_free(re8);
+		}
+#endif
+#ifdef SUPPORT_PCRE16
+		if (re16) {
+			pcre16_free_study(extra16);
+			pcre_free(re16);
+		}
+#endif
 
 		/* printf("[%d-%d]%s", ovector1[0], ovector1[1], (current->flags & PCRE_CASELESS) ? "C" : ""); */
 		printf(".");
 		fflush(stdout);
 		current++;
-		succesful++;
 	}
 
 	if (total == succesful) {
@@ -716,5 +948,6 @@ static int regression_tests(void)
 		return 1;
 	}
 }
+
 
 /* End of pcre_jit_test.c */

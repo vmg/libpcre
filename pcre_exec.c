@@ -6267,7 +6267,7 @@ if (!anchored)
       {
       first_char2 = TABLE_GET(first_char, tables + fcc_offset, first_char);
 #if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
-      if (first_char > 127 && utf && md->use_ucp)
+      if (utf && first_char > 127)
         first_char2 = UCD_OTHERCASE(first_char);
 #endif
       }
@@ -6289,7 +6289,7 @@ if ((re->flags & PCRE_REQCHSET) != 0)
     {
     req_char2 = TABLE_GET(req_char, tables + fcc_offset, req_char);
 #if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
-    if (req_char > 127 && utf && md->use_ucp)
+    if (utf && req_char > 127)
       req_char2 = UCD_OTHERCASE(req_char);
 #endif
     }

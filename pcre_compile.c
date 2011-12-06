@@ -3738,8 +3738,8 @@ for (;; ptr++)
       {
       const pcre_uchar *oldptr;
 
-#ifdef SUPPORT_UTF8
-      if (utf && c > 127)
+#ifdef SUPPORT_UTF
+      if (utf && HAS_EXTRALEN(c))
         {                           /* Braces are required because the */
         GETCHARLEN(c, ptr, ptr);    /* macro generates multiple statements */
         }
@@ -4317,11 +4317,10 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF
       if (utf && (c > 255 || ((options & PCRE_CASELESS) != 0 && c > 127)))
-#endif
-#ifndef COMPILE_PCRE8
+#elif !(defined COMPILE_PCRE8)
       if (c > 255)
 #endif
-#if defined SUPPORT_UTF || defined COMPILE_PCRE16
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
         {
         xclass = TRUE;
         *class_uchardata++ = XCL_SINGLE;
@@ -4345,8 +4344,7 @@ for (;; ptr++)
 
         }
       else
-#endif  /* SUPPORT_UTF8 */
-
+#endif  /* SUPPORT_UTF || COMPILE_PCRE16 */
       /* Handle a single-byte character */
         {
         classbits[c/8] |= (1 << (c&7));
@@ -4358,6 +4356,7 @@ for (;; ptr++)
         class_charcount++;
         class_lastchar = c;
         }
+
       }
 
     /* Loop until ']' reached. This "while" is the end of the "do" far above.
@@ -5849,7 +5848,7 @@ for (;; ptr++)
 
             for (i = 0; i < cd->names_found; i++)
               {
-              int crc = memcmp(name, slot+2, namelen);
+              int crc = memcmp(name, slot+2, IN_UCHARS(namelen));
               if (crc == 0)
                 {
                 if (slot[2+namelen] == 0)
@@ -7440,7 +7439,7 @@ while (ptr[skipatstart] == CHAR_LEFT_PARENTHESIS &&
   int newnl = 0;
   int newbsr = 0;
 
-  if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UTF8_RIGHTPAR, 5) == 0)
+  if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UTF_RIGHTPAR, 5) == 0)
     { skipatstart += 7; options |= PCRE_UTF8; continue; }
   else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UCP_RIGHTPAR, 4) == 0)
     { skipatstart += 6; options |= PCRE_UCP; continue; }
@@ -7805,8 +7804,7 @@ if ((re->options & PCRE_ANCHORED) == 0)
             if (cd->fcc[re->first_char] != re->first_char)
               re->flags |= PCRE_FCH_CASELESS;
             }
-          else if ((options & PCRE_UCP) != 0
-              && UCD_OTHERCASE(re->first_char) != re->first_char)
+          else if (UCD_OTHERCASE(re->first_char) != re->first_char)
             re->flags |= PCRE_FCH_CASELESS;
           }
         else
@@ -7843,13 +7841,12 @@ if (reqchar >= 0 &&
     /* We ignore non-ASCII first chars in 8 bit mode. */
     if (utf)
       {
-      if (re->first_char < 128)
+      if (re->req_char < 128)
         {
-        if (cd->fcc[re->first_char] != re->first_char)
+        if (cd->fcc[re->req_char] != re->req_char)
           re->flags |= PCRE_RCH_CASELESS;
         }
-      else if ((options & PCRE_UCP) != 0
-          && UCD_OTHERCASE(re->first_char) != re->first_char)
+      else if (UCD_OTHERCASE(re->req_char) != re->req_char)
         re->flags |= PCRE_RCH_CASELESS;
       }
     else

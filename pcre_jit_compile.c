@@ -297,7 +297,7 @@ typedef struct compiler_common {
   jump_list *casefulcmp;
   jump_list *caselesscmp;
   BOOL jscript_compat;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   BOOL utf;
 #ifdef SUPPORT_UCP
   BOOL use_ucp;
@@ -306,7 +306,7 @@ typedef struct compiler_common {
 #ifdef COMPILE_PCRE8
   jump_list *utfreadtype8;
 #endif
-#endif /* SUPPORT_UTF8 */
+#endif /* SUPPORT_UTF */
 #ifdef SUPPORT_UCP
   jump_list *getucd;
 #endif
@@ -500,7 +500,7 @@ switch(*cc)
   return cc + 1;
 
   case OP_ANYBYTE:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   if (common->utf) return NULL;
 #endif
   return cc + 1;
@@ -576,6 +576,8 @@ switch(*cc)
 
   case OP_NOTPROP:
   case OP_PROP:
+  return cc + 1 + 2;
+
   case OP_TYPEUPTO:
   case OP_TYPEMINUPTO:
   case OP_TYPEEXACT:
@@ -1267,7 +1269,7 @@ static SLJIT_INLINE BOOL char_has_othercase(compiler_common *common, pcre_uchar*
 /* Detects if the character has an othercase. */
 unsigned int c;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf)
   {
   GETCHAR(c, cc);
@@ -1279,6 +1281,9 @@ if (common->utf)
     return FALSE;
 #endif
     }
+#ifndef COMPILE_PCRE8
+  return common->fcc[c] != c;
+#endif
   }
 else
 #endif
@@ -1769,6 +1774,9 @@ if (newlinecheck)
   OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
   OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, common->newline & 0xff);
   COND_VALUE(SLJIT_MOV, TMP1, 0, SLJIT_C_EQUAL);
+#ifdef COMPILE_PCRE16
+  OP2(SLJIT_SHL, TMP1, 0, TMP1, 0, SLJIT_IMM, 1);
+#endif
   OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
   nl = JUMP(SLJIT_JUMP);
   }
@@ -1776,7 +1784,7 @@ if (newlinecheck)
 mainloop = LABEL();
 
 /* Increasing the STR_PTR here requires one less jump in the most common case. */
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf) readuchar = TRUE;
 #endif
 if (newlinecheck) readuchar = TRUE;
@@ -1843,7 +1851,7 @@ if (caseless)
   {
   oc = TABLE_GET(first_char, common->fcc, first_char);
 #if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
-  if (first_char > 127 && common->utf && common->use_ucp)
+  if (first_char > 127 && common->utf)
     oc = UCD_OTHERCASE(first_char);
 #endif
   }
@@ -2077,7 +2085,7 @@ if (caseless)
   {
   oc = TABLE_GET(req_char, common->fcc, req_char);
 #if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
-  if (req_char > 127 && common->utf && common->use_ucp)
+  if (req_char > 127 && common->utf)
     oc = UCD_OTHERCASE(req_char);
 #endif
   }
@@ -2265,7 +2273,7 @@ OP2(SLJIT_SUB, TMP1, 0, TMP1, 0, SLJIT_IMM, 0x0a);
 OP2(SLJIT_SUB | SLJIT_SET_U, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, 0x0d - 0x0a);
 COND_VALUE(SLJIT_MOV, TMP2, 0, SLJIT_C_LESS_EQUAL);
 OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, 0x85 - 0x0a);
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf)
   {
   COND_VALUE(SLJIT_OR, TMP2, 0, SLJIT_C_EQUAL);
@@ -2289,7 +2297,7 @@ COND_VALUE(SLJIT_MOV, TMP2, 0, SLJIT_C_EQUAL);
 OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, 0x20);
 COND_VALUE(SLJIT_OR, TMP2, 0, SLJIT_C_EQUAL);
 OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, 0xa0);
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf)
   {
   COND_VALUE(SLJIT_OR, TMP2, 0, SLJIT_C_EQUAL);
@@ -2323,7 +2331,7 @@ OP2(SLJIT_SUB, TMP1, 0, TMP1, 0, SLJIT_IMM, 0x0a);
 OP2(SLJIT_SUB | SLJIT_SET_U, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, 0x0d - 0x0a);
 COND_VALUE(SLJIT_MOV, TMP2, 0, SLJIT_C_LESS_EQUAL);
 OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_UNUSED, 0, TMP1, 0, SLJIT_IMM, 0x85 - 0x0a);
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf)
   {
   COND_VALUE(SLJIT_OR | SLJIT_SET_E, TMP2, 0, SLJIT_C_EQUAL);
@@ -2415,8 +2423,7 @@ sljit_emit_fast_return(compiler, RETURN_ADDR, 0);
 #undef CHAR1
 #undef CHAR2
 
-#ifdef SUPPORT_UTF8
-#ifdef SUPPORT_UCP
+#if defined SUPPORT_UTF && defined SUPPORT_UCP
 
 static const pcre_uchar *SLJIT_CALL do_utf_caselesscmp(pcre_uchar *src1, jit_arguments *args, pcre_uchar *end1)
 {
@@ -2436,8 +2443,7 @@ while (src1 < end1)
 return src2;
 }
 
-#endif
-#endif
+#endif /* SUPPORT_UTF && SUPPORT_UCP */
 
 static pcre_uchar *byte_sequence_compare(compiler_common *common, BOOL caseless, pcre_uchar *cc,
     compare_context* context, jump_list **fallbacks)
@@ -2445,7 +2451,7 @@ static pcre_uchar *byte_sequence_compare(compiler_common *common, BOOL caseless,
 DEFINE_COMPILER;
 unsigned int othercasebit = 0;
 pcre_uchar *othercasechar = NULL;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 int utflength;
 #endif
 
@@ -2588,7 +2594,7 @@ do
 #endif
 
   cc++;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   utflength--;
   }
 while (utflength > 0);
@@ -2646,7 +2652,7 @@ if ((*cc++ & XCL_MAP) != 0)
   OP1(SLJIT_MOV, TMP3, 0, TMP1, 0);
 #ifndef COMPILE_PCRE8
   jump = CMP(SLJIT_C_GREATER, TMP1, 0, SLJIT_IMM, 255);
-#elif defined SUPPORT_UTF8
+#elif defined SUPPORT_UTF
   if (common->utf)
     jump = CMP(SLJIT_C_GREATER, TMP1, 0, SLJIT_IMM, 255);
 #endif
@@ -2660,7 +2666,7 @@ if ((*cc++ & XCL_MAP) != 0)
 
 #ifndef COMPILE_PCRE8
   JUMPHERE(jump);
-#elif defined SUPPORT_UTF8
+#elif defined SUPPORT_UTF
   if (common->utf)
     JUMPHERE(jump);
 #endif
@@ -2795,7 +2801,7 @@ while (*cc != XCL_END)
   if (*cc == XCL_SINGLE)
     {
     cc ++;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (common->utf)
       {
       GETCHARINC(c, cc);
@@ -2826,7 +2832,7 @@ while (*cc != XCL_END)
   else if (*cc == XCL_RANGE)
     {
     cc ++;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (common->utf)
       {
       GETCHARINC(c, cc);
@@ -2835,7 +2841,7 @@ while (*cc != XCL_END)
 #endif
       c = *cc++;
     SET_CHAR_OFFSET(c);
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (common->utf)
       {
       GETCHARINC(c, cc);
@@ -2963,7 +2969,7 @@ int length;
 unsigned int c, oc, bit;
 compare_context context;
 struct sljit_jump *jump[4];
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 struct sljit_label *label;
 #ifdef SUPPORT_UCP
 pcre_uchar propdata[5];
@@ -3063,7 +3069,7 @@ switch(type)
   OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
   return cc;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 #ifdef SUPPORT_UCP
   case OP_NOTPROP:
   case OP_PROP:
@@ -3279,7 +3285,7 @@ switch(type)
     }
   check_input_end(common, fallbacks);
   read_char(common);
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   if (common->utf)
     {
     GETCHAR(c, cc);
@@ -3296,16 +3302,14 @@ switch(type)
 
   case OP_NOT:
   case OP_NOTI:
+  check_input_end(common, fallbacks);
+  length = 1;
 #ifdef SUPPORT_UTF
   if (common->utf)
     {
-    length = 1;
-    if (HAS_EXTRALEN(*cc)) length += GET_EXTRALEN(*cc);
-
-    check_input_end(common, fallbacks);
-    GETCHAR(c, cc);
-
-    if (c <= 127)
+#ifdef COMPILE_PCRE8
+    c = *cc;
+    if (c < 128)
       {
       OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(STR_PTR), 0);
       if (type == OP_NOT || !char_has_othercase(common, cc))
@@ -3317,24 +3321,24 @@ switch(type)
         add_jump(compiler, fallbacks, CMP(SLJIT_C_EQUAL, TMP2, 0, SLJIT_IMM, c | 0x20));
         }
       /* Skip the variable-length character. */
-      OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, 1);
+      OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
       jump[0] = CMP(SLJIT_C_LESS, TMP1, 0, SLJIT_IMM, 0xc0);
-#ifdef COMPILE_PCRE8
-      OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
-#endif
+      OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)PRIV(utf8_table4) - 0xc0);
       OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, TMP1, 0);
       JUMPHERE(jump[0]);
-      return cc + length;
+      return cc + 1;
       }
     else
+#endif /* COMPILE_PCRE8 */
+      {
+      GETCHARLEN(c, cc, length);
       read_char(common);
+      }
     }
   else
-#endif
+#endif /* SUPPORT_UTF */
     {
-    OP2(SLJIT_ADD, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(1));
-    add_jump(compiler, fallbacks, CMP(SLJIT_C_GREATER, STR_PTR, 0, STR_END, 0));
-    OP1(MOV_UCHAR, TMP1, 0, SLJIT_MEM1(STR_PTR), IN_UCHARS(-1));
+    read_char(common);
     c = *cc;
     }
 
@@ -3363,10 +3367,11 @@ switch(type)
   read_char(common);
 #if defined SUPPORT_UTF || !defined COMPILE_PCRE8
   jump[0] = NULL;
-#ifdef SUPPORT_UTF8
-  /* This check can only be skipped in pure 8 bit mode. */
+#ifdef COMPILE_PCRE8
+  /* This check only affects 8 bit mode. In other modes, we
+  always need to compare the value with 255. */
   if (common->utf)
-#endif
+#endif /* COMPILE_PCRE8 */
     {
     jump[0] = CMP(SLJIT_C_GREATER, TMP1, 0, SLJIT_IMM, 255);
     if (type == OP_CLASS)
@@ -3375,7 +3380,7 @@ switch(type)
       jump[0] = NULL;
       }
     }
-#endif
+#endif /* SUPPORT_UTF || !COMPILE_PCRE8 */
   OP2(SLJIT_AND, TMP2, 0, TMP1, 0, SLJIT_IMM, 0x7);
   OP2(SLJIT_LSHR, TMP1, 0, TMP1, 0, SLJIT_IMM, 3);
   OP1(SLJIT_MOV_UB, TMP1, 0, SLJIT_MEM1(TMP1), (sljit_w)cc);
@@ -3385,7 +3390,7 @@ switch(type)
 #if defined SUPPORT_UTF || !defined COMPILE_PCRE8
   if (jump[0] != NULL)
     JUMPHERE(jump[0]);
-#endif
+#endif /* SUPPORT_UTF || !COMPILE_PCRE8 */
   return cc + 32 / sizeof(pcre_uchar);
 
 #if defined SUPPORT_UTF || defined COMPILE_PCRE16
@@ -3399,7 +3404,7 @@ switch(type)
   SLJIT_ASSERT(length > 0);
   OP1(SLJIT_MOV, TMP1, 0, ARGUMENTS, 0);
   OP1(SLJIT_MOV, TMP1, 0, SLJIT_MEM1(TMP1), SLJIT_OFFSETOF(jit_arguments, begin));
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   if (common->utf)
     {
     OP1(SLJIT_MOV, TMP2, 0, SLJIT_IMM, length);
@@ -3411,7 +3416,7 @@ switch(type)
     return cc + LINK_SIZE;
     }
 #endif
-  OP2(SLJIT_SUB, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, length);
+  OP2(SLJIT_SUB, STR_PTR, 0, STR_PTR, 0, SLJIT_IMM, IN_UCHARS(length));
   add_jump(compiler, fallbacks, CMP(SLJIT_C_LESS, STR_PTR, 0, TMP1, 0));
   return cc + LINK_SIZE;
   }
@@ -3548,8 +3553,7 @@ OP1(SLJIT_MOV, TMP1, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(offset));
 if (withchecks && !common->jscript_compat)
   add_jump(compiler, fallbacks, CMP(SLJIT_C_EQUAL, TMP1, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(1)));
 
-#ifdef SUPPORT_UTF8
-#ifdef SUPPORT_UCP
+#if defined SUPPORT_UTF && defined SUPPORT_UCP
 if (common->utf && *cc == OP_REFI)
   {
   SLJIT_ASSERT(TMP1 == SLJIT_TEMPORARY_REG1 && STACK_TOP == SLJIT_TEMPORARY_REG2 && TMP2 == SLJIT_TEMPORARY_REG3);
@@ -3567,8 +3571,7 @@ if (common->utf && *cc == OP_REFI)
   OP1(SLJIT_MOV, STR_PTR, 0, SLJIT_RETURN_REG, 0);
   }
 else
-#endif
-#endif
+#endif /* SUPPORT_UTF && SUPPORT_UCP */
   {
   OP2(SLJIT_SUB | SLJIT_SET_E, TMP2, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), OVECTOR(offset + 1), TMP1, 0);
   if (withchecks)
@@ -6422,7 +6425,7 @@ common->vspace = NULL;
 common->casefulcmp = NULL;
 common->caselesscmp = NULL;
 common->jscript_compat = (re->options & PCRE_JAVASCRIPT_COMPAT) != 0;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 /* PCRE_UTF16 has the same value as PCRE_UTF8. */
 common->utf = (re->options & PCRE_UTF8) != 0;
 #ifdef SUPPORT_UCP
@@ -6432,7 +6435,7 @@ common->utfreadchar = NULL;
 #ifdef COMPILE_PCRE8
 common->utfreadtype8 = NULL;
 #endif
-#endif /* SUPPORT_UTF8 */
+#endif /* SUPPORT_UTF */
 #ifdef SUPPORT_UCP
 common->getucd = NULL;
 #endif

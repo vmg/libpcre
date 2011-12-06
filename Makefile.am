@@ -211,6 +211,7 @@ lib_LTLIBRARIES += libpcre16.la
 libpcre16_la_SOURCES = \
   pcre16_chartables.c \
   pcre16_compile.c \
+  pcre16_config.c \
   pcre16_exec.c \
   pcre16_fullinfo.c \
   pcre16_info.c \
