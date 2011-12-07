@@ -51,6 +51,29 @@ strings to host byte order. */
 
 #include "pcre_internal.h"
 
+/*************************************************
+*  Convert any UTF-16 string to host byte order  *
+*************************************************/
+
+/* This function takes an UTF-16 string and converts
+it to host byte order. The length can be explicitly set,
+or autmatically detected for zero terminated strings.
+BOMs can be kept or discarded during the conversion.
+Conversion can be done in place (output == input).
+
+Arguments:
+  output     the output buffer, its size must be greater
+             or equal than the input string
+  input      any UTF-16 string
+  length     the number of characters in the input string
+             can be less than zero for zero terminated strings
+  keep_boms  for a non-zero value, the BOM (0xfeff) characters
+             are copied as well
+
+Returns:     the number of characters placed into the output buffer,
+             including the zero-terminator
+*/
+
 int
 pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input, int length, int keep_boms)
 {
@@ -58,25 +81,31 @@ pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input, int len
 /* This function converts any UTF-16 string to host byte order and optionally removes
 any Byte Order Marks (BOMS). Returns with the remainig length. */
 BOOL same_bo = TRUE;
-PCRE_SPTR16 end = input + length;
+pcre_uchar *optr = (pcre_uchar *)output;
+const pcre_uchar *iptr = (const pcre_uchar *)input;
+const pcre_uchar *end;
 /* The c variable must be unsigned. */
 register pcre_uchar c;
 
-while (input < end)
+if (length < 0)
+  length = STRLEN_UC(iptr) + 1;
+end = iptr + length;
+
+while (iptr < end)
   {
-  c = *input++;
+  c = *iptr++;
   if (c == 0xfeff || c == 0xfffe)
     {
     /* Detecting the byte order of the machine is unnecessary, it is
     enough to know that the UTF-16 string has the same byte order or not. */
     same_bo = c == 0xfeff;
     if (keep_boms != 0)
-      *output++ = 0xfeff;
+      *optr++ = 0xfeff;
     else
       length--;
     }
   else
-    *output++ = same_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
+    *optr++ = same_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
   }
 
 #else

@@ -181,7 +181,7 @@ ASCII characters. */
 
 if (caseless)
   {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 #ifdef SUPPORT_UCP
   if (md->utf)
     {
@@ -365,7 +365,7 @@ typedef struct heapframe {
   /* Function local variables */
 
   PCRE_PUCHAR Xcallpat;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   PCRE_PUCHAR Xcharptr;
 #endif
   PCRE_PUCHAR Xdata;
@@ -527,7 +527,7 @@ HEAP_RECURSE:
 
 /* Ditto for the local variables */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 #define charptr            frame->Xcharptr
 #endif
 #define callpat            frame->Xcallpat
@@ -585,7 +585,7 @@ declarations can be cut out in a block. The only declarations within blocks
 below are for variables that do not have to be preserved over a recursive call
 to RMATCH(). */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 const pcre_uchar *charptr;
 #endif
 const pcre_uchar *callpat;
@@ -634,6 +634,7 @@ the alternative names that are used. */
 #define code_offset   codelink
 #define condassert    condition
 #define matched_once  prev_is_word
+#define foc           number
 
 /* These statements are here to stop the compiler complaining about unitialized
 variables. */
@@ -659,7 +660,7 @@ defined). However, RMATCH isn't like a function call because it's quite a
 complicated macro. It has to be used in one particular way. This shouldn't,
 however, impact performance when true recursion is being used. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 utf = md->utf;       /* Local copy of the flag */
 #else
 utf = FALSE;
@@ -1596,7 +1597,7 @@ for (;;)
     back a number of characters, not bytes. */
 
     case OP_REVERSE:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf)
       {
       i = GET(ecode, 1);
@@ -2216,7 +2217,7 @@ for (;;)
       }
     GETCHARINCTEST(c, eptr);
     if (
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
        c < 256 &&
 #endif
        (md->ctypes[c] & ctype_digit) != 0
@@ -2233,8 +2234,8 @@ for (;;)
       }
     GETCHARINCTEST(c, eptr);
     if (
-#ifdef SUPPORT_UTF8
-       c >= 256 ||
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
+       c > 255 ||
 #endif
        (md->ctypes[c] & ctype_digit) == 0
        )
@@ -2250,7 +2251,7 @@ for (;;)
       }
     GETCHARINCTEST(c, eptr);
     if (
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
        c < 256 &&
 #endif
        (md->ctypes[c] & ctype_space) != 0
@@ -2267,8 +2268,8 @@ for (;;)
       }
     GETCHARINCTEST(c, eptr);
     if (
-#ifdef SUPPORT_UTF8
-       c >= 256 ||
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
+       c > 255 ||
 #endif
        (md->ctypes[c] & ctype_space) == 0
        )
@@ -2284,7 +2285,7 @@ for (;;)
       }
     GETCHARINCTEST(c, eptr);
     if (
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
        c < 256 &&
 #endif
        (md->ctypes[c] & ctype_word) != 0
@@ -2301,8 +2302,8 @@ for (;;)
       }
     GETCHARINCTEST(c, eptr);
     if (
-#ifdef SUPPORT_UTF8
-       c >= 256 ||
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
+       c > 255 ||
 #endif
        (md->ctypes[c] & ctype_word) == 0
        )
@@ -3036,7 +3037,7 @@ for (;;)
     /* Match a single character, casefully */
 
     case OP_CHAR:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf)
       {
       length = 1;
@@ -3108,7 +3109,7 @@ for (;;)
         }
       }
     else
-#endif   /* SUPPORT_UTF8 */
+#endif   /* SUPPORT_UTF */
 
     /* Not UTF mode */
       {
@@ -3117,7 +3118,9 @@ for (;;)
         SCHECK_PARTIAL();            /* This one can use SCHECK_PARTIAL() */
         MRRETURN(MATCH_NOMATCH);
         }
-      if (md->lcc[ecode[1]] != md->lcc[*eptr++]) MRRETURN(MATCH_NOMATCH);
+      if (TABLE_GET(ecode[1], md->lcc, ecode[1])
+          != TABLE_GET(*eptr, md->lcc, *eptr)) MRRETURN(MATCH_NOMATCH);
+      eptr++;
       ecode += 2;
       }
     break;
@@ -3190,7 +3193,7 @@ for (;;)
     /* Common code for all repeated single-character matches. */
 
     REPEATCHAR:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf)
       {
       length = 1;
@@ -3214,7 +3217,7 @@ for (;;)
         for (i = 1; i <= min; i++)
           {
           if (eptr <= md->end_subject - length &&
-            memcmp(eptr, charptr, length) == 0) eptr += length;
+            memcmp(eptr, charptr, IN_UCHARS(length)) == 0) eptr += length;
 #ifdef SUPPORT_UCP
           else if (oclength > 0 &&
                    eptr <= md->end_subject - oclength &&
@@ -3237,7 +3240,7 @@ for (;;)
             if (rrc != MATCH_NOMATCH) RRETURN(rrc);
             if (fi >= max) MRRETURN(MATCH_NOMATCH);
             if (eptr <= md->end_subject - length &&
-              memcmp(eptr, charptr, length) == 0) eptr += length;
+              memcmp(eptr, charptr, IN_UCHARS(length)) == 0) eptr += length;
 #ifdef SUPPORT_UCP
             else if (oclength > 0 &&
                      eptr <= md->end_subject - oclength &&
@@ -3258,7 +3261,7 @@ for (;;)
           for (i = min; i < max; i++)
             {
             if (eptr <= md->end_subject - length &&
-                memcmp(eptr, charptr, length) == 0) eptr += length;
+                memcmp(eptr, charptr, IN_UCHARS(length)) == 0) eptr += length;
 #ifdef SUPPORT_UCP
             else if (oclength > 0 &&
                      eptr <= md->end_subject - oclength &&
@@ -3294,14 +3297,12 @@ for (;;)
       value of fc will always be < 128. */
       }
     else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
+      /* When not in UTF-8 mode, load a single-byte character. */
+      fc = *ecode++;
 
-    /* When not in UTF-8 mode, load a single-byte character. */
-
-    fc = *ecode++;
-
-    /* The value of fc at this point is always less than 256, though we may or
-    may not be in UTF-8 mode. The code is duplicated for the caseless and
+    /* The value of fc at this point is always one character, though we may
+    or may not be in UTF mode. The code is duplicated for the caseless and
     caseful cases, for speed, since matching characters is likely to be quite
     common. First, ensure the minimum number of matches are present. If min =
     max, continue at the same level without recursing. Otherwise, if
@@ -3314,7 +3315,23 @@ for (;;)
 
     if (op >= OP_STARI)  /* Caseless */
       {
-      fc = md->lcc[fc];
+#ifdef COMPILE_PCRE8
+      /* fc must be < 128 */
+      foc = md->fcc[fc];
+#else
+#ifdef SUPPORT_UTF
+#ifdef SUPPORT_UCP
+      if (utf && fc > 127)
+        foc = UCD_OTHERCASE(fc);
+#else
+      if (utf && fc > 127)
+        foc = fc;
+#endif /* SUPPORT_UCP */
+      else
+#endif /* SUPPORT_UTF */
+        foc = TABLE_GET(fc, md->fcc, fc);
+#endif /* COMPILE_PCRE8 */
+
       for (i = 1; i <= min; i++)
         {
         if (eptr >= md->end_subject)
@@ -3322,7 +3339,8 @@ for (;;)
           SCHECK_PARTIAL();
           MRRETURN(MATCH_NOMATCH);
           }
-        if (fc != md->lcc[*eptr++]) MRRETURN(MATCH_NOMATCH);
+        if (fc != *eptr && foc != *eptr) MRRETURN(MATCH_NOMATCH);
+        eptr++;
         }
       if (min == max) continue;
       if (minimize)
@@ -3337,7 +3355,8 @@ for (;;)
             SCHECK_PARTIAL();
             MRRETURN(MATCH_NOMATCH);
             }
-          if (fc != md->lcc[*eptr++]) MRRETURN(MATCH_NOMATCH);
+          if (fc != *eptr && foc != *eptr) MRRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         /* Control never gets here */
         }
@@ -3351,7 +3370,7 @@ for (;;)
             SCHECK_PARTIAL();
             break;
             }
-          if (fc != md->lcc[*eptr]) break;
+          if (fc != *eptr && foc != *eptr) break;
           eptr++;
           }
 
@@ -3440,10 +3459,10 @@ for (;;)
     GETCHARINCTEST(c, eptr);
     if (op == OP_NOTI)         /* The caseless case */
       {
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
       if (c < 256)
 #endif
-      c = md->lcc[c];
+        c = md->lcc[c];
       if (md->lcc[*ecode++] == c) MRRETURN(MATCH_NOMATCH);
       }
     else    /* Caseful */
@@ -3543,9 +3562,9 @@ for (;;)
 
     if (op >= OP_NOTSTARI)     /* Caseless */
       {
-      fc = md->lcc[fc];
+      fc = TABLE_GET(fc, md->lcc, fc);
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         register unsigned int d;
@@ -3580,7 +3599,7 @@ for (;;)
 
       if (minimize)
         {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf)
           {
           register unsigned int d;
@@ -3625,7 +3644,7 @@ for (;;)
         {
         pp = eptr;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf)
           {
           register unsigned int d;
@@ -3683,7 +3702,7 @@ for (;;)
 
     else
       {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         register unsigned int d;
@@ -3717,7 +3736,7 @@ for (;;)
 
       if (minimize)
         {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf)
           {
           register unsigned int d;
@@ -3761,7 +3780,7 @@ for (;;)
         {
         pp = eptr;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf)
           {
           register unsigned int d;
@@ -4353,7 +4372,7 @@ for (;;)
         }  /* End switch(ctype) */
 
       else
-#endif     /* SUPPORT_UTF8 */
+#endif     /* SUPPORT_UTF */
 
       /* Code for the non-UTF-8 case for minimum matching of operators other
       than OP_PROP and OP_NOTPROP. */
@@ -4796,7 +4815,7 @@ for (;;)
       else
 #endif     /* SUPPORT_UCP */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         for (fi = min;; fi++)
@@ -5596,7 +5615,7 @@ for (;;)
           }
         }
       else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
       /* Not UTF mode */
         {
         switch(ctype)
@@ -5844,14 +5863,14 @@ switch (frame->Xwhere)
   LBL(35) LBL(43) LBL(47) LBL(48) LBL(49) LBL(50) LBL(51) LBL(52)
   LBL(53) LBL(54) LBL(55) LBL(56) LBL(57) LBL(58) LBL(63) LBL(64)
   LBL(65) LBL(66)
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   LBL(16) LBL(18) LBL(20) LBL(21) LBL(22) LBL(23) LBL(28) LBL(30)
   LBL(32) LBL(34) LBL(42) LBL(46)
 #ifdef SUPPORT_UCP
   LBL(36) LBL(37) LBL(38) LBL(39) LBL(40) LBL(41) LBL(44) LBL(45)
   LBL(59) LBL(60) LBL(61) LBL(62)
 #endif  /* SUPPORT_UCP */
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
   default:
   DPRINTF(("jump error in pcre match: label %d non-existent\n", frame->Xwhere));
   return PCRE_ERROR_INTERNAL;
@@ -6002,7 +6021,7 @@ md->partial = ((options & PCRE_PARTIAL_HARD) != 0)? 2 :
 /* Check a UTF-8 string if required. Pass back the character offset and error
 code for an invalid string if a results vector is available. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
@@ -6138,6 +6157,7 @@ md->recursive = NULL;                   /* No recursion at top level */
 md->hasthen = (re->flags & PCRE_HASTHEN) != 0;
 
 md->lcc = tables + lcc_offset;
+md->fcc = tables + fcc_offset;
 md->ctypes = tables + ctypes_offset;
 
 /* Handle different \R options. */
@@ -6265,7 +6285,7 @@ if (!anchored)
     first_char = first_char2 = re->first_char;
     if ((re->flags & PCRE_FCH_CASELESS) != 0)
       {
-      first_char2 = TABLE_GET(first_char, tables + fcc_offset, first_char);
+      first_char2 = TABLE_GET(first_char, md->fcc, first_char);
 #if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
       if (utf && first_char > 127)
         first_char2 = UCD_OTHERCASE(first_char);
@@ -6287,7 +6307,7 @@ if ((re->flags & PCRE_REQCHSET) != 0)
   req_char = req_char2 = re->req_char;
   if ((re->flags & PCRE_RCH_CASELESS) != 0)
     {
-    req_char2 = TABLE_GET(req_char, tables + fcc_offset, req_char);
+    req_char2 = TABLE_GET(req_char, md->fcc, req_char);
 #if defined SUPPORT_UCP && !(defined COMPILE_PCRE8)
     if (utf && req_char > 127)
       req_char2 = UCD_OTHERCASE(req_char);

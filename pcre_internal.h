@@ -2055,6 +2055,7 @@ typedef struct match_data {
   pcre_uchar *name_table;         /* Table of names */
   pcre_uchar nl[4];               /* Newline string when fixed */
   const  pcre_uint8 *lcc;         /* Points to lower casing table */
+  const  pcre_uint8 *fcc;         /* Points to case-flipping table */
   const  pcre_uint8 *ctypes;      /* Points to table of type maps */
   BOOL   offset_overflow;         /* Set if too many extractions */
   BOOL   notbol;                  /* NOTBOL flag */
@@ -2262,6 +2263,7 @@ extern const int         PRIV(ucp_gentype)[];
 extern const int         PRIV(ucp_typerange)[];
 #endif
 
+#ifdef SUPPORT_UCP
 /* UCD access macros */
 
 #define UCD_BLOCK_SIZE 128
@@ -2273,6 +2275,8 @@ extern const int         PRIV(ucp_typerange)[];
 #define UCD_SCRIPT(ch)    GET_UCD(ch)->script
 #define UCD_CATEGORY(ch)  PRIV(ucp_gentype)[UCD_CHARTYPE(ch)]
 #define UCD_OTHERCASE(ch) (ch + GET_UCD(ch)->other_case)
+
+#endif /* SUPPORT_UCP */
 
 #endif
 

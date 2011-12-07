@@ -621,11 +621,11 @@ pcre_jit_stack* callback(void *arg)
 	return (pcre_jit_stack *)arg;
 }
 
-static void setstack(pcre_extra *extra, int realloc)
+static void setstack(pcre_extra *extra, int alloc_again)
 {
 	static pcre_jit_stack *stack;
 
-	if (realloc) {
+	if (alloc_again) {
 		if (stack)
 			pcre_jit_stack_free(stack);
 		stack = pcre_jit_stack_alloc(1, 1024 * 1024);
@@ -638,29 +638,29 @@ static void setstack(pcre_extra *extra, int realloc)
 
 static int convert_utf8_to_utf16(const char *input, PCRE_SCHAR16 *output, int *offsetmap, int max_length)
 {
-	unsigned char *ptr = (unsigned char*)input;
-	PCRE_SCHAR16 *optr = output;
+	unsigned char *iptr = (unsigned char*)input;
+	unsigned short *optr = (unsigned short *)output;
 	unsigned int c;
 
 	if (max_length == 0)
 		return 0;
 
-	while (*ptr && max_length > 1) {
+	while (*iptr && max_length > 1) {
 		c = 0;
 		if (offsetmap)
-			*offsetmap++ = (int)(ptr - (unsigned char*)input);
+			*offsetmap++ = (int)(iptr - (unsigned char*)input);
 
-		if (!(*ptr & 0x80))
-			c = *ptr++;
-		else if (!(*ptr & 0x20)) {
-			c = ((ptr[0] & 0x1f) << 6) | (ptr[1] & 0x3f);
-			ptr += 2;
-		} else if (!(*ptr & 0x10)) {
-			c = ((ptr[0] & 0x0f) << 12) | ((ptr[1] & 0x3f) << 6) | (ptr[2] & 0x3f);
-			ptr += 3;
-		} else if (!(*ptr & 0x08)) {
-			c = ((ptr[0] & 0x07) << 18) | ((ptr[1] & 0x3f) << 12) | ((ptr[2] & 0x3f) << 6) | (ptr[3] & 0x3f);
-			ptr += 4;
+		if (!(*iptr & 0x80))
+			c = *iptr++;
+		else if (!(*iptr & 0x20)) {
+			c = ((iptr[0] & 0x1f) << 6) | (iptr[1] & 0x3f);
+			iptr += 2;
+		} else if (!(*iptr & 0x10)) {
+			c = ((iptr[0] & 0x0f) << 12) | ((iptr[1] & 0x3f) << 6) | (iptr[2] & 0x3f);
+			iptr += 3;
+		} else if (!(*iptr & 0x08)) {
+			c = ((iptr[0] & 0x07) << 18) | ((iptr[1] & 0x3f) << 12) | ((iptr[2] & 0x3f) << 6) | (iptr[3] & 0x3f);
+			iptr += 4;
 		}
 
 		if (c < 65536) {
@@ -668,7 +668,7 @@ static int convert_utf8_to_utf16(const char *input, PCRE_SCHAR16 *output, int *o
 			max_length--;
 		} else if (max_length <= 2) {
 			*optr = '\0';
-			return optr - output;
+			return (int)(optr - (unsigned short *)output);
 		} else {
 			c -= 0x10000;
 			*optr++ = 0xd800 | ((c >> 10) & 0x3ff);
@@ -679,24 +679,25 @@ static int convert_utf8_to_utf16(const char *input, PCRE_SCHAR16 *output, int *o
 		}
 	}
 	if (offsetmap)
-		*offsetmap = (int)(ptr - (unsigned char*)input);
+		*offsetmap = (int)(iptr - (unsigned char*)input);
 	*optr = '\0';
-	return optr - output;
+	return (int)(optr - (unsigned short *)output);
 }
 
 static int copy_char8_to_char16(const char *input, PCRE_SCHAR16 *output, int max_length)
 {
-	PCRE_SCHAR16 *optr = output;
+	unsigned char *iptr = (unsigned char*)input;
+	unsigned short *optr = (unsigned short *)output;
 
 	if (max_length == 0)
 		return 0;
 
-	while (*input && max_length > 1) {
-		*optr++ = *input++;
+	while (*iptr && max_length > 1) {
+		*optr++ = *iptr++;
 		max_length--;
 	}
 	*optr = '\0';
-	return optr - output;
+	return (int)(optr - (unsigned short *)output);
 }
 
 #define REGTEST_MAX_LENGTH 4096
@@ -768,6 +769,7 @@ static int regression_tests(void)
 			current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags8),
 			&error, &err_offs, NULL);
 
+		extra8 = NULL;
 		if (re8) {
 			error = NULL;
 			extra8 = pcre_study(re8, PCRE_STUDY_JIT_COMPILE, &error);
@@ -786,10 +788,15 @@ static int regression_tests(void)
 			printf("\n8 bit: Cannot compile pattern: %s\n", current->pattern);
 #endif
 #ifdef SUPPORT_PCRE16
-		convert_utf8_to_utf16(current->pattern, regtest_buf, NULL, REGTEST_MAX_LENGTH);
+		if (current->flags & PCRE_UTF8)
+			convert_utf8_to_utf16(current->pattern, regtest_buf, NULL, REGTEST_MAX_LENGTH);
+		else
+			copy_char8_to_char16(current->pattern, regtest_buf, REGTEST_MAX_LENGTH);
 		re16 = pcre16_compile(regtest_buf,
 			current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags16),
 			&error, &err_offs, NULL);
+
+		extra16 = NULL;
 		if (re16) {
 			error = NULL;
 			extra16 = pcre16_study(re16, PCRE_STUDY_JIT_COMPILE, &error);
@@ -813,6 +820,8 @@ static int regression_tests(void)
 			setstack(NULL, 1);
 
 #ifdef SUPPORT_PCRE8
+		return_value8_1 = -1000;
+		return_value8_2 = -1000;
 		if (re8) {
 			setstack(extra8, 0);
 			for (i = 0; i < 32; ++i)
@@ -828,6 +837,8 @@ static int regression_tests(void)
 #endif
 
 #ifdef SUPPORT_PCRE16
+		return_value16_1 = -1000;
+		return_value16_2 = -1000;
 		if (re16) {
 			setstack(extra16, 0);
 			if (current->flags & PCRE_UTF8)
@@ -853,7 +864,7 @@ static int regression_tests(void)
 		is_succesful = 1;
 		if (!(current->flags & PCRE_BUG)) {
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
-			if ((current->flags & PCRE_UTF8) && utf8 && utf16) {
+			if (utf8 == utf16) {
 				/* All results must be the same. */
 				if (return_value8_1 != return_value8_2 || return_value8_1 != return_value16_1 || return_value8_1 != return_value16_2) {
 					printf("\n8 and 16 bit: Return value differs(%d:%d:%d:%d): [%d] '%s' @ '%s'\n",
@@ -863,11 +874,13 @@ static int regression_tests(void)
 				} else if (return_value8_1 >= 0) {
 					return_value8_1 *= 2;
 					/* Transform back the results. */
-					for (i = 0; i < return_value8_1; ++i) {
-						if (ovector16_1[i] >= 0)
-							ovector16_1[i] = regtest_offsetmap[ovector16_1[i]];
-						if (ovector16_2[i] >= 0)
-							ovector16_2[i] = regtest_offsetmap[ovector16_2[i]];
+					if (current->flags & PCRE_UTF8) {
+						for (i = 0; i < return_value8_1; ++i) {
+							if (ovector16_1[i] >= 0)
+								ovector16_1[i] = regtest_offsetmap[ovector16_1[i]];
+							if (ovector16_2[i] >= 0)
+								ovector16_2[i] = regtest_offsetmap[ovector16_2[i]];
+						}
 					}
 
 					for (i = 0; i < return_value8_1; ++i)

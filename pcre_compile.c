@@ -4202,11 +4202,10 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF
         if (utf && (d > 255 || ((options & PCRE_CASELESS) != 0 && d > 127)))
-#endif
-#ifndef COMPILE_PCRE8
+#elif !(defined COMPILE_PCRE8)
         if (d > 255)
 #endif
-#if defined SUPPORT_UTF || defined COMPILE_PCRE16
+#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
           {
           xclass = TRUE;
 
@@ -5817,9 +5816,9 @@ for (;; ptr++)
               *errorcodeptr = ERR49;
               goto FAILED;
               }
-            if (namelen + 3 > cd->name_entry_size)
+            if (namelen + IMM2_SIZE + 1 > cd->name_entry_size)
               {
-              cd->name_entry_size = namelen + 3;
+              cd->name_entry_size = namelen + IMM2_SIZE + 1;
               if (namelen > MAX_NAME_SIZE)
                 {
                 *errorcodeptr = ERR48;
@@ -5848,10 +5847,10 @@ for (;; ptr++)
 
             for (i = 0; i < cd->names_found; i++)
               {
-              int crc = memcmp(name, slot+2, IN_UCHARS(namelen));
+              int crc = memcmp(name, slot+IMM2_SIZE, IN_UCHARS(namelen));
               if (crc == 0)
                 {
-                if (slot[2+namelen] == 0)
+                if (slot[IMM2_SIZE+namelen] == 0)
                   {
                   if (GET2(slot, 0) != cd->bracount + 1 &&
                       (options & PCRE_DUPNAMES) == 0)
@@ -5903,8 +5902,8 @@ for (;; ptr++)
               }
 
             PUT2(slot, 0, cd->bracount + 1);
-            memcpy(slot + 2, name, IN_UCHARS(namelen));
-            slot[2 + namelen] = 0;
+            memcpy(slot + IMM2_SIZE, name, IN_UCHARS(namelen));
+            slot[IMM2_SIZE + namelen] = 0;
             }
           }
 
@@ -5988,7 +5987,7 @@ for (;; ptr++)
           for (i = 0; i < cd->names_found; i++)
             {
             if (STRNCMP_UC_UC(name, slot+IMM2_SIZE, namelen) == 0 &&
-                slot[2+namelen] == 0)
+                slot[IMM2_SIZE+namelen] == 0)
               break;
             slot += cd->name_entry_size;
             }
@@ -7614,7 +7613,7 @@ externally provided function. Integer overflow should no longer be possible
 because nowadays we limit the maximum value of cd->names_found and
 cd->name_entry_size. */
 
-size = sizeof(real_pcre) + (length + cd->names_found * (cd->name_entry_size + 3)) * sizeof(pcre_uchar);
+size = sizeof(real_pcre) + (length + cd->names_found * cd->name_entry_size) * sizeof(pcre_uchar);
 re = (real_pcre *)(pcre_malloc)(size);
 
 if (re == NULL)

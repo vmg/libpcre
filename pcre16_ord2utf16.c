@@ -86,11 +86,9 @@ cvalue -= 0x10000;
 return 2;
 
 #else
-
 (void)(cvalue);  /* Keep compiler happy; this function won't ever be */
 (void)(buffer);  /* called when SUPPORT_UTF8 is not defined. */
 return 0;
-
 #endif
 }
 
