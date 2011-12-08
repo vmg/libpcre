@@ -2683,7 +2683,7 @@ for (;;)
             const pcre_uchar *p = start_subject + local_offsets[rc];
             const pcre_uchar *pp = start_subject + local_offsets[rc+1];
             int charcount = local_offsets[rc+1] - local_offsets[rc];
-            while (p < pp) if ((*p++ & 0xc0) == 0x80) charcount--;
+            while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
             if (charcount > 0)
               {
               ADD_NEW_DATA(-(state_offset + LINK_SIZE + 1), 0, (charcount - 1));
@@ -2780,7 +2780,7 @@ for (;;)
             const pcre_uchar *p = ptr;
             const pcre_uchar *pp = local_ptr;
             charcount = pp - p;
-            while (p < pp) if ((*p++ & 0xc0) == 0x80) charcount--;
+            while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
             }
           }
@@ -2862,7 +2862,7 @@ for (;;)
             {
             const pcre_uchar *p = start_subject + local_offsets[0];
             const pcre_uchar *pp = start_subject + local_offsets[1];
-            while (p < pp) if ((*p++ & 0xc0) == 0x80) charcount--;
+            while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
             if (repeat_state_offset >= 0)
               { ADD_NEW_DATA(-repeat_state_offset, 0, (charcount - 1)); }
@@ -3144,7 +3144,7 @@ else
 /* Check a UTF-8 string if required. Unfortunately there's no way of passing
 back the character offset. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
   {
   int erroroffset;
@@ -3159,17 +3159,9 @@ if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
     return (errorcode <= PCRE_UTF8_ERR5 && (options & PCRE_PARTIAL_HARD) != 0)?
       PCRE_ERROR_SHORTUTF8 : PCRE_ERROR_BADUTF8;
     }
-#ifdef COMPILE_PCRE8
   if (start_offset > 0 && start_offset < length &&
-        (((PCRE_PUCHAR)subject)[start_offset] & 0xc0) == 0x80)
+        NOT_FIRSTCHAR(((PCRE_PUCHAR)subject)[start_offset]))
     return PCRE_ERROR_BADUTF8_OFFSET;
-#else
-#ifdef COMPILE_PCRE16
-  if (start_offset > 0 && start_offset < length &&
-        (((PCRE_PUCHAR)subject)[start_offset] & 0xfc00) == 0xdc00)
-    return PCRE_ERROR_BADUTF8_OFFSET;
-#endif /* COMPILE_PCRE16 */
-#endif /* COMPILE_PCRE8 */
   }
 #endif
 

@@ -57,33 +57,32 @@ the PRIV macro. */
 #define COMPILE_PCRE8
 #endif
 
-/* We do not support both EBCDIC and UTF-8/16 at the same time. The "configure"
-script prevents both being selected, but not everybody uses "configure". */
-
-#if defined EBCDIC && (defined SUPPORT_UTF8 || defined SUPPORT_UTF16)
-#error The use of both EBCDIC and SUPPORT_UTF8/16 is not supported.
-#endif
-
-/* If SUPPORT_UCP is defined, SUPPORT_UTF8 must also be defined. The
+/* If SUPPORT_UCP is defined, SUPPORT_UTF must also be defined. The
 "configure" script ensures this, but not everybody uses "configure". */
 
-#if defined SUPPORT_UCP && !defined SUPPORT_UTF8
+#if defined SUPPORT_UCP && !(defined SUPPORT_UTF)
+#define SUPPORT_UTF 1
+#endif
+
+/* We define SUPPORT_UTF if SUPPORT_UTF8 is enabled for compatibility
+reasons with existing code. */
+
+#if defined SUPPORT_UTF8 && !(defined SUPPORT_UTF)
+#define SUPPORT_UTF 1
+#endif
+
+/* Fixme: SUPPORT_UTF8 should be eventually disappear from the code.
+Until then we define it if SUPPORT_UTF is defined. */
+
+#if defined SUPPORT_UTF && !(defined SUPPORT_UTF8)
 #define SUPPORT_UTF8 1
 #endif
 
-/* If SUPPORT_UCP is defined, SUPPORT_UTF16 must also be defined. The
-"configure" script ensures this, but not everybody uses "configure". */
+/* We do not support both EBCDIC and UTF-8/16 at the same time. The "configure"
+script prevents both being selected, but not everybody uses "configure". */
 
-#if defined SUPPORT_UCP && defined COMPILE_PCRE16 && !defined SUPPORT_UTF16
-#define SUPPORT_UTF16 1
-#endif
-
-/* This macro is defined if either UTF-8 or UTF-16 support or both are
-enabled. */
-
-#if defined SUPPORT_UTF8 || defined SUPPORT_UTF16
-/* Unicode Transformation Format is enabled. */
-#define SUPPORT_UTF 1
+#if defined EBCDIC && defined SUPPORT_UTF
+#error The use of both EBCDIC and SUPPORT_UTF8/16 is not supported.
 #endif
 
 /* Use a macro for debugging printing, 'cause that eliminates the use of #ifdef
@@ -524,16 +523,18 @@ capturing parenthesis numbers in back references. */
 
 #define PUT2INC(a,n,d)  PUT2(a,n,d), a += IMM2_SIZE
 
-/* When UTF-8 encoding is being used, a character is no longer just a single
-byte. The macros for character handling generate simple sequences when used in
-byte-mode, and more complicated ones for UTF-8 characters. GETCHARLENTEST is
-not used when UTF-8 is not supported, so it is not defined, and BACKCHAR should
-never be called in byte mode. To make sure they can never even appear when
-UTF-8 support is omitted, we don't even define them. */
+/* When UTF encoding is being used, a character is no longer just a single
+character. The macros for character handling generate simple sequences when
+used in character-mode, and more complicated ones for UTF characters.
+GETCHARLENTEST and other macros are not used when UTF is not supported,
+so they are not defined. To make sure they can never even appear when
+UTF support is omitted, we don't even define them. */
+
+#ifndef SUPPORT_UTF
 
 /* #define HAS_EXTRALEN(c) */
 /* #define GET_EXTRALEN(c) */
-#ifndef SUPPORT_UTF
+/* #define NOT_FIRSTCHAR(c) */
 #define GETCHAR(c, eptr) c = *eptr;
 #define GETCHARTEST(c, eptr) c = *eptr;
 #define GETCHARINC(c, eptr) c = *eptr++;
@@ -561,6 +562,11 @@ significant performance advantage, and it seems never to do any harm. */
 Otherwise it has an undefined behaviour. */
 
 #define GET_EXTRALEN(c) (PRIV(utf8_table4)[(c) & 0x3f])
+
+/* Returns TRUE, if the given character is not the first character
+of a UTF sequence. */
+
+#define NOT_FIRSTCHAR(c) (((c) & 0xc0) == 0x80)
 
 /* Base macro to pick up the remaining bytes of a UTF-8 character, not
 advancing the pointer. */
@@ -723,6 +729,11 @@ because almost all calls are already within a block of UTF-8 only code. */
 Otherwise it has an undefined behaviour. */
 
 #define GET_EXTRALEN(c) 1
+
+/* Returns TRUE, if the given character is not the first character
+of a UTF sequence. */
+
+#define NOT_FIRSTCHAR(c) (((c) & 0xfc00) == 0xdc00)
 
 /* Base macro to pick up the low surrogate of a UTF-16 character, not
 advancing the pointer. */

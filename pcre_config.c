@@ -73,7 +73,7 @@ pcre16_config(int what, void *where)
 switch (what)
   {
   case PCRE_CONFIG_UTF8:
-#if defined SUPPORT_UTF8 && defined COMPILE_PCRE8
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
   *((int *)where) = 1;
 #else
   *((int *)where) = 0;
@@ -81,7 +81,7 @@ switch (what)
   break;
 
   case PCRE_CONFIG_UTF16:
-#if defined SUPPORT_UTF16 && defined COMPILE_PCRE16
+#if defined SUPPORT_UTF && defined COMPILE_PCRE16
   *((int *)where) = 1;
 #else
   *((int *)where) = 0;

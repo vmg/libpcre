@@ -77,7 +77,7 @@ Returns:     the number of characters placed into the output buffer,
 int
 pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input, int length, int keep_boms)
 {
-#ifdef SUPPORT_UTF16
+#ifdef SUPPORT_UTF
 /* This function converts any UTF-16 string to host byte order and optionally removes
 any Byte Order Marks (BOMS). Returns with the remainig length. */
 BOOL same_bo = TRUE;
@@ -108,11 +108,11 @@ while (iptr < end)
     *optr++ = same_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
   }
 
-#else
+#else /* SUPPORT_UTF */
 (void)(output);  /* Keep picky compilers happy */
 (void)(input);
 (void)(keep_boms);
-#endif
+#endif /* SUPPORT_UTF */
 return length;
 }
 

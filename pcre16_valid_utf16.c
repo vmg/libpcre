@@ -83,7 +83,7 @@ Returns:       = 0    if the string is a valid UTF-16 string
 int
 PRIV(valid_utf)(PCRE_PUCHAR string, int length, int *erroroffset)
 {
-#ifdef SUPPORT_UTF16
+#ifdef SUPPORT_UTF
 register PCRE_PUCHAR p;
 register pcre_uchar c;
 
@@ -135,10 +135,10 @@ for (p = string; length-- > 0; p++)
     }
   }
 
-#else  /* SUPPORT_UTF16 */
+#else  /* SUPPORT_UTF */
 (void)(string);  /* Keep picky compilers happy */
 (void)(length);
-#endif
+#endif /* SUPPORT_UTF */
 
 return PCRE_UTF16_ERR0;   /* This indicates success */
 }

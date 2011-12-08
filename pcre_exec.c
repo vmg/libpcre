@@ -6038,17 +6038,9 @@ if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
     }
 
   /* Check that a start_offset points to the start of a UTF character. */
-#ifdef COMPILE_PCRE8
   if (start_offset > 0 && start_offset < length &&
-      (((PCRE_PUCHAR)subject)[start_offset] & 0xc0) == 0x80)
+      NOT_FIRSTCHAR(((PCRE_PUCHAR)subject)[start_offset]))
     return PCRE_ERROR_BADUTF8_OFFSET;
-#else
-#ifdef COMPILE_PCRE16
-  if (start_offset > 0 && start_offset < length &&
-      (((PCRE_PUCHAR)subject)[start_offset] & 0xfc00) == 0xdc00)
-    return PCRE_ERROR_BADUTF8_OFFSET;
-#endif /* COMPILE_PCRE16 */
-#endif /* COMPILE_PCRE8 */
   }
 #endif
 

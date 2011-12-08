@@ -67,7 +67,7 @@ Returns:     number of characters placed in the buffer
 int
 PRIV(ord2utf)(pcre_uint32 cvalue, pcre_uchar *buffer)
 {
-#ifdef SUPPORT_UTF16
+#ifdef SUPPORT_UTF
 
 /* Checking invalid cvalue character, encoded as invalid UTF-16 character.
 Should never happen in practice. */
@@ -85,11 +85,11 @@ cvalue -= 0x10000;
 *buffer = 0xdc00 | (cvalue & 0x3ff);
 return 2;
 
-#else
+#else /* SUPPORT_UTF */
 (void)(cvalue);  /* Keep compiler happy; this function won't ever be */
 (void)(buffer);  /* called when SUPPORT_UTF8 is not defined. */
 return 0;
-#endif
+#endif /* SUPPORT_UTF */
 }
 
 /* End of pcre16_ord2utf16.c */

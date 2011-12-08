@@ -121,7 +121,7 @@ AC_ARG_ENABLE(pcre16,
 AC_ARG_ENABLE(cpp,
               AS_HELP_STRING([--disable-cpp],
                              [disable C++ support]),
-              , enable_cpp=yes)
+              , enable_cpp=unset)
 AC_SUBST(enable_cpp)
 
 # Handle --enable-jit (disabled by default)
@@ -145,19 +145,19 @@ AC_ARG_ENABLE(rebuild-chartables,
 # Handle --enable-utf8 (disabled by default)
 AC_ARG_ENABLE(utf8,
               AS_HELP_STRING([--enable-utf8],
-                             [enable UTF-8 support (incompatible with --enable-ebcdic)]),
+                             [another name for --enable-utf. Kept only for compatibility reasons]),
               , enable_utf8=unset)
 
-# Handle --enable-utf16 (disabled by default)
-AC_ARG_ENABLE(utf16,
-              AS_HELP_STRING([--enable-utf16],
-                             [enable UTF-16 support (incompatible with --enable-ebcdic)]),
-              , enable_utf16=unset)
+# Handle --enable-utf (disabled by default)
+AC_ARG_ENABLE(utf,
+              AS_HELP_STRING([--enable-utf],
+                             [enable UTF-8/16 support (incompatible with --enable-ebcdic)]),
+              , enable_utf=unset)
 
 # Handle --enable-unicode-properties
 AC_ARG_ENABLE(unicode-properties,
               AS_HELP_STRING([--enable-unicode-properties],
-                             [enable Unicode properties support (implies --enable-utf8 and --enable-utf16)]),
+                             [enable Unicode properties support (implies --enable-utf)]),
               , enable_unicode_properties=no)
 
 # Handle --enable-newline=NL
@@ -199,7 +199,7 @@ AC_ARG_ENABLE(bsr-anycrlf,
 # Handle --enable-ebcdic
 AC_ARG_ENABLE(ebcdic,
               AS_HELP_STRING([--enable-ebcdic],
-                             [assume EBCDIC coding rather than ASCII; incompatible with --enable-utf8; use only in (uncommon) EBCDIC environments; it implies --enable-rebuild-chartables]),
+                             [assume EBCDIC coding rather than ASCII; incompatible with --enable-utf; use only in (uncommon) EBCDIC environments; it implies --enable-rebuild-chartables]),
               , enable_ebcdic=no)
 
 # Handle --disable-stack-for-recursion
@@ -263,24 +263,14 @@ AC_ARG_WITH(match-limit-recursion,
                            [default limit on internal recursion (default=MATCH_LIMIT)]),
             , with_match_limit_recursion=MATCH_LIMIT)
 
-# Make sure that if enable_utf8 was set, that enable_pcre8 support is enabled
-if test "x$enable_utf8" = "xyes"
+# Copy enable_utf8 value to enable_utf for compatibility reasons
+if test "x$enable_utf8" != "xunset"
 then
-  if test "x$enable_pcre8" = "xno"
+  if test "x$enable_utf" != "xunset"
   then
-    AC_MSG_ERROR([support for UTF-8 requires pcre library with 8 bit characters])
+    AC_MSG_ERROR([--enable/disable-utf8 is kept only for compatibility reasons and its value is copied to --enable/disable-utf. Newer code must use --enable/disable-utf alone.])
   fi
-  enable_pcre8=yes
-fi
-
-# Make sure that if enable_utf16 was set, that enable_pcre16 support is enabled
-if test "x$enable_utf16" = "xyes"
-then
-  if test "x$enable_pcre16" = "xno"
-  then
-    AC_MSG_ERROR([support for UTF-16 requires pcre library with 16 bit characters])
-  fi
-  enable_pcre16=yes
+  enable_utf=$enable_utf8
 fi
 
 # Set the default value for pcre8
@@ -301,39 +291,26 @@ then
   AC_MSG_ERROR([Either 8 or 16 bit (or both) pcre library must be enabled])
 fi
 
-# Make sure that if enable_unicode_properties was set, that UTF-8 or UTF-16
-# support enabled.
-#
+# Make sure that if enable_unicode_properties was set, that UTF support is enabled.
 if test "x$enable_unicode_properties" = "xyes"
 then
-  if test "x$enable_utf8" = "xno"
+  if test "x$enable_utf" = "xno"
   then
-    AC_MSG_ERROR([support for Unicode properties requires UTF-8 support])
+    AC_MSG_ERROR([support for Unicode properties requires UTF-8/16 support])
   fi
-  if test "x$enable_utf16" = "xno"
-  then
-    AC_MSG_ERROR([support for Unicode properties requires UTF-16 support])
-  fi
-  if test "x$enable_pcre8" = "xyes"
-  then
-    enable_utf8=yes
-  fi
-  if test "x$enable_pcre16" = "xyes"
-  then
-    enable_utf16=yes
-  fi
+  enable_utf=yes
 fi
 
-# enable_utf8 is disabled by default.
-if test "x$enable_utf8" = "xunset"
+# enable_utf is disabled by default.
+if test "x$enable_utf" = "xunset"
 then
-  enable_utf8=no
+  enable_utf=no
 fi
 
-# enable_utf16 is disabled by default.
-if test "x$enable_utf16" = "xunset"
+# enable_cpp copies the value of enable_pcre8 by default
+if test "x$enable_cpp" = "xunset"
 then
-  enable_utf16=no
+  enable_cpp=$enable_pcre8
 fi
 
 # Make sure that if enable_cpp was set, that enable_pcre8 support is enabled
@@ -346,20 +323,16 @@ then
 fi
 
 # Make sure that if enable_ebcdic is set, rebuild_chartables is also enabled.
-# Also check that UTF-8 or UTF-16 support is not requested, because PCRE cannot
-# handle EBCDIC and UTF in the same build. To do so it would need to use different
+# Also check that UTF support is not requested, because PCRE cannot handle
+# EBCDIC and UTF in the same build. To do so it would need to use different
 # character constants depending on the mode.
 #
 if test "x$enable_ebcdic" = "xyes"
 then
   enable_rebuild_chartables=yes
-  if test "x$enable_utf8" = "xyes"
+  if test "x$enable_utf" = "xyes"
   then
-    AC_MSG_ERROR([support for EBCDIC and UTF-8 cannot be enabled at the same time])
-  fi
-  if test "x$enable_utf16" = "xyes"
-  then
-    AC_MSG_ERROR([support for EBCDIC and UTF-16 cannot be enabled at the same time])
+    AC_MSG_ERROR([support for EBCDIC and UTF-8/16 cannot be enabled at the same time])
   fi
 fi
 
@@ -502,8 +475,7 @@ AM_CONDITIONAL(WITH_PCRE16, test "x$enable_pcre16" = "xyes")
 AM_CONDITIONAL(WITH_PCRE_CPP, test "x$enable_cpp" = "xyes")
 AM_CONDITIONAL(WITH_REBUILD_CHARTABLES, test "x$enable_rebuild_chartables" = "xyes")
 AM_CONDITIONAL(WITH_JIT, test "x$enable_jit" = "xyes")
-AM_CONDITIONAL(WITH_UTF8, test "x$enable_utf8" = "xyes")
-AM_CONDITIONAL(WITH_UTF16, test "x$enable_utf16" = "xyes")
+AM_CONDITIONAL(WITH_UTF, test "x$enable_utf" = "xyes")
 
 # Checks for typedefs, structures, and compiler characteristics.
 
@@ -594,20 +566,12 @@ if test "$enable_pcregrep_jit" = "yes"; then
     Define to enable JIT support in pcregrep.])
 fi
 
-if test "$enable_utf8" = "yes"; then
-  AC_DEFINE([SUPPORT_UTF8], [], [
-    Define to enable support for the UTF-8 Unicode encoding. This will
-    work even in an EBCDIC environment, but it is incompatible with
-    the EBCDIC macro. That is, PCRE can support *either* EBCDIC code
-    *or* ASCII/UTF-8, but not both at once.])
-fi
-
-if test "$enable_utf16" = "yes"; then
-  AC_DEFINE([SUPPORT_UTF16], [], [
-    Define to enable support for the UTF-16 Unicode encoding. This will
-    work even in an EBCDIC environment, but it is incompatible with
-    the EBCDIC macro. That is, PCRE can support *either* EBCDIC code
-    *or* ASCII/UTF-16, but not both at once.])
+if test "$enable_utf" = "yes"; then
+  AC_DEFINE([SUPPORT_UTF], [], [
+    Define to enable support for the UTF-8/16 Unicode encoding. This
+    will work even in an EBCDIC environment, but it is incompatible
+    with the EBCDIC macro. That is, PCRE can support *either* EBCDIC
+    code *or* ASCII/UTF-8/16, but not both at once.])
 fi
 
 if test "$enable_unicode_properties" = "yes"; then
@@ -742,9 +706,9 @@ if test "$enable_ebcdic" = "yes"; then
     character codes, define this macro as 1. On systems that can use
     "configure", this can be done via --enable-ebcdic. PCRE will then
     assume that all input strings are in EBCDIC. If you do not define
-    this macro, PCRE will assume input strings are ASCII or UTF-8 Unicode.
-    It is not possible to build a version of PCRE that supports both
-    EBCDIC and UTF-8.])
+    this macro, PCRE will assume input strings are ASCII or UTF-8/16
+    Unicode. It is not possible to build a version of PCRE that
+    supports both EBCDIC and UTF-8/16.])
 fi
 
 # Platform specific issues
@@ -869,8 +833,7 @@ $PACKAGE-$VERSION configuration summary:
     Build 16 bit pcre library ....... : ${enable_pcre16}
     Build C++ library ............... : ${enable_cpp}
     Enable JIT compiling support .... : ${enable_jit}
-    Enable UTF-8 support ............ : ${enable_utf8}
-    Enable UTF-16 support ........... : ${enable_utf16}
+    Enable UTF-8/16 support ......... : ${enable_utf}
     Unicode properties .............. : ${enable_unicode_properties}
     Newline char/sequence ........... : ${enable_newline}
     \R matches only ANYCRLF ......... : ${enable_bsr_anycrlf}

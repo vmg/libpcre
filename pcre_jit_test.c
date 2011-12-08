@@ -616,7 +616,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ 0, 0, NULL, NULL }
 };
 
-pcre_jit_stack* callback(void *arg)
+static pcre_jit_stack* callback(void *arg)
 {
 	return (pcre_jit_stack *)arg;
 }

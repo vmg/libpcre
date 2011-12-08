@@ -4607,12 +4607,7 @@ for (;; ptr++)
       it's a length rather than a small character. */
 
 #ifdef SUPPORT_UTF
-#ifdef COMPILE_PCRE8
-      if (utf && (code[-1] & 0x80) != 0)
-#endif /* COMPILE_PCRE8 */
-#ifdef COMPILE_PCRE16
-      if (utf && (code[-1] & 0xfc00) == 0xdc00)
-#endif /* COMPILE_PCRE8 */
+      if (utf && NOT_FIRSTCHAR(code[-1]))
         {
         pcre_uchar *lastchar = code - 1;
         BACKCHAR(lastchar);
@@ -4625,7 +4620,6 @@ for (;; ptr++)
 
       /* Handle the case of a single charater - either with no UTF support, or
       with UTF disabled, or for a single character UTF character. */
-
         {
         c = code[-1];
         if (repeat_min > 1) reqchar = c | req_caseopt | cd->req_varyopt;
@@ -7438,8 +7432,14 @@ while (ptr[skipatstart] == CHAR_LEFT_PARENTHESIS &&
   int newnl = 0;
   int newbsr = 0;
 
+#ifdef COMPILE_PCRE8
   if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UTF_RIGHTPAR, 5) == 0)
     { skipatstart += 7; options |= PCRE_UTF8; continue; }
+#endif
+#ifdef COMPILE_PCRE16
+  if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UTF_RIGHTPAR, 6) == 0)
+    { skipatstart += 8; options |= PCRE_UTF16; continue; }
+#endif
   else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_UCP_RIGHTPAR, 4) == 0)
     { skipatstart += 6; options |= PCRE_UCP; continue; }
   else if (STRNCMP_UC_C8(ptr+skipatstart+2, STRING_NO_START_OPT_RIGHTPAR, 13) == 0)

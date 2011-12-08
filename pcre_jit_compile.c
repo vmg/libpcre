@@ -1240,7 +1240,7 @@ OP2(SLJIT_SUB, SLJIT_GENERAL_REG2, 0, SLJIT_MEM1(SLJIT_GENERAL_REG1), 0, SLJIT_T
 OP2(SLJIT_ADD, SLJIT_GENERAL_REG1, 0, SLJIT_GENERAL_REG1, 0, SLJIT_IMM, sizeof(sljit_w));
 /* Copy the integer value to the output buffer */
 #ifdef COMPILE_PCRE16
-OP2(SLJIT_LSHR, SLJIT_GENERAL_REG2, 0, SLJIT_GENERAL_REG2, 0, SLJIT_IMM, 1);
+OP2(SLJIT_ASHR, SLJIT_GENERAL_REG2, 0, SLJIT_GENERAL_REG2, 0, SLJIT_IMM, 1);
 #endif
 OP1(SLJIT_MOVU_SI, SLJIT_MEM1(SLJIT_TEMPORARY_REG3), sizeof(int), SLJIT_GENERAL_REG2, 0);
 OP2(SLJIT_SUB | SLJIT_SET_E, SLJIT_TEMPORARY_REG2, 0, SLJIT_TEMPORARY_REG2, 0, SLJIT_IMM, 1);
@@ -1353,7 +1353,7 @@ if (!ispowerof2(bit))
 
 #ifdef COMPILE_PCRE8
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (common->utf && c > 127)
   {
   n = GET_EXTRALEN(*cc);
@@ -1364,13 +1364,13 @@ if (common->utf && c > 127)
     }
   return (n << 8) | bit;
   }
-#endif /* SUPPORT_UTF8 */
+#endif /* SUPPORT_UTF */
 return (0 << 8) | bit;
 
 #else /* COMPILE_PCRE8 */
 
 #ifdef COMPILE_PCRE16
-#ifdef SUPPORT_UTF16
+#ifdef SUPPORT_UTF
 if (common->utf && c > 65535)
   {
   if (bit >= (1 << 10))
@@ -1378,7 +1378,7 @@ if (common->utf && c > 65535)
   else
     return (bit < 256) ? ((2 << 8) | bit) : ((3 << 8) | (bit >> 8));
   }
-#endif /* SUPPORT_UTF16 */
+#endif /* SUPPORT_UTF */
 return (bit < 256) ? ((0 << 8) | bit) : ((1 << 8) | (bit >> 8));
 #endif /* COMPILE_PCRE16 */
 
