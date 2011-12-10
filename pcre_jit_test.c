@@ -109,11 +109,12 @@ int main(void)
 #define MAP	(PCRE_MULTILINE | PCRE_NEWLINE_ANYCRLF | PCRE_UCP)
 #define CMA	(PCRE_CASELESS | PCRE_MULTILINE | PCRE_NEWLINE_ANYCRLF)
 
-#define OFFSET_MASK	0xffff
-#define F_DIFF		0x010000
-#define F_FORCECONV	0x020000
-#define F_NO8		0x100000
-#define F_NO16		0x200000
+#define OFFSET_MASK	0x00ffff
+#define F_NO8		0x010000
+#define F_NO16		0x020000
+#define F_NOMATCH	0x040000
+#define F_DIFF		0x080000
+#define F_FORCECONV	0x100000
 
 struct regression_test_case {
 	int flags;
@@ -140,7 +141,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "\\W(\\W)?\\w", "\n\n+bc" },
 	{ MUA, 0, "[axd]", "sAXd" },
 	{ CMUA, 0, "[axd]", "sAXd" },
-	{ CMUA, 0, "[^axd]", "DxA" },
+	{ CMUA, 0 | F_NOMATCH, "[^axd]", "DxA" },
 	{ MUA, 0, "[a-dA-C]", "\xe6\x92\xad\xc3\xa9.B" },
 	{ MUA, 0, "[^a-dA-C]", "\xe6\x92\xad\xc3\xa9" },
 	{ CMUA, 0, "[^\xc3\xa9]", "\xc3\xa9\xc3\x89." },
@@ -153,8 +154,8 @@ static struct regression_test_case regression_test_cases[] = {
 	{ PCRE_CASELESS, 0, "a1", "Aa1" },
 	{ MA, 0, "\\Ca", "cda" },
 	{ CMA, 0, "\\Ca", "CDA" },
-	{ MA, 0, "\\Cx", "cda" },
-	{ CMA, 0, "\\Cx", "CDA" },
+	{ MA, 0 | F_NOMATCH, "\\Cx", "cda" },
+	{ CMA, 0 | F_NOMATCH, "\\Cx", "CDA" },
 	{ CMUAP, 0, "\xf0\x90\x90\x80\xf0\x90\x90\xa8", "\xf0\x90\x90\xa8\xf0\x90\x90\x80" },
 	{ CMUAP, 0, "\xf0\x90\x90\x80{2}", "\xf0\x90\x90\x80#\xf0\x90\x90\xa8\xf0\x90\x90\x80" },
 	{ CMUAP, 0, "\xf0\x90\x90\xa8{2}", "\xf0\x90\x90\x80#\xf0\x90\x90\xa8\xf0\x90\x90\x80" },
@@ -162,7 +163,7 @@ static struct regression_test_case regression_test_cases[] = {
 
 	/* Assertions. */
 	{ MUA, 0, "\\b[^A]", "A_B#" },
-	{ MA, 0, "\\b\\W", "\n*" },
+	{ MA, 0 | F_NOMATCH, "\\b\\W", "\n*" },
 	{ MUA, 0, "\\B[^,]\\b[^s]\\b", "#X" },
 	{ MAP, 0, "\\B", "_\xa1" },
 	{ MAP, 0, "\\b_\\b[,A]\\B", "_," },
@@ -170,27 +171,27 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUAP, 0, "\\B", "_\xc2\xa1\xc3\xa1\xc2\x85" },
 	{ MUAP, 0, "\\b[^A]\\B[^c]\\b[^_]\\B", "_\xc3\xa1\xe2\x80\xa8" },
 	{ MUAP, 0, "\\b\\w+\\B", "\xc3\x89\xc2\xa1\xe6\x92\xad\xc3\x81\xc3\xa1" },
-	{ MUA, 0, "\\b.", "\xcd\xbe" },
+	{ MUA, 0 | F_NOMATCH, "\\b.", "\xcd\xbe" },
 	{ CMUAP, 0, "\\By", "\xf0\x90\x90\xa8y" },
-	{ MA, 0, "\\R^", "\n" },
-	{ MA, 1, "^", "\n" },
+	{ MA, 0 | F_NOMATCH, "\\R^", "\n" },
+	{ MA, 1 | F_NOMATCH, "^", "\n" },
 	{ 0, 0, "^ab", "ab" },
-	{ 0, 0, "^ab", "aab" },
+	{ 0, 0 | F_NOMATCH, "^ab", "aab" },
 	{ PCRE_MULTILINE | PCRE_NEWLINE_CRLF, 0, "^a", "\r\raa\n\naa\r\naa" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANYCRLF, 0, "^-", "\xe2\x80\xa8--\xc2\x85-\r\n-" },
 	{ PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0, "^-", "a--b--\x85--" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY, 0, "^-", "a--\xe2\x80\xa8--" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY, 0, "^-", "a--\xc2\x85--" },
 	{ 0, 0, "ab$", "ab" },
-	{ 0, 0, "ab$", "ab\r\n" },
+	{ 0, 0 | F_NOMATCH, "ab$", "ab\r\n" },
 	{ PCRE_MULTILINE | PCRE_NEWLINE_CRLF, 0, "a$", "\r\raa\n\naa\r\naa" },
 	{ PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0, "a$", "aaa" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANYCRLF, 0, "#$", "#\xc2\x85###\r#" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY, 0, "#$", "#\xe2\x80\xa9" },
-	{ PCRE_NOTBOL | PCRE_NEWLINE_ANY, 0, "^a", "aa\naa" },
+	{ PCRE_NOTBOL | PCRE_NEWLINE_ANY, 0 | F_NOMATCH, "^a", "aa\naa" },
 	{ PCRE_NOTBOL | PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0, "^a", "aa\naa" },
-	{ PCRE_NOTEOL | PCRE_NEWLINE_ANY, 0, "a$", "aa\naa" },
-	{ PCRE_NOTEOL | PCRE_NEWLINE_ANY, 0, "a$", "aa\r\n" },
+	{ PCRE_NOTEOL | PCRE_NEWLINE_ANY, 0 | F_NOMATCH, "a$", "aa\naa" },
+	{ PCRE_NOTEOL | PCRE_NEWLINE_ANY, 0 | F_NOMATCH, "a$", "aa\r\n" },
 	{ PCRE_UTF8 | PCRE_DOLLAR_ENDONLY | PCRE_NEWLINE_ANY, 0, "\\p{Any}{2,}$", "aa\r\n" },
 	{ PCRE_NOTEOL | PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0, "a$", "aa\naa" },
 	{ PCRE_NEWLINE_CR, 0, ".\\Z", "aaa" },
@@ -211,11 +212,11 @@ static struct regression_test_case regression_test_cases[] = {
 	{ PCRE_NEWLINE_ANY | PCRE_UTF8, 0, ".\\Z", "aaa\xc2\x85" },
 	{ PCRE_NEWLINE_ANY | PCRE_UTF8, 0, ".\\Z", "aaa\xe2\x80\xa8" },
 	{ MA, 0, "\\Aa", "aaa" },
-	{ MA, 1, "\\Aa", "aaa" },
+	{ MA, 1 | F_NOMATCH, "\\Aa", "aaa" },
 	{ MA, 1, "\\Ga", "aaa" },
-	{ MA, 1, "\\Ga", "aba" },
+	{ MA, 1 | F_NOMATCH, "\\Ga", "aba" },
 	{ MA, 0, "a\\z", "aaa" },
-	{ MA, 0, "a\\z", "aab" },
+	{ MA, 0 | F_NOMATCH, "a\\z", "aab" },
 
 	/* Brackets. */
 	{ MUA, 0, "(ab|bb|cd)", "bacde" },
@@ -302,12 +303,12 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUAP, 0, "[1-5\xc3\xa9\\w]", "\xc3\xa1_" },
 	{ MUAP, 0, "[\xc3\x81\\p{Ll}]", "A_\xc3\x89\xc3\xa1" },
 	{ MUAP, 0, "[\\Wd-h_x-z]+", "a\xc2\xa1#_yhzdxi" },
-	{ MUAP, 0, "[\\P{Any}]", "abc" },
-	{ MUAP, 0, "[^\\p{Any}]", "abc" },
-	{ MUAP, 0, "[\\P{Any}\xc3\xa1-\xc3\xa8]", "abc" },
-	{ MUAP, 0, "[^\\p{Any}\xc3\xa1-\xc3\xa8]", "abc" },
-	{ MUAP, 0, "[\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
-	{ MUAP, 0, "[^\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH, "[\\P{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH, "[^\\p{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH, "[\\P{Any}\xc3\xa1-\xc3\xa8]", "abc" },
+	{ MUAP, 0 | F_NOMATCH, "[^\\p{Any}\xc3\xa1-\xc3\xa8]", "abc" },
+	{ MUAP, 0 | F_NOMATCH, "[\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH, "[^\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
 	{ MUAP, 0, "[\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
 	{ MUAP, 0, "[^\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
 	{ MUAP, 0, "[b-\xc3\xa9\\s]", "a\xc\xe6\x92\xad" },
@@ -334,8 +335,8 @@ static struct regression_test_case regression_test_cases[] = {
 
 	/* Start offset. */
 	{ MUA, 3, "(\\d|(?:\\w)*\\w)+", "0ac01Hb" },
-	{ MUA, 4, "(\\w\\W\\w)+", "ab#d" },
-	{ MUA, 2, "(\\w\\W\\w)+", "ab#d" },
+	{ MUA, 4 | F_NOMATCH, "(\\w\\W\\w)+", "ab#d" },
+	{ MUA, 2 | F_NOMATCH, "(\\w\\W\\w)+", "ab#d" },
 	{ MUA, 1, "(\\w\\W\\w)+", "ab#d" },
 
 	/* Newline. */
@@ -349,7 +350,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ PCRE_NEWLINE_ANYCRLF, 0, ".(.)", "a\rb\nc\r\n\xc2\x85\xe2\x80\xa8" },
 	{ PCRE_NEWLINE_ANYCRLF | PCRE_UTF8, 0, ".(.)", "a\rb\nc\r\n\xc2\x85\xe2\x80\xa8" },
 	{ PCRE_NEWLINE_ANY | PCRE_UTF8, 0, "(.).", "a\rb\nc\r\n\xc2\x85\xe2\x80\xa9$de" },
-	{ PCRE_NEWLINE_ANYCRLF | PCRE_UTF8, 0, ".(.).", "\xe2\x80\xa8\nb\r" },
+	{ PCRE_NEWLINE_ANYCRLF | PCRE_UTF8, 0 | F_NOMATCH, ".(.).", "\xe2\x80\xa8\nb\r" },
 	{ PCRE_NEWLINE_ANY, 0, "(.)(.)", "#\x85#\r#\n#\r\n#\x84" },
 	{ PCRE_NEWLINE_ANY | PCRE_UTF8, 0, "(.+)#", "#\rMn\xc2\x85#\n###" },
 	{ PCRE_BSR_ANYCRLF, 0, "\\R", "\r" },
@@ -357,7 +358,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ PCRE_BSR_UNICODE | PCRE_UTF8, 0, "\\R", "ab\xe2\x80\xa8#c" },
 	{ PCRE_BSR_UNICODE | PCRE_UTF8, 0, "\\R", "ab\r\nc" },
 	{ PCRE_NEWLINE_CRLF | PCRE_BSR_UNICODE | PCRE_UTF8, 0, "(\\R.)+", "\xc2\x85\r\n#\xe2\x80\xa8\n\r\n\r" },
-	{ MUA, 0, "\\R+", "ab" },
+	{ MUA, 0 | F_NOMATCH, "\\R+", "ab" },
 	{ MUA, 0, "\\R+", "ab\r\n\r" },
 	{ MUA, 0, "\\R*", "ab\r\n\r" },
 	{ MUA, 0, "\\R*", "\r\n\r" },
@@ -365,15 +366,15 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "\\R{2,4}", "\r\nab\n\n\n\r\r\r" },
 	{ MUA, 0, "\\R{2,}", "\r\nab\n\n\n\r\r\r" },
 	{ MUA, 0, "\\R{0,3}", "\r\n\r\n\r\n\r\n\r\n" },
-	{ MUA, 0, "\\R+\\R\\R", "\r\n\r\n" },
+	{ MUA, 0 | F_NOMATCH, "\\R+\\R\\R", "\r\n\r\n" },
 	{ MUA, 0, "\\R+\\R\\R", "\r\r\r" },
 	{ MUA, 0, "\\R*\\R\\R", "\n\r" },
-	{ MUA, 0, "\\R{2,4}\\R\\R", "\r\r\r" },
+	{ MUA, 0 | F_NOMATCH, "\\R{2,4}\\R\\R", "\r\r\r" },
 	{ MUA, 0, "\\R{2,4}\\R\\R", "\r\r\r\r" },
 
 	/* Atomic groups (no fallback from "next" direction). */
-	{ MUA, 0, "(?>ab)ab", "bab" },
-	{ MUA, 0, "(?>(ab))ab", "bab" },
+	{ MUA, 0 | F_NOMATCH, "(?>ab)ab", "bab" },
+	{ MUA, 0 | F_NOMATCH, "(?>(ab))ab", "bab" },
 	{ MUA, 0, "(?>ab)+abc(?>de)*def(?>gh)?ghe(?>ij)+?k(?>lm)*?n(?>op)?\?op",
 			"bababcdedefgheijijklmlmnop" },
 	{ MUA, 0, "(?>a(b)+a|(ab)?\?(b))an", "abban" },
@@ -401,12 +402,12 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0, "(?>((?>a{32}|b+|(a*))?(?>c+|d*)?\?)+e)+?f", "aaccebbdde bbdaaaccebbdee bbdaaaccebbdeef" },
 	{ MUA, 0, "(?>(?:(?>aa|a||x)+?b|(?>aa|a||(x))+?c)?(?>[ad]{0,2})*?d)+d", "aaacdbaabdcabdbaaacd aacaabdbdcdcaaaadaabcbaadd" },
 	{ MUA, 0, "(?>(?:(?>aa|a||(x))+?b|(?>aa|a||x)+?c)?(?>[ad]{0,2})*?d)+d", "aaacdbaabdcabdbaaacd aacaabdbdcdcaaaadaabcbaadd" },
-	{ MUA, 0, "\\X", "\xcc\x8d\xcc\x8d" },
+	{ MUA, 0 | F_NOMATCH, "\\X", "\xcc\x8d\xcc\x8d" },
 	{ MUA, 0, "\\X", "\xcc\x8d\xcc\x8d#\xcc\x8d\xcc\x8d" },
 	{ MUA, 0, "\\X+..", "\xcc\x8d#\xcc\x8d#\xcc\x8d\xcc\x8d" },
 	{ MUA, 0, "\\X{2,4}", "abcdef" },
 	{ MUA, 0, "\\X{2,4}?", "abcdef" },
-	{ MUA, 0, "\\X{2,4}..", "#\xcc\x8d##" },
+	{ MUA, 0 | F_NOMATCH, "\\X{2,4}..", "#\xcc\x8d##" },
 	{ MUA, 0, "\\X{2,4}..", "#\xcc\x8d#\xcc\x8d##" },
 	{ MUA, 0, "(c(ab)?+ab)+", "cabcababcab" },
 	{ MUA, 0, "(?>(a+)b)+aabab", "aaaabaaabaabab" },
@@ -442,7 +443,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "((b*))++m", "bxbbxbbbxbbm" },
 	{ MUA, 0, "((b*))*+m", "bxbbxbbbxm" },
 	{ MUA, 0, "((b*))*+m", "bxbbxbbbxbbm" },
-	{ MUA, 0, "(?>(b{2,4}))(?:(?:(aa|c))++m|(?:(aa|c))+n)", "bbaacaaccaaaacxbbbmbn" },
+	{ MUA, 0 | F_NOMATCH, "(?>(b{2,4}))(?:(?:(aa|c))++m|(?:(aa|c))+n)", "bbaacaaccaaaacxbbbmbn" },
 	{ MUA, 0, "((?:b)++a)+(cd)*+m", "bbababbacdcdnbbababbacdcdm" },
 	{ MUA, 0, "((?:(b))++a)+((c)d)*+m", "bbababbacdcdnbbababbacdcdm" },
 	{ MUA, 0, "(?:(?:(?:ab)*+k)++(?:n(?:cd)++)*+)*+m", "ababkkXababkkabkncXababkkabkncdcdncdXababkkabkncdcdncdkkabkncdXababkkabkncdcdncdkkabkncdm" },
@@ -487,9 +488,9 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "(?>a(?>(b+))a(?=(..)))*?k", "acabbcabbaabacabaabbakk" },
 	{ MUA, 0, "((?(?=(a))a)+k)", "bbak" },
 	{ MUA, 0, "((?(?=a)a)+k)", "bbak" },
-	{ MUA, 0, "(?=(?>(a))m)amk", "a k" },
-	{ MUA, 0, "(?!(?>(a))m)amk", "a k" },
-	{ MUA, 0, "(?>(?=(a))am)amk", "a k" },
+	{ MUA, 0 | F_NOMATCH, "(?=(?>(a))m)amk", "a k" },
+	{ MUA, 0 | F_NOMATCH, "(?!(?>(a))m)amk", "a k" },
+	{ MUA, 0 | F_NOMATCH, "(?>(?=(a))am)amk", "a k" },
 	{ MUA, 0, "(?=(?>a|(?=(?>(b+))a|c)[a-c]+)*?m)[a-cm]+k", "aaam bbam baaambaam abbabba baaambaamk" },
 	{ MUA, 0, "(?> ?\?\\b(?(?=\\w{1,4}(a))m)\\w{0,8}bc){2,}?", "bca ssbc mabd ssbc mabc" },
 	{ MUA, 0, "(?:(?=ab)?[^n][^n])+m", "ababcdabcdcdabnababcdabcdcdabm" },
@@ -500,19 +501,19 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "((?!a)?\?(?!([^a]))?\?)+$", "acbab" },
 
 	/* Not empty, ACCEPT, FAIL */
-	{ MUA | PCRE_NOTEMPTY, 0, "a*", "bcx" },
+	{ MUA | PCRE_NOTEMPTY, 0 | F_NOMATCH, "a*", "bcx" },
 	{ MUA | PCRE_NOTEMPTY, 0, "a*", "bcaad" },
 	{ MUA | PCRE_NOTEMPTY, 0, "a*?", "bcaad" },
 	{ MUA | PCRE_NOTEMPTY_ATSTART, 0, "a*", "bcaad" },
 	{ MUA, 0, "a(*ACCEPT)b", "ab" },
-	{ MUA | PCRE_NOTEMPTY, 0, "a*(*ACCEPT)b", "bcx" },
+	{ MUA | PCRE_NOTEMPTY, 0 | F_NOMATCH, "a*(*ACCEPT)b", "bcx" },
 	{ MUA | PCRE_NOTEMPTY, 0, "a*(*ACCEPT)b", "bcaad" },
 	{ MUA | PCRE_NOTEMPTY, 0, "a*?(*ACCEPT)b", "bcaad" },
-	{ MUA | PCRE_NOTEMPTY, 0, "(?:z|a*(*ACCEPT)b)", "bcx" },
+	{ MUA | PCRE_NOTEMPTY, 0 | F_NOMATCH, "(?:z|a*(*ACCEPT)b)", "bcx" },
 	{ MUA | PCRE_NOTEMPTY, 0, "(?:z|a*(*ACCEPT)b)", "bcaad" },
 	{ MUA | PCRE_NOTEMPTY, 0, "(?:z|a*?(*ACCEPT)b)", "bcaad" },
 	{ MUA | PCRE_NOTEMPTY_ATSTART, 0, "a*(*ACCEPT)b", "bcx" },
-	{ MUA | PCRE_NOTEMPTY_ATSTART, 0, "a*(*ACCEPT)b", "" },
+	{ MUA | PCRE_NOTEMPTY_ATSTART, 0 | F_NOMATCH, "a*(*ACCEPT)b", "" },
 	{ MUA, 0, "((a(*ACCEPT)b))", "ab" },
 	{ MUA, 0, "(a(*FAIL)a|a)", "aaa" },
 	{ MUA, 0, "(?=ab(*ACCEPT)b)a", "ab" },
@@ -560,26 +561,26 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "(?:\\Ka)*aaaab", "aaaaaaaa aaaaaaabb" },
 	{ MUA, 0, "(?>\\Ka\\Ka)*aaaab", "aaaaaaaa aaaaaaaaaabb" },
 	{ MUA, 0, "a+\\K(?<=\\Gaa)a", "aaaaaa" },
-	{ MUA | PCRE_NOTEMPTY, 0, "a\\K(*ACCEPT)b", "aa" },
+	{ MUA | PCRE_NOTEMPTY, 0 | F_NOMATCH, "a\\K(*ACCEPT)b", "aa" },
 	{ MUA | PCRE_NOTEMPTY_ATSTART, 0, "a\\K(*ACCEPT)b", "aa" },
 
 	/* First line. */
 	{ MUA | PCRE_FIRSTLINE, 0, "\\p{Any}a", "bb\naaa" },
-	{ MUA | PCRE_FIRSTLINE, 0, "\\p{Any}a", "bb\r\naaa" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "\\p{Any}a", "bb\r\naaa" },
 	{ MUA | PCRE_FIRSTLINE, 0, "(?<=a)", "a" },
-	{ MUA | PCRE_FIRSTLINE, 0, "[^a][^b]", "ab" },
-	{ MUA | PCRE_FIRSTLINE, 0, "a", "\na" },
-	{ MUA | PCRE_FIRSTLINE, 0, "[abc]", "\na" },
-	{ MUA | PCRE_FIRSTLINE, 0, "^a", "\na" },
-	{ MUA | PCRE_FIRSTLINE, 0, "^(?<=\n)", "\na" },
-	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0, "#", "\xc2\x85#" },
-	{ PCRE_MULTILINE | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0, "#", "\x85#" },
-	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0, "^#", "\xe2\x80\xa8#" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "[^a][^b]", "ab" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "a", "\na" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "[abc]", "\na" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "^a", "\na" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "^(?<=\n)", "\na" },
+	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0 | F_NOMATCH, "#", "\xc2\x85#" },
+	{ PCRE_MULTILINE | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0 | F_NOMATCH, "#", "\x85#" },
+	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0 | F_NOMATCH, "^#", "\xe2\x80\xa8#" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, "\\p{Any}", "\r\na" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, ".", "\r" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, "a", "\ra" },
-	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, "ba", "bbb\r\nba" },
-	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, "\\p{Any}{4}|a", "\r\na" },
+	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0 | F_NOMATCH, "ba", "bbb\r\nba" },
+	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0 | F_NOMATCH, "\\p{Any}{4}|a", "\r\na" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 1, ".", "\r\n" },
 
 	/* Recurse. */
@@ -587,7 +588,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "((a))(?1)", "aa" },
 	{ MUA, 0, "(b|a)(?1)", "aa" },
 	{ MUA, 0, "(b|(a))(?1)", "aa" },
-	{ MUA, 0, "((a)(b)(?:a*))(?1)", "aba" },
+	{ MUA, 0 | F_NOMATCH, "((a)(b)(?:a*))(?1)", "aba" },
 	{ MUA, 0, "((a)(b)(?:a*))(?1)", "abab" },
 	{ MUA, 0, "((a+)c(?2))b(?1)", "aacaabaca" },
 	{ MUA, 0, "((?2)b|(a)){2}(?1)", "aabab" },
@@ -595,10 +596,10 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "(?1)(((a(*ACCEPT)))b)", "axaa" },
 	{ MUA, 0, "(?1)(?(DEFINE) (((ac(*ACCEPT)))b) )", "akaac" },
 	{ MUA, 0, "(a+)b(?1)b\\1", "abaaabaaaaa" },
-	{ MUA, 0, "(?(DEFINE)(aa|a))(?1)ab", "aab" },
+	{ MUA, 0 | F_NOMATCH, "(?(DEFINE)(aa|a))(?1)ab", "aab" },
 	{ MUA, 0, "(?(DEFINE)(a\\Kb))(?1)+ababc", "abababxabababc" },
 	{ MUA, 0, "(a\\Kb)(?1)+ababc", "abababxababababc" },
-	{ MUA, 0, "(a\\Kb)(?1)+ababc", "abababxababababxc" },
+	{ MUA, 0 | F_NOMATCH, "(a\\Kb)(?1)+ababc", "abababxababababxc" },
 	{ MUA, 0, "b|<(?R)*>", "<<b>" },
 	{ MUA, 0, "(a\\K){0}(?:(?1)b|ac)", "ac" },
 	{ MUA, 0, "(?(DEFINE)(a(?2)|b)(b(?1)|(a)))(?:(?1)|(?2))m", "ababababnababababaam" },
@@ -614,13 +615,16 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0 | F_FORCECONV, "\xe1\xbd\xb8", "\xe1\xbf\xb8\xe1\xbd\xb8" },
 	{ CMA, 0 | F_FORCECONV, "[\xc3\xa1]", "\xc3\x81\xc3\xa1" },
 	{ CMA, 0 | F_FORCECONV, "[\xe1\xbd\xb8]", "\xe1\xbf\xb8\xe1\xbd\xb8" },
-	{ CMA, 0 | F_FORCECONV | F_NO8, "\xed\xa0\x80\\x{d800}\xed\xb0\x80\\x{dc00}", "\xed\xa0\x80\xed\xa0\x80\xed\xb0\x80\xed\xb0\x80" },
-	{ CMA, 0 | F_FORCECONV | F_NO8, "[\xed\xa0\x80\\x{d800}]{1,2}?[\xed\xb0\x80\\x{dc00}]{1,2}?#", "\xed\xa0\x80\xed\xa0\x80\xed\xb0\x80\xed\xb0\x80#" },
+	{ CMA, 0 | F_FORCECONV, "[a-\xed\xb0\x80]", "A" },
+	{ CMA, 0 | F_NO8 | F_FORCECONV, "[a-\\x{dc00}]", "B" },
+	{ CMA, 0 | F_NO8 | F_NOMATCH | F_FORCECONV, "[b-\\x{dc00}]", "a" },
+	{ CMA, 0 | F_NO8 | F_FORCECONV, "\xed\xa0\x80\\x{d800}\xed\xb0\x80\\x{dc00}", "\xed\xa0\x80\xed\xa0\x80\xed\xb0\x80\xed\xb0\x80" },
+	{ CMA, 0 | F_NO8 | F_FORCECONV, "[\xed\xa0\x80\\x{d800}]{1,2}?[\xed\xb0\x80\\x{dc00}]{1,2}?#", "\xed\xa0\x80\xed\xa0\x80\xed\xb0\x80\xed\xb0\x80#" },
 	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80\xed\xb0\x80#]{0,3}(?<=\xed\xb0\x80.)", "\xed\xa0\x80#\xed\xa0\x80##\xed\xb0\x80\xed\xa0\x80" },
 	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80-\xed\xb3\xbf]", "\xed\x9f\xbf\xed\xa0\x83" },
 	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80-\xed\xb3\xbf]", "\xed\xb4\x80\xed\xb3\xb0" },
-	{ CMA, 0 | F_FORCECONV | F_NO8, "[\\x{d800}-\\x{dcff}]", "\xed\x9f\xbf\xed\xa0\x83" },
-	{ CMA, 0 | F_FORCECONV | F_NO8, "[\\x{d800}-\\x{dcff}]", "\xed\xb4\x80\xed\xb3\xb0" },
+	{ CMA, 0 | F_NO8 | F_FORCECONV, "[\\x{d800}-\\x{dcff}]", "\xed\x9f\xbf\xed\xa0\x83" },
+	{ CMA, 0 | F_NO8 | F_FORCECONV, "[\\x{d800}-\\x{dcff}]", "\xed\xb4\x80\xed\xb3\xb0" },
 	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80-\xef\xbf\xbf]+[\x1-\xed\xb0\x80]+#", "\xed\xa0\x85\xc3\x81\xed\xa0\x85\xef\xbf\xb0\xc2\x85\xed\xa9\x89#" },
 
 	/* Deep recursion. */
@@ -629,11 +633,11 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "((a?)+)+b", "aaaaaaaaaaaaa b" },
 
 	/* Deep recursion: Stack limit reached. */
-	{ MA, 0, "a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaa" },
-	{ MA, 0, "(?:a+)+b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
-	{ MA, 0, "(?:a+?)+?b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
-	{ MA, 0, "(?:a*)*b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
-	{ MA, 0, "(?:a*?)*?b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
+	{ MA, 0 | F_NOMATCH, "a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaa" },
+	{ MA, 0 | F_NOMATCH, "(?:a+)+b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
+	{ MA, 0 | F_NOMATCH, "(?:a+?)+?b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
+	{ MA, 0 | F_NOMATCH, "(?:a*)*b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
+	{ MA, 0 | F_NOMATCH, "(?:a*?)*?b", "aaaaaaaaaaaaaaaaaaaaaaaa b" },
 
 	{ 0, 0, NULL, NULL }
 };
@@ -927,7 +931,7 @@ static int regression_tests(void)
 					return_value8_1 *= 2;
 					for (i = 0; i < return_value8_1; ++i)
 						if (ovector8_1[i] != ovector8_2[i]) {
-							printf("\n8 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s' \n",
+							printf("\n8 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s'\n",
 								i, ovector8_1[i], ovector8_2[i], total, current->pattern, current->input);
 							is_succesful = 0;
 						}
@@ -943,7 +947,7 @@ static int regression_tests(void)
 					return_value16_1 *= 2;
 					for (i = 0; i < return_value16_1; ++i)
 						if (ovector16_1[i] != ovector16_2[i]) {
-							printf("\n16 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s' \n",
+							printf("\n16 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s'\n",
 								i, ovector16_1[i], ovector16_2[i], total, current->pattern, current->input);
 							is_succesful = 0;
 						}
@@ -953,6 +957,39 @@ static int regression_tests(void)
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
 			}
 #endif /* SUPPORT_PCRE8 && SUPPORT_PCRE16 */
+		}
+
+		if (is_succesful) {
+#ifdef SUPPORT_PCRE8
+			if (!(current->start_offset & F_NO8)) {
+				if (return_value8_1 < 0 && !(current->start_offset & F_NOMATCH)) {
+					printf("8 bit: Test should match: [%d] '%s' @ '%s'\n",
+						total, current->pattern, current->input);
+					is_succesful = 0;
+				}
+
+				if (return_value8_1 >= 0 && (current->start_offset & F_NOMATCH)) {
+					printf("8 bit: Test should not match: [%d] '%s' @ '%s'\n",
+						total, current->pattern, current->input);
+					is_succesful = 0;
+				}
+			}
+#endif
+#ifdef SUPPORT_PCRE16
+			if (!(current->start_offset & F_NO16)) {
+				if (return_value16_1 < 0 && !(current->start_offset & F_NOMATCH)) {
+					printf("16 bit: Test should match: [%d] '%s' @ '%s'\n",
+						total, current->pattern, current->input);
+					is_succesful = 0;
+				}
+
+				if (return_value16_1 >= 0 && (current->start_offset & F_NOMATCH)) {
+					printf("16 bit: Test should not match: [%d] '%s' @ '%s'\n",
+						total, current->pattern, current->input);
+					is_succesful = 0;
+				}
+			}
+#endif
 		}
 
 		if (is_succesful)
