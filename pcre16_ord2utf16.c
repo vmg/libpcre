@@ -87,7 +87,7 @@ return 2;
 
 #else /* SUPPORT_UTF */
 (void)(cvalue);  /* Keep compiler happy; this function won't ever be */
-(void)(buffer);  /* called when SUPPORT_UTF8 is not defined. */
+(void)(buffer);  /* called when SUPPORT_UTF is not defined. */
 return 0;
 #endif /* SUPPORT_UTF */
 }

@@ -832,15 +832,21 @@ are in a 16-bit flags word. From release 8.00, PCRE_NOPARTIAL is unused, as
 the restrictions on partial matching have been lifted. It remains for backwards
 compatibility. */
 
-#define PCRE_NOPARTIAL     0x0001  /* can't use partial with this regex */
-#define PCRE_FIRSTSET      0x0002  /* first_char is set */
-#define PCRE_REQCHSET      0x0004  /* req_byte is set */
-#define PCRE_STARTLINE     0x0008  /* start after \n for multiline */
-#define PCRE_JCHANGED      0x0010  /* j option used in regex */
-#define PCRE_HASCRORLF     0x0020  /* explicit \r or \n in pattern */
-#define PCRE_HASTHEN       0x0040  /* pattern contains (*THEN) */
-#define PCRE_FCH_CASELESS  0x0080  /* caseless first char */
-#define PCRE_RCH_CASELESS  0x0100  /* caseless requested char */
+#ifdef COMPILE_PCRE8
+#define PCRE_MODE          0x0001  /* compiled in 8 bit mode */
+#endif
+#ifdef COMPILE_PCRE16
+#define PCRE_MODE          0x0002  /* compiled in 16 bit mode */
+#endif
+#define PCRE_FIRSTSET      0x0010  /* first_char is set */
+#define PCRE_FCH_CASELESS  0x0020  /* caseless first char */
+#define PCRE_REQCHSET      0x0040  /* req_byte is set */
+#define PCRE_RCH_CASELESS  0x0080  /* caseless requested char */
+#define PCRE_STARTLINE     0x0100  /* start after \n for multiline */
+#define PCRE_NOPARTIAL     0x0200  /* can't use partial with this regex */
+#define PCRE_JCHANGED      0x0400  /* j option used in regex */
+#define PCRE_HASCRORLF     0x0800  /* explicit \r or \n in pattern */
+#define PCRE_HASTHEN       0x1000  /* pattern contains (*THEN) */
 
 /* Flags for the "extra" block produced by pcre_study(). */
 
@@ -917,7 +923,7 @@ for) in a minority area (EBCDIC platforms), this is not sensible. Any
 application that did need both could compile two versions of the library, using
 macros to give the functions distinct names. */
 
-#ifndef SUPPORT_UTF8
+#ifndef SUPPORT_UTF
 
 /* UTF-8 support is not enabled; use the platform-dependent character literals
 so that PCRE works on both ASCII and EBCDIC platforms, in non-UTF-mode only. */
@@ -1186,7 +1192,7 @@ so that PCRE works on both ASCII and EBCDIC platforms, in non-UTF-mode only. */
 #define STRING_UCP_RIGHTPAR            "UCP)"
 #define STRING_NO_START_OPT_RIGHTPAR   "NO_START_OPT)"
 
-#else  /* SUPPORT_UTF8 */
+#else  /* SUPPORT_UTF */
 
 /* UTF-8 support is enabled; always use UTF-8 (=ASCII) character codes. This
 works in both modes non-EBCDIC platforms, and on EBCDIC platforms in UTF-8 mode
@@ -1446,7 +1452,7 @@ only. */
 #define STRING_UCP_RIGHTPAR            STR_U STR_C STR_P STR_RIGHT_PARENTHESIS
 #define STRING_NO_START_OPT_RIGHTPAR   STR_N STR_O STR_UNDERSCORE STR_S STR_T STR_A STR_R STR_T STR_UNDERSCORE STR_O STR_P STR_T STR_RIGHT_PARENTHESIS
 
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
 
 /* Escape items that are just an encoding of a particular data value. */
 
@@ -2249,7 +2255,7 @@ extern real_pcre        *PRIV(try_flipped)(const real_pcre *, real_pcre *,
 extern int               PRIV(valid_utf)(PCRE_PUCHAR, int, int *);
 extern BOOL              PRIV(was_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
-extern BOOL              PRIV(xclass)(int, const pcre_uchar *);
+extern BOOL              PRIV(xclass)(int, const pcre_uchar *, BOOL);
 
 #ifdef SUPPORT_JIT
 extern void              PRIV(jit_compile)(const real_pcre *, pcre_extra *);

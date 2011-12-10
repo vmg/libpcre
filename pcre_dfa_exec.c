@@ -413,7 +413,7 @@ const pcre_uchar *start_subject = md->start_subject;
 const pcre_uchar *end_subject = md->end_subject;
 const pcre_uchar *start_code = md->start_code;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 BOOL utf = (md->poptions & PCRE_UTF8) != 0;
 #else
 BOOL utf = FALSE;
@@ -471,7 +471,7 @@ if (*first_op == OP_REVERSE)
   /* If we can't go back the amount required for the longest lookbehind
   pattern, go back as far as we can; some alternatives may still be viable. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   /* In character mode we have to step back character by character */
 
   if (utf)
@@ -603,9 +603,9 @@ for (;;)
   if (ptr < end_subject)
     {
     clen = 1;        /* Number of bytes in the character */
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf) { GETCHARLEN(c, ptr, clen); } else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
     c = *ptr;
     }
   else
@@ -692,9 +692,9 @@ for (;;)
     if (coptable[codevalue] > 0)
       {
       dlen = 1;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf) { GETCHARLEN(d, (code + coptable[codevalue]), dlen); } else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
       d = code[coptable[codevalue]];
       if (codevalue >= OP_TYPESTAR)
         {
@@ -957,8 +957,8 @@ for (;;)
           {
           const pcre_uchar *temp = ptr - 1;
           if (temp < md->start_used_ptr) md->start_used_ptr = temp;
-#ifdef SUPPORT_UTF8
-          if (utf) BACKCHAR(temp);
+#ifdef SUPPORT_UTF
+          if (utf) { BACKCHAR(temp); }
 #endif
           GETCHARTEST(d, temp);
 #ifdef SUPPORT_UCP
@@ -1983,28 +1983,28 @@ for (;;)
       case OP_CHARI:
       if (clen == 0) break;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf)
         {
         if (c == d) { ADD_NEW(state_offset + dlen + 1, 0); } else
           {
           unsigned int othercase;
-          if (c < 128) othercase = fcc[c]; else
-
-          /* If we have Unicode property support, we can use it to test the
-          other case of the character. */
-
+          if (c < 128)
+            othercase = fcc[c];
+          else
+            /* If we have Unicode property support, we can use it to test the
+            other case of the character. */
 #ifdef SUPPORT_UCP
-          othercase = UCD_OTHERCASE(c);
+            othercase = UCD_OTHERCASE(c);
 #else
-          othercase = NOTACHAR;
+            othercase = NOTACHAR;
 #endif
 
           if (d == othercase) { ADD_NEW(state_offset + dlen + 1, 0); }
           }
         }
       else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
       /* Not UTF mode */
         {
         if (lcc[c] == lcc[d]) { ADD_NEW(state_offset + 2, 0); }
@@ -2207,7 +2207,7 @@ for (;;)
         unsigned int otherd = NOTACHAR;
         if (caseless)
           {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
@@ -2215,7 +2215,7 @@ for (;;)
 #endif  /* SUPPORT_UCP */
             }
           else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
           otherd = fcc[d];
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
@@ -2254,7 +2254,7 @@ for (;;)
         unsigned int otherd = NOTACHAR;
         if (caseless)
           {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
@@ -2262,7 +2262,7 @@ for (;;)
 #endif  /* SUPPORT_UCP */
             }
           else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
           otherd = fcc[d];
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
@@ -2299,7 +2299,7 @@ for (;;)
         unsigned int otherd = NOTACHAR;
         if (caseless)
           {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
@@ -2307,7 +2307,7 @@ for (;;)
 #endif  /* SUPPORT_UCP */
             }
           else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
           otherd = fcc[d];
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
@@ -2336,7 +2336,7 @@ for (;;)
         unsigned int otherd = NOTACHAR;
         if (caseless)
           {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
@@ -2344,7 +2344,7 @@ for (;;)
 #endif  /* SUPPORT_UCP */
             }
           else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
           otherd = fcc[d];
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
@@ -2380,7 +2380,7 @@ for (;;)
         unsigned int otherd = NOTACHAR;
         if (caseless)
           {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
           if (utf && d >= 128)
             {
 #ifdef SUPPORT_UCP
@@ -2388,7 +2388,7 @@ for (;;)
 #endif  /* SUPPORT_UCP */
             }
           else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
           otherd = fcc[d];
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
@@ -2438,7 +2438,7 @@ for (;;)
         else
          {
          ecode = code + GET(code, 1);
-         if (clen > 0) isinclass = PRIV(xclass)(c, code + 1 + LINK_SIZE);
+         if (clen > 0) isinclass = PRIV(xclass)(c, code + 1 + LINK_SIZE, utf);
          }
 
         /* At this point, isinclass is set for all kinds of class, and ecode
@@ -2994,10 +2994,17 @@ Returns:          > 0 => number of match offset pairs placed in offsets
                  < -1 => some kind of unexpected problem
 */
 
+#ifdef COMPILE_PCRE8
 PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
 pcre_dfa_exec(const pcre *argument_re, const pcre_extra *extra_data,
   const char *subject, int length, int start_offset, int options, int *offsets,
   int offsetcount, int *workspace, int wscount)
+#else
+PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
+pcre16_dfa_exec(const pcre *argument_re, const pcre_extra *extra_data,
+  PCRE_SPTR16 subject, int length, int start_offset, int options, int *offsets,
+  int offsetcount, int *workspace, int wscount)
+#endif
 {
 real_pcre *re = (real_pcre *)argument_re;
 dfa_match_data match_block;
@@ -3062,14 +3069,15 @@ if (re->magic_number != MAGIC_NUMBER)
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   if (study != NULL) study = &internal_study;
   }
+if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 
 /* Set some local values */
 
-current_subject = (const unsigned char *)subject + start_offset;
-end_subject = (const unsigned char *)subject + length;
+current_subject = (const pcre_uchar *)subject + start_offset;
+end_subject = (const pcre_uchar *)subject + length;
 req_char_ptr = current_subject - 1;
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 /* PCRE_UTF16 has the same value as PCRE_UTF8. */
 utf = (re->options & PCRE_UTF8) != 0;
 #else
@@ -3083,7 +3091,7 @@ anchored = (options & (PCRE_ANCHORED|PCRE_DFA_RESTART)) != 0 ||
 
 md->start_code = (const pcre_uchar *)argument_re +
     re->name_table_offset + re->name_count * re->name_entry_size;
-md->start_subject = (const unsigned char *)subject;
+md->start_subject = (const pcre_uchar *)subject;
 md->end_subject = end_subject;
 md->start_offset = start_offset;
 md->moptions = options;

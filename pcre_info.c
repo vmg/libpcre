@@ -88,6 +88,7 @@ if (re->magic_number != MAGIC_NUMBER)
   re = PRIV(try_flipped)(re, &internal_re, NULL, NULL);
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   }
+if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 if (optptr != NULL) *optptr = (int)(re->options & PUBLIC_COMPILE_OPTIONS);
 if (first_char != NULL)
   *first_char = ((re->flags & PCRE_FIRSTSET) != 0)? re->first_char :

@@ -6,7 +6,7 @@
 and semantics are as close as possible to those of the Perl 5 language.
 
                        Written by Philip Hazel
-           Copyright (c) 1997-2008 University of Cambridge
+           Copyright (c) 1997-2011 University of Cambridge
 
 -----------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
@@ -37,61 +37,9 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------------
 */
 
+/* Generate code with 16 bit character support. */
+#define COMPILE_PCRE16
 
-/* This file contains a private PCRE function that converts an ordinal
-character value into a UTF8 string. */
+#include "pcre_dfa_exec.c"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "pcre_internal.h"
-
-
-/*************************************************
-*       Convert character value to UTF-8         *
-*************************************************/
-
-/* This function takes an integer value in the range 0 - 0x10ffff
-and encodes it as a UTF-8 character in 1 to 6 pcre_uchars.
-
-Arguments:
-  cvalue     the character value
-  buffer     pointer to buffer for result - at least 6 pcre_uchars long
-
-Returns:     number of characters placed in the buffer
-*/
-
-int
-PRIV(ord2utf)(pcre_uint32 cvalue, pcre_uchar *buffer)
-{
-#ifdef SUPPORT_UTF
-
-register int i, j;
-
-/* Checking invalid cvalue character, encoded as invalid UTF-16 character.
-Should never happen in practice. */
-if ((cvalue & 0xf800) == 0xd800 || cvalue >= 0x110000)
-  cvalue = 0xfffe;
-
-for (i = 0; i < PRIV(utf8_table1_size); i++)
-  if (cvalue <= PRIV(utf8_table1)[i]) break;
-buffer += i;
-for (j = i; j > 0; j--)
- {
- *buffer-- = 0x80 | (cvalue & 0x3f);
- cvalue >>= 6;
- }
-*buffer = PRIV(utf8_table2)[i] | cvalue;
-return i + 1;
-
-#else
-
-(void)(cvalue);  /* Keep compiler happy; this function won't ever be */
-(void)(buffer);  /* called when SUPPORT_UTF is not defined. */
-return 0;
-
-#endif
-}
-
-/* End of pcre_ord2utf8.c */
+/* End of pcre16_dfa_exec.c */

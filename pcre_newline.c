@@ -84,7 +84,7 @@ if (utf)
   GETCHAR(c, ptr);
   }
 else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
   c = *ptr;
 
 if (type == NLTYPE_ANYCRLF) switch(c)
@@ -150,7 +150,7 @@ if (utf)
   GETCHAR(c, ptr);
   }
 else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
   c = *ptr;
 
 if (type == NLTYPE_ANYCRLF) switch(c)

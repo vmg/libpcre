@@ -323,7 +323,7 @@ for (;;)
 
     /* Check a class for variable quantification */
 
-#if defined SUPPORT_UTF8 || !defined COMPILE_PCRE8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
     case OP_XCLASS:
     cc += GET(cc, 1) - PRIV(OP_lengths)[OP_CLASS];
     /* Fall through */
@@ -824,7 +824,7 @@ do
       case OP_SOM:
       case OP_THEN:
       case OP_THEN_ARG:
-#if defined SUPPORT_UTF8 || !defined COMPILE_PCRE8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
       case OP_XCLASS:
 #endif
       return SSB_FAIL;
@@ -1325,6 +1325,16 @@ if (re == NULL || re->magic_number != MAGIC_NUMBER)
   return NULL;
   }
 
+if ((re->flags & PCRE_MODE) == 0)
+  {
+#ifdef COMPILE_PCRE8
+  *errorptr = "argument is compiled in 16 bit mode";
+#else
+  *errorptr = "argument is compiled in 8 bit mode";
+#endif
+  return NULL;
+  }
+
 if ((options & ~PUBLIC_STUDY_OPTIONS) != 0)
   {
   *errorptr = "unknown or incorrect option bit(s) set";
@@ -1346,9 +1356,16 @@ if ((re->options & PCRE_ANCHORED) == 0 &&
   /* Set the character tables in the block that is passed around */
 
   tables = re->tables;
+
+#ifdef COMPILE_PCRE8
   if (tables == NULL)
     (void)pcre_fullinfo(external_re, NULL, PCRE_INFO_DEFAULT_TABLES,
     (void *)(&tables));
+#else
+  if (tables == NULL)
+    (void)pcre16_fullinfo(external_re, NULL, PCRE_INFO_DEFAULT_TABLES,
+    (void *)(&tables));
+#endif
 
   compile_block.lcc = tables + lcc_offset;
   compile_block.fcc = tables + fcc_offset;

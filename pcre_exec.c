@@ -2968,7 +2968,7 @@ for (;;)
           MRRETURN(MATCH_NOMATCH);
           }
         GETCHARINCTEST(c, eptr);
-        if (!PRIV(xclass)(c, data)) MRRETURN(MATCH_NOMATCH);
+        if (!PRIV(xclass)(c, data, utf)) MRRETURN(MATCH_NOMATCH);
         }
 
       /* If max == min we can continue with the main loop without the
@@ -2992,7 +2992,7 @@ for (;;)
             MRRETURN(MATCH_NOMATCH);
             }
           GETCHARINCTEST(c, eptr);
-          if (!PRIV(xclass)(c, data)) MRRETURN(MATCH_NOMATCH);
+          if (!PRIV(xclass)(c, data, utf)) MRRETURN(MATCH_NOMATCH);
           }
         /* Control never gets here */
         }
@@ -3015,7 +3015,7 @@ for (;;)
 #else
           c = *eptr;
 #endif
-          if (!PRIV(xclass)(c, data)) break;
+          if (!PRIV(xclass)(c, data, utf)) break;
           eptr += len;
           }
         for(;;)
@@ -6113,6 +6113,7 @@ if (re->magic_number != MAGIC_NUMBER)
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   if (study != NULL) study = &internal_study;
   }
+if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 
 /* Set up other data */
 

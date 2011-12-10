@@ -401,6 +401,7 @@ switch(rc)
   case PCRE_ERROR_MATCHLIMIT: return REG_ESPACE;
   case PCRE_ERROR_BADUTF8: return REG_INVARG;
   case PCRE_ERROR_BADUTF8_OFFSET: return REG_INVARG;
+  case PCRE_ERROR_BADMODE: return REG_INVARG;
   default: return REG_ASSERT;
   }
 }

@@ -2357,7 +2357,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     actual length is stored in the compiled code, so we must update "code"
     here. */
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
     case OP_XCLASS:
     ccode = code += GET(code, 1);
     goto CHECK_CLASS_REPEAT;
@@ -2367,7 +2367,7 @@ for (code = first_significant_code(code + PRIV(OP_lengths)[*code], TRUE);
     case OP_NCLASS:
     ccode = code + PRIV(OP_lengths)[OP_CLASS];
 
-#ifdef SUPPORT_UTF8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
     CHECK_CLASS_REPEAT:
 #endif
 
@@ -2980,7 +2980,7 @@ the next item is a character. */
 if (next >= 0) switch(op_code)
   {
   case OP_CHAR:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   GETCHARTEST(c, previous);
 #else
   c = *previous;
@@ -2992,13 +2992,13 @@ if (next >= 0) switch(op_code)
   high-valued characters. */
 
   case OP_CHARI:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   GETCHARTEST(c, previous);
 #else
   c = *previous;
 #endif
   if (c == next) return FALSE;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   if (utf)
     {
     unsigned int othercase;
@@ -3011,7 +3011,7 @@ if (next >= 0) switch(op_code)
     return (unsigned int)c != othercase;
     }
   else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
   return (c != cd->fcc[next]);  /* Non-UTF-8 mode */
 
   /* For OP_NOT and OP_NOTI, the data is always a single-byte character. These
@@ -3023,7 +3023,7 @@ if (next >= 0) switch(op_code)
 
   case OP_NOTI:
   if ((c = *previous) == next) return TRUE;
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   if (utf)
     {
     unsigned int othercase;
@@ -3036,7 +3036,7 @@ if (next >= 0) switch(op_code)
     return (unsigned int)c == othercase;
     }
   else
-#endif  /* SUPPORT_UTF8 */
+#endif  /* SUPPORT_UTF */
   return (c == cd->fcc[next]);  /* Non-UTF-8 mode */
 
   /* Note that OP_DIGIT etc. are generated only when PCRE_UCP is *not* set.
@@ -3128,7 +3128,7 @@ switch(op_code)
   {
   case OP_CHAR:
   case OP_CHARI:
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
   GETCHARTEST(c, previous);
 #else
   c = *previous;
@@ -3358,7 +3358,7 @@ pcre_uint8 classbits[32];
 must not do this for other options (e.g. PCRE_EXTENDED) because they may change
 dynamically as we process the pattern. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 /* PCRE_UTF16 has the same value as PCRE_UTF8. */
 BOOL utf = (options & PCRE_UTF8) != 0;
 pcre_uchar utf_chars[6];
@@ -4150,7 +4150,7 @@ for (;; ptr++)
           goto LONE_SINGLE_CHARACTER;
           }
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
         if (utf)
           {                           /* Braces are required because the */
           GETCHARLEN(d, ptr, ptr);    /* macro generates multiple statements */
@@ -4200,7 +4200,9 @@ for (;; ptr++)
         matching for characters > 127 is available only if UCP support is
         available. */
 
-#ifdef SUPPORT_UTF
+#if defined SUPPORT_UTF && !(defined COMPILE_PCRE8)
+        if ((d > 255) || (utf && ((options & PCRE_CASELESS) != 0 && d > 127)))
+#elif defined  SUPPORT_UTF
         if (utf && (d > 255 || ((options & PCRE_CASELESS) != 0 && d > 127)))
 #elif !(defined COMPILE_PCRE8)
         if (d > 255)
@@ -4214,7 +4216,11 @@ for (;; ptr++)
           they fit with the basic range. */
 
 #ifdef SUPPORT_UCP
+#ifndef COMPILE_PCRE8
+          if (utf && (options & PCRE_CASELESS) != 0)
+#else
           if ((options & PCRE_CASELESS) != 0)
+#endif
             {
             unsigned int occ, ocd;
             unsigned int cc = c;
@@ -4257,12 +4263,25 @@ for (;; ptr++)
 
           *class_uchardata++ = XCL_RANGE;
 #ifdef SUPPORT_UTF
+#ifndef COMPILE_PCRE8
+          if (utf)
+            {
+            class_uchardata += PRIV(ord2utf)(c, class_uchardata);
+            class_uchardata += PRIV(ord2utf)(d, class_uchardata);
+            }
+          else
+            {
+            *class_uchardata++ = c;
+            *class_uchardata++ = d;
+            }
+#else
           class_uchardata += PRIV(ord2utf)(c, class_uchardata);
           class_uchardata += PRIV(ord2utf)(d, class_uchardata);
-#else
+#endif
+#else /* SUPPORT_UTF */
           *class_uchardata++ = c;
           *class_uchardata++ = d;
-#endif
+#endif /* SUPPORT_UTF */
 
           /* With UCP support, we are done. Without UCP support, there is no
           caseless matching for UTF characters > 127; we can use the bit map
@@ -4270,9 +4289,26 @@ for (;; ptr++)
           can still use  */
 
 #ifdef SUPPORT_UCP
-          continue;    /* With next character in the class */
-#else
-#ifdef SUPPORT_UTF
+#ifndef COMPILE_PCRE8
+          if (utf)
+#endif
+            continue;    /* With next character in the class */
+#endif  /* SUPPORT_UCP */
+
+#if defined SUPPORT_UTF && !defined(SUPPORT_UCP) && !(defined COMPILE_PCRE8)
+          if (utf)
+            {
+            if ((options & PCRE_CASELESS) == 0 || c > 127) continue;
+            /* Adjust upper limit and fall through to set up the map */
+            d = 127;
+            }
+          else
+            {
+            if (c > 255) continue;
+            /* Adjust upper limit and fall through to set up the map */
+            d = 255;
+            }
+#elif defined SUPPORT_UTF && !defined(SUPPORT_UCP)
           if ((options & PCRE_CASELESS) == 0 || c > 127) continue;
           /* Adjust upper limit and fall through to set up the map */
           d = 127;
@@ -4280,10 +4316,9 @@ for (;; ptr++)
           if (c > 255) continue;
           /* Adjust upper limit and fall through to set up the map */
           d = 255;
-#endif  /* SUPPORT_UTF */
-#endif  /* SUPPORT_UCP */
+#endif  /* SUPPORT_UTF && !SUPPORT_UCP && !COMPILE_PCRE8 */
           }
-#endif  /* SUPPORT_UTF8 || COMPILE_PCRE16 */
+#endif  /* SUPPORT_UTF || !COMPILE_PCRE8 */
 
         /* We use the bit map for 8 bit mode, or when the characters fall
         partially or entirely to [0-255] ([0-127] for UCP) ranges. */
@@ -4314,7 +4349,9 @@ for (;; ptr++)
 
       /* Handle a character that cannot go in the bit map */
 
-#ifdef SUPPORT_UTF
+#if defined SUPPORT_UTF && !(defined COMPILE_PCRE8)
+      if ((c > 255) || (utf && ((options & PCRE_CASELESS) != 0 && c > 127)))
+#elif defined SUPPORT_UTF
       if (utf && (c > 255 || ((options & PCRE_CASELESS) != 0 && c > 127)))
 #elif !(defined COMPILE_PCRE8)
       if (c > 255)
@@ -4324,13 +4361,26 @@ for (;; ptr++)
         xclass = TRUE;
         *class_uchardata++ = XCL_SINGLE;
 #ifdef SUPPORT_UTF
-        class_uchardata += PRIV(ord2utf)(c, class_uchardata);
-#else
-        *class_uchardata++ = c;
+#ifndef COMPILE_PCRE8
+        /* In non 8 bit mode, we can get here even
+        if we are not in UTF mode. */
+        if (!utf)
+          *class_uchardata++ = c;
+        else
 #endif
+          class_uchardata += PRIV(ord2utf)(c, class_uchardata);
+#else /* SUPPORT_UTF */
+        *class_uchardata++ = c;
+#endif /* SUPPORT_UTF */
 
 #ifdef SUPPORT_UCP
+#ifdef COMPILE_PCRE8
         if ((options & PCRE_CASELESS) != 0)
+#else
+        /* In non 8 bit mode, we can get here even
+        if we are not in UTF mode. */
+        if (utf && (options & PCRE_CASELESS) != 0)
+#endif
           {
           unsigned int othercase;
           if ((othercase = UCD_OTHERCASE(c)) != c)
@@ -4415,7 +4465,7 @@ for (;; ptr++)
       /* For a single, positive character, get the value into mcbuffer, and
       then we can handle this with the normal one-character code. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
       if (utf && class_lastchar > 127)
         mclength = PRIV(ord2utf)(class_lastchar, mcbuffer);
       else
@@ -4843,7 +4893,7 @@ for (;; ptr++)
 
     else if (*previous == OP_CLASS ||
              *previous == OP_NCLASS ||
-#if defined SUPPORT_UTF8 || !defined COMPILE_PCRE8
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
              *previous == OP_XCLASS ||
 #endif
              *previous == OP_REF ||
@@ -6635,7 +6685,7 @@ for (;; ptr++)
     a value > 127. We set its representation in the length/buffer, and then
     handle it as a data character. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
     if (utf && c > 127)
       mclength = PRIV(ord2utf)(c, mcbuffer);
     else
@@ -7471,12 +7521,12 @@ while (ptr[skipatstart] == CHAR_LEFT_PARENTHESIS &&
 /* PCRE_UTF16 has the same value as PCRE_UTF8. */
 utf = (options & PCRE_UTF8) != 0;
 
-/* Can't support UTF8 unless PCRE has been compiled to include the code. The
+/* Can't support UTF unless PCRE has been compiled to include the code. The
 return of an error code from PRIV(valid_utf)() is a new feature, introduced in
 release 8.13. It is passed back from pcre_[dfa_]exec(), but at the moment is
 not used here. */
 
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 if (utf && (options & PCRE_NO_UTF8_CHECK) == 0 &&
      (errorcode = PRIV(valid_utf)((PCRE_PUCHAR)pattern, -1, erroroffset)) != 0)
   {
@@ -7673,7 +7723,7 @@ code = (pcre_uchar *)codestart;
   &firstchar, &reqchar, NULL, cd, NULL);
 re->top_bracket = cd->bracount;
 re->top_backref = cd->top_backref;
-re->flags = cd->external_flags;
+re->flags = cd->external_flags | PCRE_MODE;
 
 if (cd->had_accept) reqchar = REQ_NONE;   /* Must disable after (*ACCEPT) */
 

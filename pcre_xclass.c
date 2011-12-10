@@ -64,10 +64,16 @@ Returns:      TRUE if character matches, else FALSE
 */
 
 BOOL
-PRIV(xclass)(int c, const pcre_uchar *data)
+PRIV(xclass)(int c, const pcre_uchar *data, BOOL utf)
 {
 int t;
 BOOL negated = (*data & XCL_NOT) != 0;
+
+(void)utf;
+#ifdef COMPILE_PCRE8
+/* In 8 bit mode, this must always be TRUE. Help the compiler to know that. */
+utf = TRUE;
+#endif
 
 /* Character values < 256 are matched against a bitmap, if one is present. If
 not, we still carry on, because there may be ranges that start below 256 in the
@@ -91,13 +97,30 @@ while ((t = *data++) != XCL_END)
   int x, y;
   if (t == XCL_SINGLE)
     {
-    GETCHARINC(x, data);
+#ifdef SUPPORT_UTF
+    if (utf)
+      {
+      GETCHARINC(x, data); /* macro generates multiple statements */
+      }
+    else
+#endif
+      x = *data++;
     if (c == x) return !negated;
     }
   else if (t == XCL_RANGE)
     {
-    GETCHARINC(x, data);
-    GETCHARINC(y, data);
+#ifdef SUPPORT_UTF
+    if (utf)
+      {
+      GETCHARINC(x, data); /* macro generates multiple statements */
+      GETCHARINC(y, data); /* macro generates multiple statements */
+      }
+    else
+#endif
+      {
+      x = *data++;
+      y = *data++;
+      }
     if (c >= x && c <= y) return !negated;
     }
 

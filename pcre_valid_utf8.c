@@ -105,7 +105,7 @@ Returns:       = 0    if the string is a valid UTF-8 string
 int
 PRIV(valid_utf)(PCRE_PUCHAR string, int length, int *erroroffset)
 {
-#ifdef SUPPORT_UTF8
+#ifdef SUPPORT_UTF
 register PCRE_PUCHAR p;
 
 if (length < 0)
@@ -288,7 +288,7 @@ for (p = string; length-- > 0; p++)
     }
   }
 
-#else  /* SUPPORT_UTF8 */
+#else  /* SUPPORT_UTF */
 (void)(string);  /* Keep picky compilers happy */
 (void)(length);
 #endif

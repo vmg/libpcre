@@ -1311,7 +1311,7 @@ static unsigned int char_get_othercase_bit(compiler_common *common, pcre_uchar* 
 {
 /* Detects if the character and its othercase has only 1 bit difference. */
 unsigned int c, oc, bit;
-#if defined SUPPORT_UTF8 && defined COMPILE_PCRE8
+#if defined SUPPORT_UTF && defined COMPILE_PCRE8
 int n;
 #endif
 

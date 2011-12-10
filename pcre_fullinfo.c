@@ -91,6 +91,7 @@ if (re->magic_number != MAGIC_NUMBER)
   if (re == NULL) return PCRE_ERROR_BADMAGIC;
   if (study != NULL) study = &internal_study;
   }
+if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 
 switch (what)
   {
