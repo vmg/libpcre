@@ -532,6 +532,7 @@ UTF support is omitted, we don't even define them. */
 
 #ifndef SUPPORT_UTF
 
+/* #define MAX_VALUE_FOR_SINGLE_CHAR */
 /* #define HAS_EXTRALEN(c) */
 /* #define GET_EXTRALEN(c) */
 /* #define NOT_FIRSTCHAR(c) */
@@ -553,6 +554,10 @@ UTF support is omitted, we don't even define them. */
 from the tables whose names start with PRIV(utf8_table). They were rewritten by
 a user so as not to use loops, because in some environments this gives a
 significant performance advantage, and it seems never to do any harm. */
+
+/* Tells the biggest code point which can be encoded as a single character. */
+
+#define MAX_VALUE_FOR_SINGLE_CHAR 127
 
 /* Tests whether the code point needs extra characters to decode. */
 
@@ -720,6 +725,10 @@ because almost all calls are already within a block of UTF-8 only code. */
 #else /* COMPILE_PCRE8 */
 
 #ifdef COMPILE_PCRE16
+
+/* Tells the biggest code point which can be encoded as a single character. */
+
+#define MAX_VALUE_FOR_SINGLE_CHAR 65535
 
 /* Tests whether the code point needs extra characters to decode. */
 

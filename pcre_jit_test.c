@@ -290,6 +290,10 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUAP, 0, "\\b[^\xc2\xa1]+\\B", "\xc3\x89\xc2\xa1\xe6\x92\xad\xc3\x81\xc3\xa1" },
 	{ CMUA, 0, "[^b]+(a*)([^c]?d{3})", "aaaaddd" },
 	{ CMUAP, 0, "\xe1\xbd\xb8{2}", "\xe1\xbf\xb8#\xe1\xbf\xb8\xe1\xbd\xb8" },
+	{ CMUA, 0, "[^\xf0\x90\x90\x80]{2,4}@", "\xf0\x90\x90\xa8\xf0\x90\x90\x80###\xf0\x90\x90\x80@@@" },
+	{ CMUA, 0, "[^\xe1\xbd\xb8][^\xc3\xa9]", "\xe1\xbd\xb8\xe1\xbf\xb8\xc3\xa9\xc3\x89#" },
+	{ MUA, 0, "[^\xe1\xbd\xb8][^\xc3\xa9]", "\xe1\xbd\xb8\xe1\xbf\xb8\xc3\xa9\xc3\x89#" },
+	{ MUA, 0, "[^\xe1\xbd\xb8]{3,}?", "##\xe1\xbd\xb8#\xe1\xbd\xb8#\xc3\x89#\xe1\xbd\xb8" },
 
 	/* Basic character sets. */
 	{ MUA, 0, "(?:\\s)+(?:\\S)+", "ab \t\xc3\xa9\xe6\x92\xad " },
@@ -626,6 +630,9 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0 | F_NO8 | F_FORCECONV, "[\\x{d800}-\\x{dcff}]", "\xed\x9f\xbf\xed\xa0\x83" },
 	{ CMA, 0 | F_NO8 | F_FORCECONV, "[\\x{d800}-\\x{dcff}]", "\xed\xb4\x80\xed\xb3\xb0" },
 	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80-\xef\xbf\xbf]+[\x1-\xed\xb0\x80]+#", "\xed\xa0\x85\xc3\x81\xed\xa0\x85\xef\xbf\xb0\xc2\x85\xed\xa9\x89#" },
+	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80][\xed\xb0\x80]{2,}", "\xed\xa0\x80\xed\xb0\x80\xed\xa0\x80\xed\xb0\x80\xed\xb0\x80\xed\xb0\x80" },
+	{ MA, 0 | F_FORCECONV, "[^\xed\xb0\x80]{3,}?", "##\xed\xb0\x80#\xed\xb0\x80#\xc3\x89#\xed\xb0\x80" },
+	{ MA, 0 | F_NO8 | F_FORCECONV, "[^\\x{dc00}]{3,}?", "##\xed\xb0\x80#\xed\xb0\x80#\xc3\x89#\xed\xb0\x80" },
 
 	/* Deep recursion. */
 	{ MUA, 0, "((((?:(?:(?:\\w)+)?)*|(?>\\w)+?)+|(?>\\w)?\?)*)?\\s", "aaaaa+ " },
@@ -736,9 +743,9 @@ static int regression_tests(void)
 {
 	struct regression_test_case *current = regression_test_cases;
 	const char *error;
-	int i, err_offs, is_succesful;
+	int i, err_offs, is_successful;
 	int total = 0;
-	int succesful = 0;
+	int successful = 0;
 	int counter = 0;
 #ifdef SUPPORT_PCRE8
 	pcre *re8;
@@ -889,7 +896,7 @@ static int regression_tests(void)
 		/* If F_DIFF is set, just run the test, but do not compare the results.
 		Segfaults can still be captured. */
 
-		is_succesful = 1;
+		is_successful = 1;
 		if (!(current->start_offset & F_DIFF)) {
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
 			if (utf8 == utf16 && !(current->start_offset & F_FORCECONV)) {
@@ -898,7 +905,7 @@ static int regression_tests(void)
 					printf("\n8 and 16 bit: Return value differs(%d:%d:%d:%d): [%d] '%s' @ '%s'\n",
 						return_value8_1, return_value8_2, return_value16_1, return_value16_2,
 						total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				} else if (return_value8_1 >= 0) {
 					return_value8_1 *= 2;
 					/* Transform back the results. */
@@ -916,7 +923,7 @@ static int regression_tests(void)
 							printf("\n8 and 16 bit: Ovector[%d] value differs(%d:%d:%d:%d): [%d] '%s' @ '%s' \n",
 								i, ovector8_1[i], ovector8_2[i], ovector16_1[i], ovector16_2[i],
 								total, current->pattern, current->input);
-							is_succesful = 0;
+							is_successful = 0;
 						}
 				}
 			} else {
@@ -926,14 +933,14 @@ static int regression_tests(void)
 				if (return_value8_1 != return_value8_2) {
 					printf("\n8 bit: Return value differs(%d:%d): [%d] '%s' @ '%s'\n",
 						return_value8_1, return_value8_2, total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				} else if (return_value8_1 >= 0) {
 					return_value8_1 *= 2;
 					for (i = 0; i < return_value8_1; ++i)
 						if (ovector8_1[i] != ovector8_2[i]) {
 							printf("\n8 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s'\n",
 								i, ovector8_1[i], ovector8_2[i], total, current->pattern, current->input);
-							is_succesful = 0;
+							is_successful = 0;
 						}
 				}
 #endif
@@ -942,14 +949,14 @@ static int regression_tests(void)
 				if (return_value16_1 != return_value16_2) {
 					printf("\n16 bit: Return value differs(%d:%d): [%d] '%s' @ '%s'\n",
 						return_value16_1, return_value16_2, total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				} else if (return_value16_1 >= 0) {
 					return_value16_1 *= 2;
 					for (i = 0; i < return_value16_1; ++i)
 						if (ovector16_1[i] != ovector16_2[i]) {
 							printf("\n16 bit: Ovector[%d] value differs(%d:%d): [%d] '%s' @ '%s'\n",
 								i, ovector16_1[i], ovector16_2[i], total, current->pattern, current->input);
-							is_succesful = 0;
+							is_successful = 0;
 						}
 				}
 #endif
@@ -959,19 +966,19 @@ static int regression_tests(void)
 #endif /* SUPPORT_PCRE8 && SUPPORT_PCRE16 */
 		}
 
-		if (is_succesful) {
+		if (is_successful) {
 #ifdef SUPPORT_PCRE8
 			if (!(current->start_offset & F_NO8)) {
 				if (return_value8_1 < 0 && !(current->start_offset & F_NOMATCH)) {
 					printf("8 bit: Test should match: [%d] '%s' @ '%s'\n",
 						total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				}
 
 				if (return_value8_1 >= 0 && (current->start_offset & F_NOMATCH)) {
 					printf("8 bit: Test should not match: [%d] '%s' @ '%s'\n",
 						total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				}
 			}
 #endif
@@ -980,20 +987,20 @@ static int regression_tests(void)
 				if (return_value16_1 < 0 && !(current->start_offset & F_NOMATCH)) {
 					printf("16 bit: Test should match: [%d] '%s' @ '%s'\n",
 						total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				}
 
 				if (return_value16_1 >= 0 && (current->start_offset & F_NOMATCH)) {
 					printf("16 bit: Test should not match: [%d] '%s' @ '%s'\n",
 						total, current->pattern, current->input);
-					is_succesful = 0;
+					is_successful = 0;
 				}
 			}
 #endif
 		}
 
-		if (is_succesful)
-			succesful++;
+		if (is_successful)
+			successful++;
 
 #ifdef SUPPORT_PCRE8
 		if (re8) {
@@ -1014,11 +1021,11 @@ static int regression_tests(void)
 		current++;
 	}
 
-	if (total == succesful) {
+	if (total == successful) {
 		printf("\nAll JIT regression tests are successfully passed.\n");
 		return 0;
 	} else {
-		printf("\nSuccessful test ratio: %d%%\n", succesful * 100 / total);
+		printf("\nSuccessful test ratio: %d%% (%d failed)\n", successful * 100 / total, total - successful);
 		return 1;
 	}
 }

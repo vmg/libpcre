@@ -3413,7 +3413,8 @@ for (;; ptr++)
   BOOL is_quantifier;
   BOOL is_recurse;
   BOOL reset_bracount;
-  int class_charcount;
+  int class_has_8bitchar;
+  int class_single_char;
   int class_lastchar;
   int newoptions;
   int recno;
@@ -3710,11 +3711,13 @@ for (;; ptr++)
 
     should_flip_negation = FALSE;
 
-    /* Keep a count of chars with values < 256 so that we can optimize the case
-    of just a single character (as long as it's < 256). However, For higher
-    valued UTF-8 characters, we don't yet do any optimization. */
+    /* For optimization purposes, we track some properties of the class.
+    class_has_8bitchar will be non-zero, if the class contains at least one
+    < 256 character. class_single_char will be 1, if the class only contains
+    a single character. */
 
-    class_charcount = 0;
+    class_has_8bitchar = 0;
+    class_single_char = 0;
     class_lastchar = -1;
 
     /* Initialize the 32-char bit map to all zeros. We build the map in a
@@ -3870,16 +3873,20 @@ for (;; ptr++)
           for (c = 0; c < 32; c++) classbits[c] |= pbits[c];
 
         ptr = tempptr + 1;
-        class_charcount = 10;  /* Set > 1; assumes more than 1 per class */
+        /* Every class contains at least one < 256 characters. */
+        class_has_8bitchar = 1;
+        /* Every class contains at least two characters. */
+        class_single_char = 2;
         continue;    /* End of POSIX syntax handling */
         }
 
       /* Backslash may introduce a single character, or it may introduce one
       of the specials, which just set a flag. The sequence \b is a special
       case. Inside a class (and only there) it is treated as backspace. We
-      assume that other escapes have more than one character in them, so set
-      class_charcount bigger than one. Unrecognized escapes fall through and
-      are either treated as literal characters (by default), or are faulted if
+      assume that other escapes have more than one character in them, so
+      speculatively set both class_has_8bitchar class_single_char bigger
+      than one. Unrecognized escapes fall through and are either treated
+      as literal characters (by default), or are faulted if
       PCRE_EXTRA is set. */
 
       if (c == CHAR_BACKSLASH)
@@ -3902,7 +3909,10 @@ for (;; ptr++)
         if (c < 0)
           {
           register const pcre_uint8 *cbits = cd->cbits;
-          class_charcount += 2;     /* Greater than 1 is what matters */
+          /* Every class contains at least two < 256 characters. */
+          class_has_8bitchar++;
+          /* Every class contains at least two characters. */
+          class_single_char += 2;
 
           switch (-c)
             {
@@ -3915,7 +3925,7 @@ for (;; ptr++)
             case ESC_SU:
             nestptr = ptr;
             ptr = substitutes[-c - ESC_DU] - 1;  /* Just before substitute */
-            class_charcount -= 2;                /* Undo! */
+            class_has_8bitchar--;                /* Undo! */
             continue;
 #endif
             case ESC_d:
@@ -4081,7 +4091,7 @@ for (;; ptr++)
                 XCL_PROP : XCL_NOTPROP;
               *class_uchardata++ = ptype;
               *class_uchardata++ = pdata;
-              class_charcount -= 2;   /* Not a < 256 character */
+              class_has_8bitchar--;                /* Undo! */
               continue;
               }
 #endif
@@ -4095,14 +4105,15 @@ for (;; ptr++)
               *errorcodeptr = ERR7;
               goto FAILED;
               }
-            class_charcount -= 2;  /* Undo the default count from above */
-            c = *ptr;              /* Get the final character and fall through */
+            class_has_8bitchar--;    /* Undo the speculative increase. */
+            class_single_char -= 2;  /* Undo the speculative increase. */
+            c = *ptr;                /* Get the final character and fall through */
             break;
             }
           }
 
         /* Fall through if we have a single character (c >= 0). This may be
-        greater than 256 mode. */
+        greater than 256. */
 
         }   /* End of backslash handling */
 
@@ -4194,6 +4205,10 @@ for (;; ptr++)
         /* Remember \r or \n */
 
         if (d == CHAR_CR || d == CHAR_NL) cd->external_flags |= PCRE_HASCRORLF;
+
+        /* Since we found a character range, single character optimizations
+        cannot be done anymore. */
+        class_single_char = 2;
 
         /* In UTF-8 mode, if the upper limit is > 255, or > 127 for caseless
         matching, we have to use an XCLASS with extra data items. Caseless
@@ -4323,8 +4338,7 @@ for (;; ptr++)
         /* We use the bit map for 8 bit mode, or when the characters fall
         partially or entirely to [0-255] ([0-127] for UCP) ranges. */
 
-        class_charcount += d - c + 1;
-        class_lastchar = d;
+        class_has_8bitchar = 1;
 
         /* We can save a bit of time by skipping this in the pre-compile. */
 
@@ -4347,8 +4361,11 @@ for (;; ptr++)
 
       LONE_SINGLE_CHARACTER:
 
-      /* Handle a character that cannot go in the bit map */
+      /* Only the value of 1 matters for class_single_char. */
+      if (class_single_char < 2) class_single_char++;
+      class_lastchar = c;
 
+      /* Handle a character that cannot go in the bit map */
 #if defined SUPPORT_UTF && !(defined COMPILE_PCRE8)
       if ((c > 255) || (utf && ((options & PCRE_CASELESS) != 0 && c > 127)))
 #elif defined SUPPORT_UTF
@@ -4396,14 +4413,13 @@ for (;; ptr++)
 #endif  /* SUPPORT_UTF || COMPILE_PCRE16 */
       /* Handle a single-byte character */
         {
+        class_has_8bitchar = 1;
         classbits[c/8] |= (1 << (c&7));
         if ((options & PCRE_CASELESS) != 0)
           {
           c = cd->fcc[c];   /* flip case */
           classbits[c/8] |= (1 << (c&7));
           }
-        class_charcount++;
-        class_lastchar = c;
         }
 
       }
@@ -4443,15 +4459,15 @@ for (;; ptr++)
     of reqchar, save the previous value for reinstating. */
 
 #ifdef SUPPORT_UTF
-    if (class_charcount == 1 && !xclass &&
-      (!utf || !negate_class || class_lastchar < 128))
+    if (class_single_char == 1 && (!utf || !negate_class
+      || class_lastchar < (MAX_VALUE_FOR_SINGLE_CHAR + 1)))
 #else
-    if (class_charcount == 1)
+    if (class_single_char == 1)
 #endif
       {
       zeroreqchar = reqchar;
 
-      /* The OP_NOT[I] opcodes work on one-byte characters only. */
+      /* The OP_NOT[I] opcodes work on single characters only. */
 
       if (negate_class)
         {
@@ -4466,7 +4482,7 @@ for (;; ptr++)
       then we can handle this with the normal one-character code. */
 
 #ifdef SUPPORT_UTF
-      if (utf && class_lastchar > 127)
+      if (utf && class_lastchar > MAX_VALUE_FOR_SINGLE_CHAR)
         mclength = PRIV(ord2utf)(class_lastchar, mcbuffer);
       else
 #endif
@@ -4510,7 +4526,7 @@ for (;; ptr++)
       /* If the map is required, move up the extra data to make room for it;
       otherwise just move the code pointer to the end of the extra data. */
 
-      if (class_charcount > 0)
+      if (class_has_8bitchar > 0)
         {
         *code++ |= XCL_MAP;
         memmove(code + (32 / sizeof(pcre_uchar)), code,
@@ -6686,7 +6702,7 @@ for (;; ptr++)
     handle it as a data character. */
 
 #ifdef SUPPORT_UTF
-    if (utf && c > 127)
+    if (utf && c > MAX_VALUE_FOR_SINGLE_CHAR)
       mclength = PRIV(ord2utf)(c, mcbuffer);
     else
 #endif

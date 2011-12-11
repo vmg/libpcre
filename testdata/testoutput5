@@ -79,14 +79,14 @@ Need char = 191
 /[\x{100}]/8DZ
 ------------------------------------------------------------------
         Bra
-        [\x{100}]
+        \x{100}
         Ket
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
 Options: utf8
-No first char
-No need char
+First char = 196
+Need char = 128
 
 /\x{ffffffff}/8
 Failed: character value in \x{...} sequence is too large at offset 11
@@ -624,14 +624,14 @@ No need char
 /[\x{100}]/8DZ
 ------------------------------------------------------------------
         Bra
-        [\x{100}]
+        \x{100}
         Ket
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
 Options: utf8
-No first char
-No need char
+First char = 196
+Need char = 128
     \x{100}
  0: \x{100}
     Z\x{100}

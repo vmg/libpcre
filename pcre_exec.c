@@ -3085,7 +3085,10 @@ for (;;)
 
       if (fc < 128)
         {
-        if (md->lcc[*ecode++] != md->lcc[*eptr++]) MRRETURN(MATCH_NOMATCH);
+        if (md->lcc[fc]
+            != TABLE_GET(*eptr, md->lcc, *eptr)) MRRETURN(MATCH_NOMATCH);
+        ecode++;
+        eptr++;
         }
 
       /* Otherwise we must pick up the subject character */
@@ -3316,7 +3319,7 @@ for (;;)
     if (op >= OP_STARI)  /* Caseless */
       {
 #ifdef COMPILE_PCRE8
-      /* fc must be < 128 */
+      /* fc must be < 128 if UTF is enabled. */
       foc = md->fcc[fc];
 #else
 #ifdef SUPPORT_UTF
@@ -3459,11 +3462,25 @@ for (;;)
     GETCHARINCTEST(c, eptr);
     if (op == OP_NOTI)         /* The caseless case */
       {
-#if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
-      if (c < 256)
-#endif
-        c = md->lcc[c];
-      if (md->lcc[*ecode++] == c) MRRETURN(MATCH_NOMATCH);
+      register int ch, och;
+      ch = *ecode++;
+#ifdef COMPILE_PCRE8
+      /* ch must be < 128 if UTF is enabled. */
+      och = md->fcc[ch];
+#else
+#ifdef SUPPORT_UTF
+#ifdef SUPPORT_UCP
+      if (utf && ch > 127)
+        och = UCD_OTHERCASE(ch);
+#else
+      if (utf && ch > 127)
+        och = ch;
+#endif /* SUPPORT_UCP */
+      else
+#endif /* SUPPORT_UTF */
+        och = TABLE_GET(ch, md->fcc, ch);
+#endif /* COMPILE_PCRE8 */
+      if (ch == c || och == c) MRRETURN(MATCH_NOMATCH);
       }
     else    /* Caseful */
       {
@@ -3562,7 +3579,22 @@ for (;;)
 
     if (op >= OP_NOTSTARI)     /* Caseless */
       {
-      fc = TABLE_GET(fc, md->lcc, fc);
+#ifdef COMPILE_PCRE8
+      /* fc must be < 128 if UTF is enabled. */
+      foc = md->fcc[fc];
+#else
+#ifdef SUPPORT_UTF
+#ifdef SUPPORT_UCP
+      if (utf && fc > 127)
+        foc = UCD_OTHERCASE(fc);
+#else
+      if (utf && fc > 127)
+        foc = fc;
+#endif /* SUPPORT_UCP */
+      else
+#endif /* SUPPORT_UTF */
+        foc = TABLE_GET(fc, md->fcc, fc);
+#endif /* COMPILE_PCRE8 */
 
 #ifdef SUPPORT_UTF
       if (utf)
@@ -3576,8 +3608,7 @@ for (;;)
             MRRETURN(MATCH_NOMATCH);
             }
           GETCHARINC(d, eptr);
-          if (d < 256) d = md->lcc[d];
-          if (fc == d) MRRETURN(MATCH_NOMATCH);
+          if (fc == d || foc == d) MRRETURN(MATCH_NOMATCH);
           }
         }
       else
@@ -3591,7 +3622,8 @@ for (;;)
             SCHECK_PARTIAL();
             MRRETURN(MATCH_NOMATCH);
             }
-          if (fc == md->lcc[*eptr++]) MRRETURN(MATCH_NOMATCH);
+          if (fc == *eptr || foc == *eptr) MRRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         }
 
@@ -3614,8 +3646,7 @@ for (;;)
               MRRETURN(MATCH_NOMATCH);
               }
             GETCHARINC(d, eptr);
-            if (d < 256) d = md->lcc[d];
-            if (fc == d) MRRETURN(MATCH_NOMATCH);
+            if (fc == d || foc == d) MRRETURN(MATCH_NOMATCH);
             }
           }
         else
@@ -3632,7 +3663,8 @@ for (;;)
               SCHECK_PARTIAL();
               MRRETURN(MATCH_NOMATCH);
               }
-            if (fc == md->lcc[*eptr++]) MRRETURN(MATCH_NOMATCH);
+            if (fc == *eptr || foc == *eptr) MRRETURN(MATCH_NOMATCH);
+            eptr++;
             }
           }
         /* Control never gets here */
@@ -3657,8 +3689,7 @@ for (;;)
               break;
               }
             GETCHARLEN(d, eptr, len);
-            if (d < 256) d = md->lcc[d];
-            if (fc == d) break;
+            if (fc == d || foc == d) break;
             eptr += len;
             }
         if (possessive) continue;
@@ -3681,7 +3712,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if (fc == md->lcc[*eptr]) break;
+            if (fc == *eptr || foc == *eptr) break;
             eptr++;
             }
           if (possessive) continue;

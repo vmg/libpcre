@@ -128,22 +128,27 @@ static const pcre_uint8 coptable[] = {
   1,                             /* noti                                   */
   /* Positive single-char repeats                                          */
   1, 1, 1, 1, 1, 1,              /* *, *?, +, +?, ?, ??                    */
-  3, 3, 3,                       /* upto, minupto, exact                   */
-  1, 1, 1, 3,                    /* *+, ++, ?+, upto+                      */
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* upto, minupto                          */
+  1+IMM2_SIZE,                   /* exact                                  */
+  1, 1, 1, 1+IMM2_SIZE,          /* *+, ++, ?+, upto+                      */
   1, 1, 1, 1, 1, 1,              /* *I, *?I, +I, +?I, ?I, ??I              */
-  3, 3, 3,                       /* upto I, minupto I, exact I             */
-  1, 1, 1, 3,                    /* *+I, ++I, ?+I, upto+I                  */
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* upto I, minupto I                      */
+  1+IMM2_SIZE,                   /* exact I                                */
+  1, 1, 1, 1+IMM2_SIZE,          /* *+I, ++I, ?+I, upto+I                  */
   /* Negative single-char repeats - only for chars < 256                   */
   1, 1, 1, 1, 1, 1,              /* NOT *, *?, +, +?, ?, ??                */
-  3, 3, 3,                       /* NOT upto, minupto, exact               */
-  1, 1, 1, 3,                    /* NOT *+, ++, ?+, upto+                  */
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* NOT upto, minupto                      */
+  1+IMM2_SIZE,                   /* NOT exact                              */
+  1, 1, 1, 1+IMM2_SIZE,          /* NOT *+, ++, ?+, upto+                  */
   1, 1, 1, 1, 1, 1,              /* NOT *I, *?I, +I, +?I, ?I, ??I          */
-  3, 3, 3,                       /* NOT upto I, minupto I, exact I         */
-  1, 1, 1, 3,                    /* NOT *+I, ++I, ?+I, upto+I              */
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* NOT upto I, minupto I                  */
+  1+IMM2_SIZE,                   /* NOT exact I                            */
+  1, 1, 1, 1+IMM2_SIZE,          /* NOT *+I, ++I, ?+I, upto+I              */
   /* Positive type repeats                                                 */
   1, 1, 1, 1, 1, 1,              /* Type *, *?, +, +?, ?, ??               */
-  3, 3, 3,                       /* Type upto, minupto, exact              */
-  1, 1, 1, 3,                    /* Type *+, ++, ?+, upto+                 */
+  1+IMM2_SIZE, 1+IMM2_SIZE,      /* Type upto, minupto                     */
+  1+IMM2_SIZE,                   /* Type exact                             */
+  1, 1, 1, 1+IMM2_SIZE,          /* Type *+, ++, ?+, upto+                 */
   /* Character class & ref repeats                                         */
   0, 0, 0, 0, 0, 0,              /* *, *?, +, +?, ?, ??                    */
   0, 0,                          /* CRRANGE, CRMINRANGE                    */
@@ -296,7 +301,7 @@ Returns:       nothing
 */
 
 static void
-pchars(unsigned char *p, int length, FILE *f)
+pchars(const pcre_uchar *p, int length, FILE *f)
 {
 int c;
 while (length-- > 0)
@@ -582,7 +587,7 @@ for (;;)
 
 #ifdef PCRE_DEBUG
   printf("%.*sNext character: rest of subject = \"", rlevel*2-2, SP);
-  pchars((pcre_uchar *)ptr, strlen((char *)ptr), stdout);
+  pchars(ptr, STRLEN_UC(ptr), stdout);
   printf("\"\n");
 
   printf("%.*sActive states: ", rlevel*2-2, SP);

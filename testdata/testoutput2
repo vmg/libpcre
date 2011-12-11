@@ -7548,7 +7548,7 @@ Matched, but too many substrings
 /[^a]+a/BZi
 ------------------------------------------------------------------
         Bra
-     /i [^A]++
+     /i [^a]++
      /i a
         Ket
         End
@@ -7557,7 +7557,7 @@ Matched, but too many substrings
 /[^a]+A/BZi
 ------------------------------------------------------------------
         Bra
-     /i [^A]++
+     /i [^a]++
      /i A
         Ket
         End
