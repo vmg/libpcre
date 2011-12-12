@@ -288,8 +288,8 @@ for (;;)
     cc++;
     break;
 
-    /* The single-byte matcher means we can't proceed in UTF-8 mode. (In 
-    non-UTF-8 mode \C will actually be turned into OP_ALLANY, so won't ever 
+    /* The single-byte matcher means we can't proceed in UTF-8 mode. (In
+    non-UTF-8 mode \C will actually be turned into OP_ALLANY, so won't ever
     appear, but leave the code, just in case.) */
 
     case OP_ANYBYTE:
@@ -1424,11 +1424,16 @@ if (bits_set || min > 0
   study->size = sizeof(pcre_study_data);
   study->flags = 0;
 
+  /* Set the start bits always, to avoid unset memory errors if the
+  study data is written to a file, but set the flag only if any of the bits
+  are set, to save time looking when none are. */
+
   if (bits_set)
     {
     study->flags |= PCRE_STUDY_MAPPED;
     memcpy(study->start_bits, start_bits, sizeof(start_bits));
     }
+  else memset(study->start_bits, 0, 32 * sizeof(pcre_uchar));
 
 #ifdef PCRE_DEBUG
   if (bits_set)

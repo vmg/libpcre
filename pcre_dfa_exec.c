@@ -2784,7 +2784,7 @@ for (;;)
             {
             const pcre_uchar *p = ptr;
             const pcre_uchar *pp = local_ptr;
-            charcount = pp - p;
+            charcount = (int)(pp - p);
             while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
             }

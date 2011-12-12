@@ -95,10 +95,10 @@ Failed: character value in \x{...} sequence is too large at offset 11
 Failed: character value in \x{...} sequence is too large at offset 12
 
 /\x{d800}/8
-Failed: Not allowed UTF-8 / UTF-16 code point (>= 0xd800 && <= 0xdfff) at offset 7
+Failed: disallowed UTF-8/16 code point (>= 0xd800 && <= 0xdfff) at offset 7
 
 /\x{dfff}/8
-Failed: Not allowed UTF-8 / UTF-16 code point (>= 0xd800 && <= 0xdfff) at offset 7
+Failed: disallowed UTF-8/16 code point (>= 0xd800 && <= 0xdfff) at offset 7
 
 /\x{d7ff}/8
 

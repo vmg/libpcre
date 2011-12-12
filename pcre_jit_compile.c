@@ -166,6 +166,7 @@ typedef struct executable_function {
   void *executable_func;
   pcre_jit_callback callback;
   void *userdata;
+  sljit_uw executable_size;
 } executable_function;
 
 typedef struct jump_list {
@@ -5947,7 +5948,8 @@ if (has_alternatives)
     {
     SLJIT_ASSERT(opcode == OP_COND || opcode == OP_SCOND);
     assert = CURRENT_AS(bracket_fallback)->u.assert;
-    if (assert->framesize >= 0 && (ccbegin[1 + LINK_SIZE] == OP_ASSERT_NOT || ccbegin[1 + LINK_SIZE] == OP_ASSERTBACK_NOT))
+    if ((ccbegin[1 + LINK_SIZE] == OP_ASSERT_NOT || ccbegin[1 + LINK_SIZE] == OP_ASSERTBACK_NOT) && assert->framesize >= 0)
+
       {
       OP1(SLJIT_MOV, STACK_TOP, 0, SLJIT_MEM1(SLJIT_LOCALS_REG), assert->localptr);
       add_jump(compiler, &common->revertframes, JUMP(SLJIT_FAST_CALL));
@@ -6351,6 +6353,7 @@ pcre_study_data *study;
 pcre_uchar *ccend;
 executable_function *function;
 void *executable_func;
+sljit_uw executable_size;
 struct sljit_label *leave;
 struct sljit_label *mainloop = NULL;
 struct sljit_label *empty_match_found;
@@ -6685,6 +6688,7 @@ if (common->getucd != NULL)
 
 SLJIT_FREE(common->localptrs);
 executable_func = sljit_generate_code(compiler);
+executable_size = sljit_get_generated_code_size(compiler);
 sljit_free_compiler(compiler);
 if (executable_func == NULL)
   return;
@@ -6699,6 +6703,7 @@ if (function == NULL)
   }
 
 function->executable_func = executable_func;
+function->executable_size = executable_size;
 function->callback = NULL;
 function->userdata = NULL;
 extra->executable_jit = function;
@@ -6785,6 +6790,12 @@ PRIV(jit_free)(void *executable_func)
 executable_function *function = (executable_function*)executable_func;
 sljit_free_code(function->executable_func);
 SLJIT_FREE(function);
+}
+
+int
+PRIV(jit_get_size)(void *executable_func)
+{
+return ((executable_function*)executable_func)->executable_size;
 }
 
 #ifdef COMPILE_PCRE8
