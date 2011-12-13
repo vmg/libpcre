@@ -3762,7 +3762,7 @@ for (;; ptr++)
 
     /* For optimization purposes, we track some properties of the class.
     class_has_8bitchar will be non-zero, if the class contains at least one
-    < 256 character. class_single_char will be 1, if the class only contains
+    < 256 character. class_single_char will be 1 if the class contains only
     a single character. */
 
     class_has_8bitchar = 0;
@@ -3933,7 +3933,7 @@ for (;; ptr++)
       of the specials, which just set a flag. The sequence \b is a special
       case. Inside a class (and only there) it is treated as backspace. We
       assume that other escapes have more than one character in them, so
-      speculatively set both class_has_8bitchar class_single_char bigger
+      speculatively set both class_has_8bitchar and class_single_char bigger
       than one. Unrecognized escapes fall through and are either treated
       as literal characters (by default), or are faulted if
       PCRE_EXTRA is set. */
@@ -4420,6 +4420,7 @@ for (;; ptr++)
       class_lastchar = c;
 
       /* Handle a character that cannot go in the bit map */
+       
 #if defined SUPPORT_UTF && !(defined COMPILE_PCRE8)
       if ((c > 255) || (utf && ((options & PCRE_CASELESS) != 0 && c > 127)))
 #elif defined SUPPORT_UTF
@@ -4427,15 +4428,15 @@ for (;; ptr++)
 #elif !(defined COMPILE_PCRE8)
       if (c > 255)
 #endif
+
 #if defined SUPPORT_UTF || !(defined COMPILE_PCRE8)
         {
         xclass = TRUE;
         *class_uchardata++ = XCL_SINGLE;
 #ifdef SUPPORT_UTF
 #ifndef COMPILE_PCRE8
-        /* In non 8 bit mode, we can get here even
-        if we are not in UTF mode. */
-        if (!utf)
+        /* In non 8 bit mode, we can get here even if we are not in UTF mode. */
+        if (!utf) 
           *class_uchardata++ = c;
         else
 #endif
@@ -4448,8 +4449,7 @@ for (;; ptr++)
 #ifdef COMPILE_PCRE8
         if ((options & PCRE_CASELESS) != 0)
 #else
-        /* In non 8 bit mode, we can get here even
-        if we are not in UTF mode. */
+        /* In non 8 bit mode, we can get here even if we are not in UTF mode. */
         if (utf && (options & PCRE_CASELESS) != 0)
 #endif
           {
@@ -4465,7 +4465,7 @@ for (;; ptr++)
             However, that uses less memory, and so if this happens to be at the
             end of the regex, there will not be enough memory in the real
             compile for this temporary storage. */
-              
+            
             if (lengthptr != NULL)
               {
               *lengthptr += class_uchardata - class_uchardata_base;
@@ -4478,6 +4478,7 @@ for (;; ptr++)
         }
       else
 #endif  /* SUPPORT_UTF || COMPILE_PCRE16 */
+
       /* Handle a single-byte character */
         {
         class_has_8bitchar = 1;
@@ -4488,7 +4489,6 @@ for (;; ptr++)
           classbits[c/8] |= (1 << (c&7));
           }
         }
-
       }
 
     /* Loop until ']' reached. This "while" is the end of the "do" far above.
@@ -4508,11 +4508,9 @@ for (;; ptr++)
       goto FAILED;
       }
 
-    /* COMMENT NEEDS FIXING - no longer true.
-    If class_charcount is 1, we saw precisely one character whose value is
-    less than 256. As long as there were no characters >= 128 and there was no
-    use of \p or \P, in other words, no use of any XCLASS features, we can
-    optimize.
+    /* If class_charcount is 1, we saw precisely one character. As long as
+    there were no negated characters >= 128 and there was no use of \p or \P,
+    in other words, no use of any XCLASS features, we can optimize.
 
     In UTF-8 mode, we can optimize the negative case only if there were no
     characters >= 128 because OP_NOT and the related opcodes like OP_NOTSTAR

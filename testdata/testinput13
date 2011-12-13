@@ -580,4 +580,8 @@ of case for anything other than the ASCII letters. --/
 
 /(?<=ab\Cde)X/8
 
+/[ⱥ]/8iBZ
+
+/[^ⱥ]/8iBZ
+
 /-- End of testinput13 --/

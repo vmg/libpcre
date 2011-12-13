@@ -1433,7 +1433,7 @@ if (bits_set || min > 0
     study->flags |= PCRE_STUDY_MAPPED;
     memcpy(study->start_bits, start_bits, sizeof(start_bits));
     }
-  else memset(study->start_bits, 0, 32 * sizeof(pcre_uchar));
+  else memset(study->start_bits, 0, 32 * sizeof(pcre_uint8));
 
 #ifdef PCRE_DEBUG
   if (bits_set)
