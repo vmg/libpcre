@@ -117,10 +117,12 @@ compiling). */
 #define PCRE_UNGREEDY           0x00000200  /* Compile */
 #define PCRE_NOTEMPTY           0x00000400  /* Exec, DFA exec */
 /* The next two are also used in exec and DFA exec */
-#define PCRE_UTF8               0x00000800  /* Compile (Same as PCRE_UTF16) */
-#define PCRE_UTF16              0x00000800  /* Compile (Same as PCRE_UTF8) */
+#define PCRE_UTF8               0x00000800  /* Compile (same as PCRE_UTF16) */
+#define PCRE_UTF16              0x00000800  /* Compile (same as PCRE_UTF8) */
 #define PCRE_NO_AUTO_CAPTURE    0x00001000  /* Compile */
-#define PCRE_NO_UTF8_CHECK      0x00002000  /* Compile, exec, DFA exec */
+/* The next two are also used in exec and DFA exec */
+#define PCRE_NO_UTF8_CHECK      0x00002000  /* Compile (same as PCRE_NO_UTF16_CHECK) */
+#define PCRE_NO_UTF16_CHECK     0x00002000  /* Compile (same as PCRE_NO_UTF8_CHECK) */
 #define PCRE_AUTO_CALLOUT       0x00004000  /* Compile */
 #define PCRE_PARTIAL_SOFT       0x00008000  /* Exec, DFA exec */
 #define PCRE_PARTIAL            0x00008000  /* Backwards compatible synonym */
