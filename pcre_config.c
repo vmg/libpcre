@@ -73,20 +73,28 @@ pcre16_config(int what, void *where)
 switch (what)
   {
   case PCRE_CONFIG_UTF8:
-#if defined SUPPORT_UTF && defined COMPILE_PCRE8
+#if defined COMPILE_PCRE16
+  return PCRE_ERROR_BADOPTION;
+#else   
+#if defined SUPPORT_UTF
   *((int *)where) = 1;
 #else
   *((int *)where) = 0;
 #endif
   break;
+#endif  
 
   case PCRE_CONFIG_UTF16:
-#if defined SUPPORT_UTF && defined COMPILE_PCRE16
+#if defined COMPILE_PCRE8
+  return PCRE_ERROR_BADOPTION;
+#else   
+#if defined SUPPORT_UTF
   *((int *)where) = 1;
 #else
   *((int *)where) = 0;
 #endif
   break;
+#endif  
 
   case PCRE_CONFIG_UNICODE_PROPERTIES:
 #ifdef SUPPORT_UCP

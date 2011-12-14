@@ -240,10 +240,9 @@ nodist_libpcre16_la_SOURCES = \
 
 endif # WITH_PCRE16
 
-# The pcre_printint.src file is #included by some source files, so it must be
-# distributed. The pcre_chartables.c.dist file is the default version of
-# pcre_chartables.c, used unless --enable-rebuild-chartables is specified.
-EXTRA_DIST += pcre_printint.src pcre_chartables.c.dist
+# The pcre_chartables.c.dist file is the default version of pcre_chartables.c,
+# used unless --enable-rebuild-chartables is specified.
+EXTRA_DIST += pcre_chartables.c.dist
 
 # The JIT compiler lives in a separate directory, but its files are #included
 # when pcre_jit_compile.c is processed, so they must be distributed.
@@ -338,8 +337,13 @@ bin_PROGRAMS += pcretest
 pcretest_SOURCES = pcretest.c
 pcretest_LDADD = $(LIBREADLINE)
 if WITH_PCRE8
+pcretest_SOURCES += pcre_printint.c
 pcretest_LDADD += libpcreposix.la
 endif # WITH_PCRE8
+if WITH_PCRE16
+pcretest_SOURCES += pcre16_printint.c
+pcretest_LDADD += libpcre16.la
+endif # WITH_PCRE16
 
 TESTS += RunGrepTest
 dist_noinst_SCRIPTS += RunGrepTest

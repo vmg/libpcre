@@ -46,14 +46,39 @@ local functions. This source file is used in two places:
 (PCRE_DEBUG defined in pcre_internal.h). It is not included in production
 compiles.
 
-(2) It is always #included by pcretest.c, which can be asked to print out a
-compiled regex for debugging purposes. */
+(2) It is also compiled separately and linked with pcretest.c, which can be
+asked to print out a compiled regex for debugging purposes. */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+/* We have to include pcre_internal.h because we need the internal info for
+displaying the results of pcre_study() and we also need to know about the
+internal macros, structures, and other internal data values; pcretest has
+"inside information" compared to a program that strictly follows the PCRE API.
+
+Although pcre_internal.h does itself include pcre.h, we explicitly include it
+here before pcre_internal.h so that the PCRE_EXP_xxx macros get set
+appropriately for an application, not for building PCRE. */
+
+#include "pcre.h"
+#include "pcre_internal.h"
+
+/* These are the funtions that are contained within. It doesn't seem worth
+having a separate .h file just for this. */
+
+#ifdef COMPILE_PCRE8
+void pcre_printint(pcre *external_re, FILE *f, BOOL print_lengths);
+#endif
+#ifdef COMPILE_PCRE16
+void pcre16_printint(pcre *external_re, FILE *f, BOOL print_lengths);
+#endif
 
 /* Macro that decides whether a character should be output as a literal or in
 hexadecimal. We don't use isprint() because that can vary from system to system
 (even without the use of locales) and we want the output always to be the same,
-for testing purposes. This macro is used in pcretest as well as in this file. */
+for testing purposes. */
 
 #ifdef EBCDIC
 #define PRINTABLE(c) ((c) >= 64 && (c) < 255)
@@ -64,6 +89,12 @@ for testing purposes. This macro is used in pcretest as well as in this file. */
 /* The table of operator names. */
 
 static const char *OP_names[] = { OP_NAME_LIST };
+
+/* This table of operator lengths is not actually used by the working code,
+but its size is needed for a check that ensures it is the correct size for the
+number of opcodes (thus catching update omissions). */
+
+static const pcre_uint8 OP_lengths[] = { OP_LENGTHS };
 
 
 
@@ -199,8 +230,13 @@ print_lengths flag controls whether offsets and lengths of items are printed.
 They can be turned off from pcretest so that automatic tests on bytecode can be
 written that do not depend on the value of LINK_SIZE. */
 
-static void
+#ifdef COMPILE_PCRE8
+void
 pcre_printint(pcre *external_re, FILE *f, BOOL print_lengths)
+#else
+void
+pcre16_printint(pcre *external_re, FILE *f, BOOL print_lengths)
+#endif
 {
 real_pcre *re = (real_pcre *)external_re;
 pcre_uchar *codestart, *code;
@@ -242,21 +278,16 @@ for(;;)
     {
 /* ========================================================================== */
       /* These cases are never obeyed. This is a fudge that causes a compile-
-      time error if the vectors OP_names or PRIV(OP_lengths), which are indexed
+      time error if the vectors OP_names or OP_lengths, which are indexed
       by opcode, are not the correct length. It seems to be the only way to do
       such a check at compile time, as the sizeof() operator does not work in
-      the C preprocessor. We do this while compiling pcretest, because that
-      #includes pcre_tables.c, which holds PRIV(OP_lengths). We can't do this
-      when building pcre_compile.c with PCRE_DEBUG set, because it doesn't then
-      know the size of PRIV(OP_lengths). */
+      the C preprocessor. */
 
-#ifdef COMPILING_PCRETEST
       case OP_TABLE_LENGTH:
       case OP_TABLE_LENGTH +
         ((sizeof(OP_names)/sizeof(const char *) == OP_TABLE_LENGTH) &&
-        (sizeof(PRIV(OP_lengths)) == OP_TABLE_LENGTH)):
+        (sizeof(OP_lengths) == OP_TABLE_LENGTH)):
       break;
-#endif
 /* ========================================================================== */
 
     case OP_END:

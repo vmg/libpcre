@@ -53,12 +53,13 @@ supporting internal functions that are not used by other modules. */
 #include "pcre_internal.h"
 
 
-/* When PCRE_DEBUG is defined, we need the pcre_printint() function, which is
-also used by pcretest. PCRE_DEBUG is not defined when building a production
-library. */
+/* When PCRE_DEBUG is defined, we need the pcre(16)_printint() function, which
+is also used by pcretest. PCRE_DEBUG is not defined when building a production
+library. We do not need to select pcre16_printint.c specially, because the 
+COMPILE_PCREx macro will already be appropriately set. */
 
 #ifdef PCRE_DEBUG
-#include "pcre_printint.src"
+#include "pcre_printint.c"
 #endif
 
 
@@ -8061,7 +8062,11 @@ if ((re->flags & PCRE_REQCHSET) != 0)
     else printf("Req char = \\x%02x%s\n", ch, caseless);
   }
 
+#ifdef COMPILE_PCRE8
 pcre_printint(re, stdout, TRUE);
+#else
+pcre16_printint(re, stdout, TRUE);
+#endif
 
 /* This check is done here in the debugging case so that the code that
 was compiled can be seen. */
