@@ -633,6 +633,11 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0 | F_FORCECONV, "[\xed\xa0\x80][\xed\xb0\x80]{2,}", "\xed\xa0\x80\xed\xb0\x80\xed\xa0\x80\xed\xb0\x80\xed\xb0\x80\xed\xb0\x80" },
 	{ MA, 0 | F_FORCECONV, "[^\xed\xb0\x80]{3,}?", "##\xed\xb0\x80#\xed\xb0\x80#\xc3\x89#\xed\xb0\x80" },
 	{ MA, 0 | F_NO8 | F_FORCECONV, "[^\\x{dc00}]{3,}?", "##\xed\xb0\x80#\xed\xb0\x80#\xc3\x89#\xed\xb0\x80" },
+	{ CMA, 0 | F_FORCECONV, ".\\B.", "\xed\xa0\x80\xed\xb0\x80" },
+	{ CMA, 0 | F_FORCECONV, "\\D+(?:\\d+|.)\\S+(?:\\s+|.)\\W+(?:\\w+|.)\xed\xa0\x80\xed\xa0\x80", "\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80" },
+	{ CMA, 0 | F_FORCECONV, "\\d*\\s*\\w*\xed\xa0\x80\xed\xa0\x80", "\xed\xa0\x80\xed\xa0\x80" },
+	{ CMA, 0 | F_FORCECONV | F_NOMATCH, "\\d*?\\D*?\\s*?\\S*?\\w*?\\W*?##", "\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80#" },
+	{ CMA | PCRE_EXTENDED, 0 | F_FORCECONV, "\xed\xa0\x80 \xed\xb0\x80 !", "\xed\xa0\x80\xed\xb0\x80!" },
 
 	/* Deep recursion. */
 	{ MUA, 0, "((((?:(?:(?:\\w)+)?)*|(?>\\w)+?)+|(?>\\w)?\?)*)?\\s", "aaaaa+ " },
@@ -648,6 +653,59 @@ static struct regression_test_case regression_test_cases[] = {
 
 	{ 0, 0, NULL, NULL }
 };
+
+static const unsigned char *tables(int release)
+{
+	/* The purpose of this function to allow valgrind
+	for reporting invalid reads and writes. */
+	static unsigned char *tables_copy;
+	pcre *regex;
+	const char *errorptr;
+	int erroroffset;
+	const unsigned char *default_tables;
+#ifdef SUPPORT_PCRE8
+	char null_str[1] = { 0 };
+#else
+	PCRE_SCHAR16 null_str[1] = { 0 };
+#endif
+
+	if (release) {
+		if (tables_copy)
+			free(tables_copy);
+		tables_copy = NULL;
+		return NULL;
+	}
+
+	if (tables_copy)
+		return tables_copy;
+
+	default_tables = NULL;
+#ifdef SUPPORT_PCRE8
+	regex = pcre_compile(null_str, 0, &errorptr, &erroroffset, NULL);
+	if (regex) {
+		pcre_fullinfo(regex, NULL, PCRE_INFO_DEFAULT_TABLES, &default_tables);
+		pcre_free(regex);
+	}
+#else
+	regex = pcre16_compile(null_str, 0, &errorptr, &erroroffset, NULL);
+	if (regex) {
+		pcre16_fullinfo(regex, NULL, PCRE_INFO_DEFAULT_TABLES, &default_tables);
+		pcre16_free(regex);
+	}
+#endif
+	/* Shouldn't ever happen. */
+	if (!default_tables)
+		return NULL;
+
+	/* This value cannot get from pcre_fullinfo. Since this is a test program,
+	we can live with it at the moment. */
+	tables_copy = (unsigned char *)malloc(1088);
+	if (!tables_copy)
+		return NULL;
+
+	memcpy(tables_copy, default_tables, 1088);
+	return tables_copy;
+}
 
 static pcre_jit_stack* callback(void *arg)
 {
@@ -802,7 +860,7 @@ static int regression_tests(void)
 		if (!(current->start_offset & F_NO8))
 			re8 = pcre_compile(current->pattern,
 				current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags8),
-				&error, &err_offs, NULL);
+				&error, &err_offs, tables(0));
 
 		extra8 = NULL;
 		if (re8) {
@@ -832,7 +890,7 @@ static int regression_tests(void)
 		if (!(current->start_offset & F_NO16))
 			re16 = pcre16_compile(regtest_buf,
 				current->flags & ~(PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART | disabled_flags16),
-				&error, &err_offs, NULL);
+				&error, &err_offs, tables(0));
 
 		extra16 = NULL;
 		if (re16) {
@@ -840,13 +898,13 @@ static int regression_tests(void)
 			extra16 = pcre16_study(re16, PCRE_STUDY_JIT_COMPILE, &error);
 			if (!extra16) {
 				printf("\n16 bit: Cannot study pattern: %s\n", current->pattern);
-				pcre_free(re16);
+				pcre16_free(re16);
 				re16 = NULL;
 			}
 			if (!(extra16->flags & PCRE_EXTRA_EXECUTABLE_JIT)) {
 				printf("\n16 bit: JIT compiler does not support: %s\n", current->pattern);
-				pcre_free_study(extra16);
-				pcre_free(re16);
+				pcre16_free_study(extra16);
+				pcre16_free(re16);
 				re16 = NULL;
 			}
 		} else if (utf16 && ucp16 && !(current->start_offset & F_NO16))
@@ -1011,7 +1069,7 @@ static int regression_tests(void)
 #ifdef SUPPORT_PCRE16
 		if (re16) {
 			pcre16_free_study(extra16);
-			pcre_free(re16);
+			pcre16_free(re16);
 		}
 #endif
 
@@ -1020,6 +1078,7 @@ static int regression_tests(void)
 		fflush(stdout);
 		current++;
 	}
+	tables(1);
 
 	if (total == successful) {
 		printf("\nAll JIT regression tests are successfully passed.\n");

@@ -681,13 +681,13 @@ if (cd->workspace_size >= COMPILE_WORK_SIZE_MAX ||
     newsize - cd->workspace_size < WORK_SIZE_SAFETY_MARGIN)
  return ERR72;
 
-newspace = (pcre_malloc)(newsize);
+newspace = (PUBL(malloc))(newsize);
 if (newspace == NULL) return ERR21;
 
 memcpy(newspace, cd->start_workspace, cd->workspace_size);
 cd->hwm = (pcre_uchar *)newspace + (cd->hwm - cd->start_workspace);
 if (cd->workspace_size > COMPILE_WORK_SIZE)
-  (pcre_free)((void *)cd->start_workspace);
+  (PUBL(free))((void *)cd->start_workspace);
 cd->start_workspace = newspace;
 cd->workspace_size = newsize;
 return 0;
@@ -2956,7 +2956,7 @@ if ((options & PCRE_EXTENDED) != 0)
   {
   for (;;)
     {
-    while ((cd->ctypes[*ptr] & ctype_space) != 0) ptr++;
+    while (MAX_255(*ptr) && (cd->ctypes[*ptr] & ctype_space) != 0) ptr++;
     if (*ptr == CHAR_NUMBER_SIGN)
       {
       ptr++;
@@ -2998,7 +2998,7 @@ if ((options & PCRE_EXTENDED) != 0)
   {
   for (;;)
     {
-    while ((cd->ctypes[*ptr] & ctype_space) != 0) ptr++;
+    while (MAX_255(*ptr) && (cd->ctypes[*ptr] & ctype_space) != 0) ptr++;
     if (*ptr == CHAR_NUMBER_SIGN)
       {
       ptr++;
@@ -3462,7 +3462,6 @@ for (;; ptr++)
   BOOL reset_bracount;
   int class_has_8bitchar;
   int class_single_char;
-  int class_lastchar;
   int newoptions;
   int recno;
   int refsign;
@@ -3600,7 +3599,7 @@ for (;; ptr++)
 
   if ((options & PCRE_EXTENDED) != 0)
     {
-    if ((cd->ctypes[c] & ctype_space) != 0) continue;
+    if (MAX_255(*ptr) && (cd->ctypes[c] & ctype_space) != 0) continue;
     if (c == CHAR_NUMBER_SIGN)
       {
       ptr++;
@@ -3767,7 +3766,6 @@ for (;; ptr++)
 
     class_has_8bitchar = 0;
     class_single_char = 0;
-    class_lastchar = -1;
 
     /* Initialize the 32-char bit map to all zeros. We build the map in a
     temporary bit of memory, in case the class contains only 1 character (less
@@ -4417,10 +4415,61 @@ for (;; ptr++)
 
       /* Only the value of 1 matters for class_single_char. */
       if (class_single_char < 2) class_single_char++;
-      class_lastchar = c;
 
-      /* Handle a character that cannot go in the bit map */
-       
+      /* If class_charcount is 1, we saw precisely one character. As long as
+      there were no negated characters >= 128 and there was no use of \p or \P,
+      in other words, no use of any XCLASS features, we can optimize.
+
+      In UTF-8 mode, we can optimize the negative case only if there were no
+      characters >= 128 because OP_NOT and the related opcodes like OP_NOTSTAR
+      operate on single-bytes characters only. This is an historical hangover.
+      Maybe one day we can tidy these opcodes to handle multi-byte characters.
+
+      The optimization throws away the bit map. We turn the item into a
+      1-character OP_CHAR[I] if it's positive, or OP_NOT[I] if it's negative.
+      Note that OP_NOT[I] does not support multibyte characters. In the positive
+      case, it can cause firstchar to be set. Otherwise, there can be no first
+      char if this item is first, whatever repeat count may follow. In the case
+      of reqchar, save the previous value for reinstating. */
+
+#ifdef SUPPORT_UTF
+      if (class_single_char == 1 && ptr[1] == CHAR_RIGHT_SQUARE_BRACKET
+        && (!utf || !negate_class || c < (MAX_VALUE_FOR_SINGLE_CHAR + 1)))
+#else
+      if (class_single_char == 1 && ptr[1] == CHAR_RIGHT_SQUARE_BRACKET)
+#endif
+        {
+        ptr++;
+        zeroreqchar = reqchar;
+
+        /* The OP_NOT[I] opcodes work on single characters only. */
+
+        if (negate_class)
+          {
+          if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
+          zerofirstchar = firstchar;
+          *code++ = ((options & PCRE_CASELESS) != 0)? OP_NOTI: OP_NOT;
+          *code++ = c;
+          goto NOT_CHAR;
+          }
+
+        /* For a single, positive character, get the value into mcbuffer, and
+        then we can handle this with the normal one-character code. */
+
+#ifdef SUPPORT_UTF
+        if (utf && c > MAX_VALUE_FOR_SINGLE_CHAR)
+          mclength = PRIV(ord2utf)(c, mcbuffer);
+        else
+#endif
+          {
+          mcbuffer[0] = c;
+          mclength = 1;
+          }
+        goto ONE_CHAR;
+        }       /* End of 1-char optimization */
+
+      /* Handle a character that cannot go in the bit map. */
+
 #if defined SUPPORT_UTF && !(defined COMPILE_PCRE8)
       if ((c > 255) || (utf && ((options & PCRE_CASELESS) != 0 && c > 127)))
 #elif defined SUPPORT_UTF
@@ -4458,19 +4507,6 @@ for (;; ptr++)
             {
             *class_uchardata++ = XCL_SINGLE;
             class_uchardata += PRIV(ord2utf)(othercase, class_uchardata);
-            
-            /* In the first pass, we must accumulate the space used here for
-            the following reason: If this ends up as the only character in the
-            class, it will later be optimized down to a single character.
-            However, that uses less memory, and so if this happens to be at the
-            end of the regex, there will not be enough memory in the real
-            compile for this temporary storage. */
-            
-            if (lengthptr != NULL)
-              {
-              *lengthptr += class_uchardata - class_uchardata_base;
-              class_uchardata = class_uchardata_base;
-              }
             }
           }
 #endif  /* SUPPORT_UCP */
@@ -4508,61 +4544,9 @@ for (;; ptr++)
       goto FAILED;
       }
 
-    /* If class_charcount is 1, we saw precisely one character. As long as
-    there were no negated characters >= 128 and there was no use of \p or \P,
-    in other words, no use of any XCLASS features, we can optimize.
-
-    In UTF-8 mode, we can optimize the negative case only if there were no
-    characters >= 128 because OP_NOT and the related opcodes like OP_NOTSTAR
-    operate on single-bytes characters only. This is an historical hangover.
-    Maybe one day we can tidy these opcodes to handle multi-byte characters.
-
-    The optimization throws away the bit map. We turn the item into a
-    1-character OP_CHAR[I] if it's positive, or OP_NOT[I] if it's negative.
-    Note that OP_NOT[I] does not support multibyte characters. In the positive
-    case, it can cause firstchar to be set. Otherwise, there can be no first
-    char if this item is first, whatever repeat count may follow. In the case
-    of reqchar, save the previous value for reinstating. */
-    
-#ifdef SUPPORT_UTF
-    if (class_single_char == 1 && (!utf || !negate_class
-      || class_lastchar < (MAX_VALUE_FOR_SINGLE_CHAR + 1)))
-#else
-    if (class_single_char == 1)
-#endif
-      {
-      zeroreqchar = reqchar;
-
-      /* The OP_NOT[I] opcodes work on single characters only. */
-
-      if (negate_class)
-        {
-        if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
-        zerofirstchar = firstchar;
-        *code++ = ((options & PCRE_CASELESS) != 0)? OP_NOTI: OP_NOT;
-        *code++ = class_lastchar;
-        break;
-        }
-
-      /* For a single, positive character, get the value into mcbuffer, and
-      then we can handle this with the normal one-character code. */
-
-#ifdef SUPPORT_UTF
-      if (utf && class_lastchar > MAX_VALUE_FOR_SINGLE_CHAR)
-        mclength = PRIV(ord2utf)(class_lastchar, mcbuffer);
-      else
-#endif
-        {
-        mcbuffer[0] = class_lastchar;
-        mclength = 1;
-        }
-      goto ONE_CHAR;
-      }       /* End of 1-char optimization */
-
-    /* The general case - not the one-char optimization. If this is the first
-    thing in the branch, there can be no first char setting, whatever the
-    repeat count. Any reqchar setting must remain unchanged after any kind of
-    repeat. */
+    /* If this is the first thing in the branch, there can be no first char
+    setting, whatever the repeat count. Any reqchar setting must remain
+    unchanged after any kind of repeat. */
 
     if (firstchar == REQ_UNSET) firstchar = REQ_NONE;
     zerofirstchar = firstchar;
@@ -4623,6 +4607,7 @@ for (;; ptr++)
       memcpy(code, classbits, 32);
       }
     code += 32 / sizeof(pcre_uchar);
+    NOT_CHAR:
     break;
 
 
@@ -5510,8 +5495,9 @@ for (;; ptr++)
 
     /* First deal with various "verbs" that can be introduced by '*'. */
 
-    if (*(++ptr) == CHAR_ASTERISK &&
-         ((cd->ctypes[ptr[1]] & ctype_letter) != 0 || ptr[1] == ':'))
+    ptr++;
+    if (ptr[0] == CHAR_ASTERISK && (ptr[1] == ':'
+         || (MAX_255(ptr[1]) && ((cd->ctypes[ptr[1]] & ctype_letter) != 0))))
       {
       int i, namelen;
       int arglen = 0;
@@ -5519,7 +5505,8 @@ for (;; ptr++)
       const pcre_uchar *name = ptr + 1;
       const pcre_uchar *arg = NULL;
       previous = NULL;
-      while ((cd->ctypes[*++ptr] & ctype_letter) != 0) {};
+      ptr++;
+      while (MAX_255(*ptr) && (cd->ctypes[*ptr] & ctype_letter) != 0) ptr++;
       namelen = (int)(ptr - name);
 
       /* It appears that Perl allows any characters whatsoever, other than
@@ -5705,7 +5692,7 @@ for (;; ptr++)
 
         /* We now expect to read a name; any thing else is an error */
 
-        if ((cd->ctypes[ptr[1]] & ctype_word) == 0)
+        if (!MAX_255(ptr[1]) || (cd->ctypes[ptr[1]] & ctype_word) == 0)
           {
           ptr += 1;  /* To get the right offset */
           *errorcodeptr = ERR28;
@@ -5716,7 +5703,7 @@ for (;; ptr++)
 
         recno = 0;
         name = ++ptr;
-        while ((cd->ctypes[*ptr] & ctype_word) != 0)
+        while (MAX_255(*ptr) && (cd->ctypes[*ptr] & ctype_word) != 0)
           {
           if (recno >= 0)
             recno = (IS_DIGIT(*ptr))? recno * 10 + *ptr - CHAR_0 : -1;
@@ -5887,7 +5874,8 @@ for (;; ptr++)
           break;
 
           default:                /* Could be name define, else bad */
-          if ((cd->ctypes[ptr[1]] & ctype_word) != 0) goto DEFINE_NAME;
+          if (MAX_255(ptr[1]) && (cd->ctypes[ptr[1]] & ctype_word) != 0)
+            goto DEFINE_NAME;
           ptr++;                  /* Correct offset for error */
           *errorcodeptr = ERR24;
           goto FAILED;
@@ -5956,7 +5944,7 @@ for (;; ptr++)
             CHAR_GREATER_THAN_SIGN : CHAR_APOSTROPHE;
           name = ++ptr;
 
-          while ((cd->ctypes[*ptr] & ctype_word) != 0) ptr++;
+          while (MAX_255(*ptr) && (cd->ctypes[*ptr] & ctype_word) != 0) ptr++;
           namelen = (int)(ptr - name);
 
           /* In the pre-compile phase, just do a syntax check. */
@@ -6086,7 +6074,7 @@ for (;; ptr++)
 
         NAMED_REF_OR_RECURSE:
         name = ++ptr;
-        while ((cd->ctypes[*ptr] & ctype_word) != 0) ptr++;
+        while (MAX_255(*ptr) && (cd->ctypes[*ptr] & ctype_word) != 0) ptr++;
         namelen = (int)(ptr - name);
 
         /* In the pre-compile phase, do a syntax check. We used to just set
@@ -6672,6 +6660,7 @@ for (;; ptr++)
           BOOL isnumber = TRUE;
           for (p = ptr + 1; *p != 0 && *p != terminator; p++)
             {
+            if (!MAX_255(*p)) { isnumber = FALSE; break; }
             if ((cd->ctypes[*p] & ctype_digit) == 0) isnumber = FALSE;
             if ((cd->ctypes[*p] & ctype_word) == 0) break;
             }
@@ -7788,7 +7777,7 @@ because nowadays we limit the maximum value of cd->names_found and
 cd->name_entry_size. */
 
 size = sizeof(real_pcre) + (length + cd->names_found * cd->name_entry_size) * sizeof(pcre_uchar);
-re = (real_pcre *)(pcre_malloc)(size);
+re = (real_pcre *)(PUBL(malloc))(size);
 
 if (re == NULL)
   {
@@ -7890,7 +7879,7 @@ if (cd->hwm > cd->start_workspace)
 /* If the workspace had to be expanded, free the new memory. */
 
 if (cd->workspace_size > COMPILE_WORK_SIZE)
-  (pcre_free)((void *)cd->start_workspace);
+  (PUBL(free))((void *)cd->start_workspace);
 
 /* Give an error if there's back reference to a non-existent capturing
 subpattern. */
@@ -7944,7 +7933,7 @@ if (cd->check_lookbehind)
 
 if (errorcode != 0)
   {
-  (pcre_free)(re);
+  (PUBL(free))(re);
   PCRE_EARLY_ERROR_RETURN:
   *erroroffset = (int)(ptr - (const pcre_uchar *)pattern);
   PCRE_EARLY_ERROR_RETURN2:
@@ -8079,7 +8068,7 @@ was compiled can be seen. */
 
 if (code - codestart > length)
   {
-  (pcre_free)(re);
+  (PUBL(free))(re);
   *errorptr = find_error_text(ERR23);
   *erroroffset = ptr - (pcre_uchar *)pattern;
   if (errorcodeptr != NULL) *errorcodeptr = ERR23;

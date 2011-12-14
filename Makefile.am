@@ -217,6 +217,7 @@ libpcre16_la_SOURCES = \
   pcre16_exec.c \
   pcre16_fullinfo.c \
   pcre16_get.c \
+  pcre16_globals.c \
   pcre16_info.c \
   pcre16_jit_compile.c \
   pcre16_maketables.c \

@@ -341,12 +341,24 @@ PCRE_EXP_DECL void  (*pcre_free)(void *);
 PCRE_EXP_DECL void *(*pcre_stack_malloc)(size_t);
 PCRE_EXP_DECL void  (*pcre_stack_free)(void *);
 PCRE_EXP_DECL int   (*pcre_callout)(pcre_callout_block *);
+
+PCRE_EXP_DECL void *(*pcre16_malloc)(size_t);
+PCRE_EXP_DECL void  (*pcre16_free)(void *);
+PCRE_EXP_DECL void *(*pcre16_stack_malloc)(size_t);
+PCRE_EXP_DECL void  (*pcre16_stack_free)(void *);
+PCRE_EXP_DECL int   (*pcre16_callout)(pcre_callout_block *);
 #else   /* VPCOMPAT */
 PCRE_EXP_DECL void *pcre_malloc(size_t);
 PCRE_EXP_DECL void  pcre_free(void *);
 PCRE_EXP_DECL void *pcre_stack_malloc(size_t);
 PCRE_EXP_DECL void  pcre_stack_free(void *);
 PCRE_EXP_DECL int   pcre_callout(pcre_callout_block *);
+
+PCRE_EXP_DECL void *pcre16_malloc(size_t);
+PCRE_EXP_DECL void  pcre16_free(void *);
+PCRE_EXP_DECL void *pcre16_stack_malloc(size_t);
+PCRE_EXP_DECL void  pcre16_stack_free(void *);
+PCRE_EXP_DECL int   pcre16_callout(pcre_callout_block *);
 #endif  /* VPCOMPAT */
 
 /* User defined callback which provides a stack just before the match starts. */

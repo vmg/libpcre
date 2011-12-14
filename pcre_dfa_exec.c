@@ -2550,7 +2550,7 @@ for (;;)
         if (code[LINK_SIZE+1] == OP_CALLOUT)
           {
           rrc = 0;
-          if (pcre_callout != NULL)
+          if (PUBL(callout) != NULL)
             {
             pcre_callout_block cb;
             cb.version          = 1;   /* Version 1 of the callout block */
@@ -2566,7 +2566,7 @@ for (;;)
             cb.capture_last     = -1;
             cb.callout_data     = md->callout_data;
             cb.mark             = NULL;   /* No (*MARK) support */
-            if ((rrc = (*pcre_callout)(&cb)) < 0) return rrc;   /* Abandon */
+            if ((rrc = (*PUBL(callout))(&cb)) < 0) return rrc;   /* Abandon */
             }
           if (rrc > 0) break;                      /* Fail this thread */
           code += PRIV(OP_lengths)[OP_CALLOUT];    /* Skip callout data */
@@ -2883,7 +2883,7 @@ for (;;)
 
       case OP_CALLOUT:
       rrc = 0;
-      if (pcre_callout != NULL)
+      if (PUBL(callout) != NULL)
         {
         pcre_callout_block cb;
         cb.version          = 1;   /* Version 1 of the callout block */
@@ -2899,7 +2899,7 @@ for (;;)
         cb.capture_last     = -1;
         cb.callout_data     = md->callout_data;
         cb.mark             = NULL;   /* No (*MARK) support */
-        if ((rrc = (*pcre_callout)(&cb)) < 0) return rrc;   /* Abandon */
+        if ((rrc = (*PUBL(callout))(&cb)) < 0) return rrc;   /* Abandon */
         }
       if (rrc == 0)
         { ADD_ACTIVE(state_offset + PRIV(OP_lengths)[OP_CALLOUT], 0); }

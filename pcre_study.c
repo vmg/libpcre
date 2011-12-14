@@ -1409,7 +1409,7 @@ if (bits_set || min > 0
 #endif
   )
   {
-  extra = (pcre_extra *)(pcre_malloc)
+  extra = (pcre_extra *)(PUBL(malloc))
     (sizeof(pcre_extra) + sizeof(pcre_study_data));
   if (extra == NULL)
     {
@@ -1501,7 +1501,7 @@ if ((extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) != 0 &&
      extra->executable_jit != NULL)
   PRIV(jit_free)(extra->executable_jit);
 #endif
-pcre_free(extra);
+PUBL(free)(extra);
 }
 
 /* End of pcre_study.c */

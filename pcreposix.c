@@ -228,7 +228,7 @@ return length + addlength;
 PCREPOSIX_EXP_DEFN void PCRE_CALL_CONVENTION
 regfree(regex_t *preg)
 {
-(pcre_free)(preg->re_pcre);
+(PUBL(free))(preg->re_pcre);
 }
 
 

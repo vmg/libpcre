@@ -376,7 +376,7 @@ pcre_uchar *p;
 for (i = 0; i < double_count; i += 2)
   size += sizeof(pcre_uchar *) + IN_UCHARS(ovector[i+1] - ovector[i] + 1);
 
-stringlist = (pcre_uchar **)(pcre_malloc)(size);
+stringlist = (pcre_uchar **)(PUBL(malloc))(size);
 if (stringlist == NULL) return PCRE_ERROR_NOMEMORY;
 
 #ifdef COMPILE_PCRE8
@@ -406,7 +406,8 @@ return 0;
 *************************************************/
 
 /* This function exists for the benefit of people calling PCRE from non-C
-programs that can call its functions, but not free() or (pcre_free)() directly.
+programs that can call its functions, but not free() or (PUBL(free))()
+directly.
 
 Argument:   the result of a previous pcre_get_substring_list()
 Returns:    nothing
@@ -420,7 +421,7 @@ PCRE_EXP_DEFN void PCRE_CALL_CONVENTION
 pcre16_free_substring_list(PCRE_SPTR16 *pointer)
 #endif
 {
-(pcre_free)((void *)pointer);
+(PUBL(free))((void *)pointer);
 }
 
 
@@ -466,7 +467,7 @@ if (stringnumber < 0 || stringnumber >= stringcount)
   return PCRE_ERROR_NOSUBSTRING;
 stringnumber *= 2;
 yield = ovector[stringnumber+1] - ovector[stringnumber];
-substring = (pcre_uchar *)(pcre_malloc)(IN_UCHARS(yield + 1));
+substring = (pcre_uchar *)(PUBL(malloc))(IN_UCHARS(yield + 1));
 if (substring == NULL) return PCRE_ERROR_NOMEMORY;
 memcpy(substring, subject + ovector[stringnumber], IN_UCHARS(yield));
 substring[yield] = 0;
@@ -534,7 +535,8 @@ return pcre16_get_substring(subject, ovector, stringcount, n, stringptr);
 *************************************************/
 
 /* This function exists for the benefit of people calling PCRE from non-C
-programs that can call its functions, but not free() or (pcre_free)() directly.
+programs that can call its functions, but not free() or (PUBL(free))()
+directly.
 
 Argument:   the result of a previous pcre_get_substring()
 Returns:    nothing
@@ -548,7 +550,7 @@ PCRE_EXP_DEFN void PCRE_CALL_CONVENTION
 pcre16_free_substring(PCRE_SPTR16 pointer)
 #endif
 {
-(pcre_free)((void *)pointer);
+(PUBL(free))((void *)pointer);
 }
 
 /* End of pcre_get.c */

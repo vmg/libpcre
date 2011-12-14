@@ -307,7 +307,7 @@ argument of match(), which never changes. */
 
 #define RMATCH(ra,rb,rc,rd,re,rw)\
   {\
-  heapframe *newframe = (heapframe *)(pcre_stack_malloc)(sizeof(heapframe));\
+  heapframe *newframe = (heapframe *)(PUBL(stack_malloc))(sizeof(heapframe));\
   if (newframe == NULL) RRETURN(PCRE_ERROR_NOMEMORY);\
   frame->Xwhere = rw; \
   newframe->Xeptr = ra;\
@@ -328,7 +328,7 @@ argument of match(), which never changes. */
   {\
   heapframe *oldframe = frame;\
   frame = oldframe->Xprevframe;\
-  (pcre_stack_free)(oldframe);\
+  (PUBL(stack_free))(oldframe);\
   if (frame != NULL)\
     {\
     rrc = ra;\
@@ -486,7 +486,7 @@ heap storage. Set up the top-level frame here; others are obtained from the
 heap whenever RMATCH() does a "recursion". See the macro definitions above. */
 
 #ifdef NO_RECURSE
-heapframe *frame = (heapframe *)(pcre_stack_malloc)(sizeof(heapframe));
+heapframe *frame = (heapframe *)(PUBL(stack_malloc))(sizeof(heapframe));
 if (frame == NULL) RRETURN(PCRE_ERROR_NOMEMORY);
 frame->Xprevframe = NULL;            /* Marks the top level */
 
@@ -1217,7 +1217,7 @@ for (;;)
 
     if (ecode[LINK_SIZE+1] == OP_CALLOUT)
       {
-      if (pcre_callout != NULL)
+      if (PUBL(callout) != NULL)
         {
         pcre_callout_block cb;
         cb.version          = 2;   /* Version 1 of the callout block */
@@ -1233,7 +1233,7 @@ for (;;)
         cb.capture_last     = md->capture_last;
         cb.callout_data     = md->callout_data;
         cb.mark             = md->nomatch_mark;
-        if ((rrc = (*pcre_callout)(&cb)) > 0) RRETURN(MATCH_NOMATCH);
+        if ((rrc = (*PUBL(callout))(&cb)) > 0) RRETURN(MATCH_NOMATCH);
         if (rrc < 0) RRETURN(rrc);
         }
       ecode += PRIV(OP_lengths)[OP_CALLOUT];
@@ -1627,7 +1627,7 @@ for (;;)
     function is able to force a failure. */
 
     case OP_CALLOUT:
-    if (pcre_callout != NULL)
+    if (PUBL(callout) != NULL)
       {
       pcre_callout_block cb;
       cb.version          = 2;   /* Version 1 of the callout block */
@@ -1643,7 +1643,7 @@ for (;;)
       cb.capture_last     = md->capture_last;
       cb.callout_data     = md->callout_data;
       cb.mark             = md->nomatch_mark;
-      if ((rrc = (*pcre_callout)(&cb)) > 0) RRETURN(MATCH_NOMATCH);
+      if ((rrc = (*PUBL(callout))(&cb)) > 0) RRETURN(MATCH_NOMATCH);
       if (rrc < 0) RRETURN(rrc);
       }
     ecode += 2 + 2*LINK_SIZE;
@@ -1702,7 +1702,7 @@ for (;;)
       else
         {
         new_recursive.offset_save =
-          (int *)(pcre_malloc)(new_recursive.saved_max * sizeof(int));
+          (int *)(PUBL(malloc))(new_recursive.saved_max * sizeof(int));
         if (new_recursive.offset_save == NULL) RRETURN(PCRE_ERROR_NOMEMORY);
         }
       memcpy(new_recursive.offset_save, md->offset_vector,
@@ -1726,7 +1726,7 @@ for (;;)
           {
           DPRINTF(("Recursion matched\n"));
           if (new_recursive.offset_save != stacksave)
-            (pcre_free)(new_recursive.offset_save);
+            (PUBL(free))(new_recursive.offset_save);
 
           /* Set where we got to in the subject, and reset the start in case
           it was changed by \K. This *is* propagated back out of a recursion,
@@ -1744,7 +1744,7 @@ for (;;)
           {
           DPRINTF(("Recursion gave error %d\n", rrc));
           if (new_recursive.offset_save != stacksave)
-            (pcre_free)(new_recursive.offset_save);
+            (PUBL(free))(new_recursive.offset_save);
           RRETURN(rrc);
           }
 
@@ -1756,7 +1756,7 @@ for (;;)
       DPRINTF(("Recursion didn't match\n"));
       md->recursive = new_recursive.prevrec;
       if (new_recursive.offset_save != stacksave)
-        (pcre_free)(new_recursive.offset_save);
+        (PUBL(free))(new_recursive.offset_save);
       RRETURN(MATCH_NOMATCH);
       }
 
@@ -2141,7 +2141,8 @@ for (;;)
             }
           else
 #endif
-          prev_is_word = ((md->ctypes[eptr[-1]] & ctype_word) != 0);
+          prev_is_word = MAX_255(eptr[-1])
+            && ((md->ctypes[eptr[-1]] & ctype_word) != 0);
           }
 
         /* Get status of next character */
@@ -2164,7 +2165,8 @@ for (;;)
           }
         else
 #endif
-        cur_is_word = ((md->ctypes[*eptr] & ctype_word) != 0);
+        cur_is_word = MAX_255(*eptr)
+          && ((md->ctypes[*eptr] & ctype_word) != 0);
         }
 
       /* Now see if the situation is what we want */
@@ -4332,8 +4334,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if (*eptr >= 128 || (md->ctypes[*eptr++] & ctype_digit) == 0)
+          if (*eptr >= 128 || (md->ctypes[*eptr] & ctype_digit) == 0)
             RRETURN(MATCH_NOMATCH);
+          eptr++;
           /* No need to skip more bytes - we know it's a 1-byte character */
           }
         break;
@@ -4361,8 +4364,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if (*eptr >= 128 || (md->ctypes[*eptr++] & ctype_space) == 0)
+          if (*eptr >= 128 || (md->ctypes[*eptr] & ctype_space) == 0)
             RRETURN(MATCH_NOMATCH);
+          eptr++;
           /* No need to skip more bytes - we know it's a 1-byte character */
           }
         break;
@@ -4390,8 +4394,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if (*eptr >= 128 || (md->ctypes[*eptr++] & ctype_word) == 0)
+          if (*eptr >= 128 || (md->ctypes[*eptr] & ctype_word) == 0)
             RRETURN(MATCH_NOMATCH);
+          eptr++;
           /* No need to skip more bytes - we know it's a 1-byte character */
           }
         break;
@@ -4555,7 +4560,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if ((md->ctypes[*eptr++] & ctype_digit) != 0) RRETURN(MATCH_NOMATCH);
+          if (MAX_255(*eptr) && (md->ctypes[*eptr] & ctype_digit) != 0)
+            RRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         break;
 
@@ -4567,7 +4574,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if ((md->ctypes[*eptr++] & ctype_digit) == 0) RRETURN(MATCH_NOMATCH);
+          if (!MAX_255(*eptr) || (md->ctypes[*eptr] & ctype_digit) == 0)
+            RRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         break;
 
@@ -4579,7 +4588,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if ((md->ctypes[*eptr++] & ctype_space) != 0) RRETURN(MATCH_NOMATCH);
+          if (MAX_255(*eptr) && (md->ctypes[*eptr] & ctype_space) != 0)
+            RRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         break;
 
@@ -4591,7 +4602,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if ((md->ctypes[*eptr++] & ctype_space) == 0) RRETURN(MATCH_NOMATCH);
+          if (!MAX_255(*eptr) || (md->ctypes[*eptr] & ctype_space) == 0)
+            RRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         break;
 
@@ -4603,8 +4616,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if ((md->ctypes[*eptr++] & ctype_word) != 0)
+          if (MAX_255(*eptr) && (md->ctypes[*eptr] & ctype_word) != 0)
             RRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         break;
 
@@ -4616,8 +4630,9 @@ for (;;)
             SCHECK_PARTIAL();
             RRETURN(MATCH_NOMATCH);
             }
-          if ((md->ctypes[*eptr++] & ctype_word) == 0)
+          if (!MAX_255(*eptr) || (md->ctypes[*eptr] & ctype_word) == 0)
             RRETURN(MATCH_NOMATCH);
+          eptr++;
           }
         break;
 
@@ -4987,7 +5002,7 @@ for (;;)
             break;
 
             case OP_WHITESPACE:
-            if  (c >= 256 || (md->ctypes[c] & ctype_space) == 0)
+            if (c >= 256 || (md->ctypes[c] & ctype_space) == 0)
               RRETURN(MATCH_NOMATCH);
             break;
 
@@ -5098,27 +5113,27 @@ for (;;)
             break;
 
             case OP_NOT_DIGIT:
-            if ((md->ctypes[c] & ctype_digit) != 0) RRETURN(MATCH_NOMATCH);
+            if (MAX_255(c) && (md->ctypes[c] & ctype_digit) != 0) RRETURN(MATCH_NOMATCH);
             break;
 
             case OP_DIGIT:
-            if ((md->ctypes[c] & ctype_digit) == 0) RRETURN(MATCH_NOMATCH);
+            if (!MAX_255(c) || (md->ctypes[c] & ctype_digit) == 0) RRETURN(MATCH_NOMATCH);
             break;
 
             case OP_NOT_WHITESPACE:
-            if ((md->ctypes[c] & ctype_space) != 0) RRETURN(MATCH_NOMATCH);
+            if (MAX_255(c) && (md->ctypes[c] & ctype_space) != 0) RRETURN(MATCH_NOMATCH);
             break;
 
             case OP_WHITESPACE:
-            if  ((md->ctypes[c] & ctype_space) == 0) RRETURN(MATCH_NOMATCH);
+            if (!MAX_255(c) || (md->ctypes[c] & ctype_space) == 0) RRETURN(MATCH_NOMATCH);
             break;
 
             case OP_NOT_WORDCHAR:
-            if ((md->ctypes[c] & ctype_word) != 0) RRETURN(MATCH_NOMATCH);
+            if (MAX_255(c) && (md->ctypes[c] & ctype_word) != 0) RRETURN(MATCH_NOMATCH);
             break;
 
             case OP_WORDCHAR:
-            if ((md->ctypes[c] & ctype_word) == 0) RRETURN(MATCH_NOMATCH);
+            if (!MAX_255(c) || (md->ctypes[c] & ctype_word) == 0) RRETURN(MATCH_NOMATCH);
             break;
 
             default:
@@ -5764,7 +5779,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if ((md->ctypes[*eptr] & ctype_digit) != 0) break;
+            if (MAX_255(*eptr) && (md->ctypes[*eptr] & ctype_digit) != 0) break;
             eptr++;
             }
           break;
@@ -5777,7 +5792,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if ((md->ctypes[*eptr] & ctype_digit) == 0) break;
+            if (!MAX_255(*eptr) || (md->ctypes[*eptr] & ctype_digit) == 0) break;
             eptr++;
             }
           break;
@@ -5790,7 +5805,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if ((md->ctypes[*eptr] & ctype_space) != 0) break;
+            if (MAX_255(*eptr) && (md->ctypes[*eptr] & ctype_space) != 0) break;
             eptr++;
             }
           break;
@@ -5803,7 +5818,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if ((md->ctypes[*eptr] & ctype_space) == 0) break;
+            if (!MAX_255(*eptr) || (md->ctypes[*eptr] & ctype_space) == 0) break;
             eptr++;
             }
           break;
@@ -5816,7 +5831,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if ((md->ctypes[*eptr] & ctype_word) != 0) break;
+            if (MAX_255(*eptr) && (md->ctypes[*eptr] & ctype_word) != 0) break;
             eptr++;
             }
           break;
@@ -5829,7 +5844,7 @@ for (;;)
               SCHECK_PARTIAL();
               break;
               }
-            if ((md->ctypes[*eptr] & ctype_word) == 0) break;
+            if (!MAX_255(*eptr) || (md->ctypes[*eptr] & ctype_word) == 0) break;
             eptr++;
             }
           break;
@@ -6267,7 +6282,7 @@ arg_offset_max = (2*ocount)/3;
 if (re->top_backref > 0 && re->top_backref >= ocount/3)
   {
   ocount = re->top_backref * 3 + 3;
-  md->offset_vector = (int *)(pcre_malloc)(ocount * sizeof(int));
+  md->offset_vector = (int *)(PUBL(malloc))(ocount * sizeof(int));
   if (md->offset_vector == NULL) return PCRE_ERROR_NOMEMORY;
   using_temporary_offsets = TRUE;
   DPRINTF(("Got memory to hold back references\n"));
@@ -6670,7 +6685,7 @@ if (rc == MATCH_MATCH || rc == MATCH_ACCEPT)
       }
     if (md->end_offset_top > arg_offset_max) md->offset_overflow = TRUE;
     DPRINTF(("Freeing temporary memory\n"));
-    (pcre_free)(md->offset_vector);
+    (PUBL(free))(md->offset_vector);
     }
 
   /* Set the return code to the number of captured strings, or 0 if there were
@@ -6722,7 +6737,7 @@ attempt has failed at all permitted starting positions. */
 if (using_temporary_offsets)
   {
   DPRINTF(("Freeing temporary memory\n"));
-  (pcre_free)(md->offset_vector);
+  (PUBL(free))(md->offset_vector);
   }
 
 /* For anything other than nomatch or partial match, just return the code. */
