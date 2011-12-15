@@ -638,6 +638,8 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0 | F_FORCECONV, "\\d*\\s*\\w*\xed\xa0\x80\xed\xa0\x80", "\xed\xa0\x80\xed\xa0\x80" },
 	{ CMA, 0 | F_FORCECONV | F_NOMATCH, "\\d*?\\D*?\\s*?\\S*?\\w*?\\W*?##", "\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80\xed\xa0\x80#" },
 	{ CMA | PCRE_EXTENDED, 0 | F_FORCECONV, "\xed\xa0\x80 \xed\xb0\x80 !", "\xed\xa0\x80\xed\xb0\x80!" },
+	{ CMA, 0 | F_FORCECONV, "\xed\xa0\x80+#[^#]+\xed\xa0\x80", "\xed\xa0\x80#a\xed\xa0\x80" },
+	{ CMA, 0 | F_FORCECONV, "(\xed\xa0\x80+)#\\1", "\xed\xa0\x80\xed\xa0\x80#\xed\xa0\x80\xed\xa0\x80" },
 
 	/* Deep recursion. */
 	{ MUA, 0, "((((?:(?:(?:\\w)+)?)*|(?>\\w)+?)+|(?>\\w)?\?)*)?\\s", "aaaaa+ " },
@@ -654,7 +656,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ 0, 0, NULL, NULL }
 };
 
-static const unsigned char *tables(int release)
+static const unsigned char *tables(int mode)
 {
 	/* The purpose of this function to allow valgrind
 	for reporting invalid reads and writes. */
@@ -669,7 +671,7 @@ static const unsigned char *tables(int release)
 	PCRE_SCHAR16 null_str[1] = { 0 };
 #endif
 
-	if (release) {
+	if (mode) {
 		if (tables_copy)
 			free(tables_copy);
 		tables_copy = NULL;
@@ -697,8 +699,8 @@ static const unsigned char *tables(int release)
 	if (!default_tables)
 		return NULL;
 
-	/* This value cannot get from pcre_fullinfo. Since this is a test program,
-	we can live with it at the moment. */
+	/* Unfortunately this value cannot get from pcre_fullinfo.
+	Since this is a test program, this is acceptable at the moment. */
 	tables_copy = (unsigned char *)malloc(1088);
 	if (!tables_copy)
 		return NULL;
@@ -712,15 +714,19 @@ static pcre_jit_stack* callback(void *arg)
 	return (pcre_jit_stack *)arg;
 }
 
-static void setstack(pcre_extra *extra, int alloc_again)
+static void setstack(pcre_extra *extra)
 {
 	static pcre_jit_stack *stack;
 
-	if (alloc_again) {
+	if (!extra) {
 		if (stack)
 			pcre_jit_stack_free(stack);
-		stack = pcre_jit_stack_alloc(1, 1024 * 1024);
+		stack = NULL;
+		return;
 	}
+
+	if (!stack)
+		stack = pcre_jit_stack_alloc(1, 1024 * 1024);
 	/* Extra can be NULL. */
 	pcre_assign_jit_stack(extra, callback, stack);
 }
@@ -913,7 +919,7 @@ static int regression_tests(void)
 
 		counter++;
 		if ((counter & 0x3) != 0)
-			setstack(NULL, 1);
+			setstack(NULL);
 
 #ifdef SUPPORT_PCRE8
 		return_value8_1 = -1000;
@@ -923,7 +929,7 @@ static int regression_tests(void)
 		for (i = 0; i < 32; ++i)
 			ovector8_2[i] = -2;
 		if (re8) {
-			setstack(extra8, 0);
+			setstack(extra8);
 			return_value8_1 = pcre_exec(re8, extra8, current->input, strlen(current->input), current->start_offset & OFFSET_MASK,
 				current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector8_1, 32);
 			return_value8_2 = pcre_exec(re8, NULL, current->input, strlen(current->input), current->start_offset & OFFSET_MASK,
@@ -939,7 +945,7 @@ static int regression_tests(void)
 		for (i = 0; i < 32; ++i)
 			ovector16_2[i] = -2;
 		if (re16) {
-			setstack(extra16, 0);
+			setstack(extra16);
 			if ((current->flags & PCRE_UTF8) || (current->start_offset & F_FORCECONV))
 				length16 = convert_utf8_to_utf16(current->input, regtest_buf, regtest_offsetmap, REGTEST_MAX_LENGTH);
 			else
@@ -1079,6 +1085,7 @@ static int regression_tests(void)
 		current++;
 	}
 	tables(1);
+	setstack(NULL);
 
 	if (total == successful) {
 		printf("\nAll JIT regression tests are successfully passed.\n");

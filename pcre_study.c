@@ -577,7 +577,10 @@ return p + 1;
 
 #ifdef COMPILE_PCRE16
 if (c > 0xff)
+  {
   c = 0xff;
+  caseless = FALSE;
+  }
 SET_BIT(c);
 
 #ifdef SUPPORT_UTF

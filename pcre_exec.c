@@ -204,7 +204,11 @@ if (caseless)
     {
     if (eptr + length > md->end_subject) return -1;
     while (length-- > 0)
-      { if (md->lcc[*p++] != md->lcc[*eptr++]) return -1; }
+      {
+      if (TABLE_GET(*p, md->lcc, *p) != TABLE_GET(*eptr, md->lcc, *eptr)) return -1;
+      p++;
+      eptr++;
+      }
     }
   }
 

@@ -44,10 +44,12 @@ local functions. This source file is used in two places:
 
 (1) It is #included by pcre_compile.c when it is compiled in debugging mode
 (PCRE_DEBUG defined in pcre_internal.h). It is not included in production
-compiles.
+compiles. In this case PCRE_INCLUDED is defined.
 
 (2) It is also compiled separately and linked with pcretest.c, which can be
 asked to print out a compiled regex for debugging purposes. */
+
+#ifndef PCRE_INCLUDED
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -68,10 +70,14 @@ appropriately for an application, not for building PCRE. */
 /* These are the funtions that are contained within. It doesn't seem worth
 having a separate .h file just for this. */
 
+#endif /* PCRE_INCLUDED */
+
+#ifdef PCRE_INCLUDED
+static /* Keep the following function as private. */
+#endif
 #ifdef COMPILE_PCRE8
 void pcre_printint(pcre *external_re, FILE *f, BOOL print_lengths);
-#endif
-#ifdef COMPILE_PCRE16
+#else
 void pcre16_printint(pcre *external_re, FILE *f, BOOL print_lengths);
 #endif
 
@@ -230,6 +236,9 @@ print_lengths flag controls whether offsets and lengths of items are printed.
 They can be turned off from pcretest so that automatic tests on bytecode can be
 written that do not depend on the value of LINK_SIZE. */
 
+#ifdef PCRE_INCLUDED
+static /* Keep the following function as private. */
+#endif
 #ifdef COMPILE_PCRE8
 void
 pcre_printint(pcre *external_re, FILE *f, BOOL print_lengths)

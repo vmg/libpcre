@@ -2012,7 +2012,8 @@ for (;;)
 #endif  /* SUPPORT_UTF */
       /* Not UTF mode */
         {
-        if (lcc[c] == lcc[d]) { ADD_NEW(state_offset + 2, 0); }
+        if (TABLE_GET(c, lcc, c) == TABLE_GET(d, lcc, d))
+          { ADD_NEW(state_offset + 2, 0); }
         }
       break;
 

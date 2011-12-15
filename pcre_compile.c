@@ -59,7 +59,10 @@ library. We do not need to select pcre16_printint.c specially, because the
 COMPILE_PCREx macro will already be appropriately set. */
 
 #ifdef PCRE_DEBUG
+/* pcre_printint.c should not include any headers */
+#define PCRE_INCLUDED
 #include "pcre_printint.c"
+#undef PCRE_INCLUDED
 #endif
 
 
@@ -3060,7 +3063,7 @@ if (next >= 0) switch(op_code)
     }
   else
 #endif  /* SUPPORT_UTF */
-  return (c != cd->fcc[next]);  /* Non-UTF-8 mode */
+  return (c != TABLE_GET(next, cd->fcc, next));  /* Non-UTF-8 mode */
 
   /* For OP_NOT and OP_NOTI, the data is always a single-byte character. These
   opcodes are not used for multi-byte characters, because they are coded using
@@ -3085,7 +3088,7 @@ if (next >= 0) switch(op_code)
     }
   else
 #endif  /* SUPPORT_UTF */
-  return (c == cd->fcc[next]);  /* Non-UTF-8 mode */
+  return (c == TABLE_GET(next, cd->fcc, next));  /* Non-UTF-8 mode */
 
   /* Note that OP_DIGIT etc. are generated only when PCRE_UCP is *not* set.
   When it is set, \d etc. are converted into OP_(NOT_)PROP codes. */
@@ -4400,7 +4403,7 @@ for (;; ptr++)
           classbits[c/8] |= (1 << (c&7));
           if ((options & PCRE_CASELESS) != 0)
             {
-            int uc = cd->fcc[c];           /* flip case */
+            int uc = cd->fcc[c]; /* flip case */
             classbits[uc/8] |= (1 << (uc&7));
             }
           }
@@ -4522,7 +4525,7 @@ for (;; ptr++)
         classbits[c/8] |= (1 << (c&7));
         if ((options & PCRE_CASELESS) != 0)
           {
-          c = cd->fcc[c];   /* flip case */
+          c = cd->fcc[c]; /* flip case */
           classbits[c/8] |= (1 << (c&7));
           }
         }
