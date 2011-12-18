@@ -1709,6 +1709,7 @@ for (;;)
   int d;
   pcre_uchar *ce, *cs;
   register int op = *cc;
+  
   switch (op)
     {
     /* We only need to continue for OP_CBRA (normal capturing bracket) and
@@ -1768,7 +1769,8 @@ for (;;)
     case OP_ASSERTBACK:
     case OP_ASSERTBACK_NOT:
     do cc += GET(cc, 1); while (*cc == OP_ALT);
-    /* Fall through */
+    cc += PRIV(OP_lengths)[*cc];
+    break; 
 
     /* Skip over things that don't match chars */
 
@@ -6661,11 +6663,11 @@ for (;; ptr++)
 
         if (ptr[1] != CHAR_PLUS && ptr[1] != CHAR_MINUS)
           {
-          BOOL isnumber = TRUE;
+          BOOL is_a_number = TRUE;
           for (p = ptr + 1; *p != 0 && *p != terminator; p++)
             {
-            if (!MAX_255(*p)) { isnumber = FALSE; break; }
-            if ((cd->ctypes[*p] & ctype_digit) == 0) isnumber = FALSE;
+            if (!MAX_255(*p)) { is_a_number = FALSE; break; }
+            if ((cd->ctypes[*p] & ctype_digit) == 0) is_a_number = FALSE;
             if ((cd->ctypes[*p] & ctype_word) == 0) break;
             }
           if (*p != terminator)
@@ -6673,7 +6675,7 @@ for (;; ptr++)
             *errorcodeptr = ERR57;
             break;
             }
-          if (isnumber)
+          if (is_a_number)
             {
             ptr++;
             goto HANDLE_NUMERICAL_RECURSION;

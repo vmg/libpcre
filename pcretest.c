@@ -4,7 +4,8 @@
 
 /* This program was hacked up as a tester for PCRE. I really should have
 written it more tidily in the first place. Will I ever learn? It has grown and
-been extended and consequently is now rather, er, *very* untidy in places.
+been extended and consequently is now rather, er, *very* untidy in places. The 
+addition of 16-bit support has made it even worse. :-(
 
 -----------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
@@ -107,9 +108,9 @@ appropriately for an application, not for building PCRE. */
 #include "pcre.h"
 #include "pcre_internal.h"
 
-/* The pcre_printint() function, which prints the internal form of a compiled 
-regex, is held in a separate file so that (a) it can be compiled in either 
-8-bit or 16-bit mode, and (b) it can be #included directly in pcre_compile.c 
+/* The pcre_printint() function, which prints the internal form of a compiled
+regex, is held in a separate file so that (a) it can be compiled in either
+8-bit or 16-bit mode, and (b) it can be #included directly in pcre_compile.c
 when that is compiled in debug mode. */
 
 #ifdef SUPPORT_PCRE8
@@ -149,7 +150,7 @@ that differ in their output from isprint() even in the "C" locale. */
 #define PRINTABLE(c) ((c) >= 32 && (c) < 127)
 #endif
 
-#define PRINTHEX(c) (locale_set? isprint(c) : PRINTABLE(c))
+#define PRINTOK(c) (locale_set? isprint(c) : PRINTABLE(c))
 
 /* It is possible to compile this test program without including support for
 testing the POSIX interface, though this is not available via the standard
@@ -159,17 +160,123 @@ Makefile. */
 #include "pcreposix.h"
 #endif
 
-/* It is also possible, for the benefit of the version currently imported into
-Exim, to build pcretest without support for UTF8 (define NOUTF8), without the
-interface to the DFA matcher (NODFA), and without the doublecheck of the old
-"info" function (define NOINFOCHECK). In fact, we automatically cut out the
-UTF8 support if PCRE is built without it. */
+/* It is also possible, originally for the benefit of a version that was
+imported into Exim, to build pcretest without support for UTF8 (define NOUTF8),
+without the interface to the DFA matcher (NODFA), and without the doublecheck
+of the old "info" function (define NOINFOCHECK). In fact, we automatically cut
+out the UTF8 support if PCRE is built without it. */
 
 #ifndef SUPPORT_UTF8
 #ifndef NOUTF8
 #define NOUTF8
 #endif
 #endif
+
+/* To make the code a bit tidier for 8-bit and 16-bit support, we define macros
+for all the pcre[16]_xxx functions (except pcre16_fullinfo, which is called
+only from one place and is handled differently). I couldn't dream up any way of
+using a single macro to do this in a generic way, because of the many different
+argument requirements. We know that at least one of SUPPORT_PCRE8 and
+SUPPORT_PCRE16 must be set. First define macros for each individual mode; then
+use these in the definitions of generic macros. */
+
+#ifdef SUPPORT_PCRE8
+#define PCHARS8(lv, p, len, f) \
+  lv = pchars((pcre_uint8 *)p, len, f)
+
+#define PCHARSV8(p, len, f) \
+  (void)pchars((pcre_uint8 *)p, len, f)
+
+#define PCRE_COMPILE8(re, pat, options, error, erroffset, tables) \
+  re = pcre_compile((char *)pat, options, error, erroffset, tables)
+
+#define PCRE_EXEC8(count, re, extra, bptr, len, start_offset, options, \
+    offsets, size_offsets) \
+  count = pcre_exec(re, extra, (char *)bptr, len, start_offset, options, \
+    offsets, size_offsets)
+
+#define PCRE_STUDY8(extra, re, options, error) \
+  extra = pcre_study(re, options, error)
+#endif
+
+
+#ifdef SUPPORT_PCRE16
+#define PCHARS16(lv, p, len, f) \
+  lv = pchars16((PCRE_SPTR16)p, len, f)
+
+#define PCHARSV16(p, len, f) \
+  (void)pchars16((PCRE_SPTR16)p, len, f)
+
+#define PCRE_COMPILE16(re, pat, options, error, erroffset, tables) \
+  re = pcre16_compile((PCRE_SPTR16)pat, options, error, erroffset, tables)
+
+#define PCRE_EXEC16(count, re, extra, bptr, len, start_offset, options, \
+    offsets, size_offsets) \
+  count = pcre16_exec(re, extra, (PCRE_SPTR16)bptr, len, start_offset, \
+    options, offsets, size_offsets)
+
+#define PCRE_STUDY16(extra, re, options, error) \
+  extra = pcre16_study(re, options, error)
+#endif
+
+
+/* ----- Both modes are supported; a runtime test is needed ----- */
+
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+
+#define PCHARS(lv, p, len, f) \
+  if (use_pcre16) \
+    PCHARS16(lv, p, len, f); \
+  else \
+    PCHARS8(lv, p, len, f)
+
+#define PCHARSV(p, len, f) \
+  if (use_pcre16) \
+    PCHARSV16(p, len, f); \
+  else \
+    PCHARSV8(p, len, f)
+
+#define PCRE_COMPILE(re, pat, options, error, erroffset, tables) \
+  if (use_pcre16) \
+    PCRE_COMPILE16(re, pat, options, error, erroffset, tables); \
+  else \
+    PCRE_COMPILE8(re, pat, options, error, erroffset, tables)
+
+#define PCRE_EXEC(count, re, extra, bptr, len, start_offset, options, \
+    offsets, size_offsets) \
+  if (use_pcre16) \
+    PCRE_EXEC16(count, re, extra, bptr, len, start_offset, options, \
+      offsets, size_offsets); \
+  else \
+    PCRE_EXEC8(count, re, extra, bptr, len, start_offset, options, \
+      offsets, size_offsets)
+
+#define PCRE_STUDY(extra, re, options, error) \
+  if (use_pcre16) \
+    PCRE_STUDY16(extra, re, options, error); \
+  else \
+    PCRE_STUDY8(extra, re, options, error)
+
+/* ----- Only 8-bit mode is supported ----- */
+
+#elif defined SUPPORT_PCRE8
+#define PCHARS       PCHARS8
+#define PCHARSV      PCHARSV8
+#define PCRE_COMPILE PCRE_COMPILE8
+#define PCRE_EXEC    PCRE_EXEC8
+#define PCRE_STUDY   PCRE_STUDY8
+
+/* ----- Only 16-bit mode is supported ----- */
+
+#else
+#define PCHARS       PCHARS16
+#define PCHARSV      PCHARSV16
+#define PCRE_COMPILE PCRE_COMPILE16
+#define PCRE_EXEC    PCRE_EXEC16
+#define PCRE_STUDY   PCRE_STUDY16
+#endif
+
+/* ----- End of mode-specific function call macros ----- */
 
 
 /* Other parameters */
@@ -203,8 +310,6 @@ static size_t gotten_store;
 static size_t first_gotten_store = 0;
 static const unsigned char *last_callout_mark = NULL;
 
-static int (*fullinfo)(const pcre *, const pcre_extra *, int, void *);
-
 /* The buffers grow automatically if very long input lines are encountered. */
 
 static int buffer_size = 50000;
@@ -215,6 +320,16 @@ static pcre_uint8 *pbuffer = NULL;
 #ifdef SUPPORT_PCRE16
 static int buffer16_size = 0;
 static pcre_uint16 *buffer16 = NULL;
+#endif
+
+/* If we have 8-bit support, default use_pcre16 to false; if there is also
+16-bit support, it can be changed by an option. If there is no 8-bit support,
+there must be 16-bit support, so default it to 1. */
+
+#ifdef SUPPORT_PCRE8
+static int use_pcre16 = 0;
+#else
+static int use_pcre16 = 1;
 #endif
 
 /* Textual explanations for runtime error codes */
@@ -248,7 +363,7 @@ static const char *errtexts[] = {
   NULL,  /* SHORTUTF8 is handled specially */
   "nested recursion at the same subject position",
   "JIT stack limit reached",
-  "pattern compiled in wrong mode (8-bit/16-bit error)" 
+  "pattern compiled in wrong mode (8-bit/16-bit error)"
 };
 
 
@@ -264,7 +379,7 @@ the L (locale) option also adjusts the tables. */
 /* This is the set of tables distributed as default with PCRE. It recognizes
 only ASCII characters. */
 
-static const unsigned char tables0[] = {
+static const pcre_uint8 tables0[] = {
 
 /* This table is a lower casing table. */
 
@@ -437,7 +552,7 @@ graph, print, punct, and cntrl. Other classes are built from combinations. */
 be at least an approximation of ISO 8859. In particular, there are characters
 greater than 128 that are marked as spaces, letters, etc. */
 
-static const unsigned char tables1[] = {
+static const pcre_uint8 tables1[] = {
 0,1,2,3,4,5,6,7,
 8,9,10,11,12,13,14,15,
 16,17,18,19,20,21,22,23,
@@ -610,188 +725,6 @@ return (pcre_jit_stack *)arg;
 }
 
 
-#ifdef SUPPORT_PCRE16
-/*************************************************
-*         Convert a string to 16-bit             *
-*************************************************/
-
-/* The result is always left in buffer16. */
-
-static int
-to16(unsigned char *p, int utf)
-{
-pcre_uint16 *pp;
-int len = (int)strlen((char *)p) + 1;
-
-if (buffer16_size < 2*len)
-  {
-  if (buffer16 != NULL) free(buffer16);
-  buffer16_size = 2*len;
-  buffer16 = (pcre_uint16 *)malloc(buffer16_size);
-  if (buffer16 == NULL) 
-    {
-    fprintf(stderr, "pcretest: malloc(%d) failed for buffer16\n", buffer16_size);
-    exit(1);
-    }
-  }
-  
-pp = buffer16;
-
-if (!utf)
-  {
-  while (*p != 0) *pp++ = *p++;    
-  *pp++ = 0; 
-  }
-  
-else
-  {
-fprintf(stderr, "pcretest: no support yet for UTF-16\n");
-exit(1);  
-  }   
-  
-return pp - buffer16;
-} 
-#endif
-
-
-/*************************************************
-*        Read or extend an input line            *
-*************************************************/
-
-/* Input lines are read into buffer, but both patterns and data lines can be
-continued over multiple input lines. In addition, if the buffer fills up, we
-want to automatically expand it so as to be able to handle extremely large
-lines that are needed for certain stress tests. When the input buffer is
-expanded, the other two buffers must also be expanded likewise, and the
-contents of pbuffer, which are a copy of the input for callouts, must be
-preserved (for when expansion happens for a data line). This is not the most
-optimal way of handling this, but hey, this is just a test program!
-
-Arguments:
-  f            the file to read
-  start        where in buffer to start (this *must* be within buffer)
-  prompt       for stdin or readline()
-
-Returns:       pointer to the start of new data
-               could be a copy of start, or could be moved
-               NULL if no data read and EOF reached
-*/
-
-static pcre_uint8 *
-extend_inputline(FILE *f, pcre_uint8 *start, const char *prompt)
-{
-pcre_uint8 *here = start;
-
-for (;;)
-  {
-  int rlen = (int)(buffer_size - (here - buffer));
-
-  if (rlen > 1000)
-    {
-    int dlen;
-
-    /* If libreadline support is required, use readline() to read a line if the
-    input is a terminal. Note that readline() removes the trailing newline, so
-    we must put it back again, to be compatible with fgets(). */
-
-#ifdef SUPPORT_LIBREADLINE
-    if (isatty(fileno(f)))
-      {
-      size_t len;
-      char *s = readline(prompt);
-      if (s == NULL) return (here == start)? NULL : start;
-      len = strlen(s);
-      if (len > 0) add_history(s);
-      if (len > rlen - 1) len = rlen - 1;
-      memcpy(here, s, len);
-      here[len] = '\n';
-      here[len+1] = 0;
-      free(s);
-      }
-    else
-#endif
-
-    /* Read the next line by normal means, prompting if the file is stdin. */
-
-      {
-      if (f == stdin) printf("%s", prompt);
-      if (fgets((char *)here, rlen,  f) == NULL)
-        return (here == start)? NULL : start;
-      }
-
-    dlen = (int)strlen((char *)here);
-    if (dlen > 0 && here[dlen - 1] == '\n') return start;
-    here += dlen;
-    }
-
-  else
-    {
-    int new_buffer_size = 2*buffer_size;
-    pcre_uint8 *new_buffer = (unsigned char *)malloc(new_buffer_size);
-    pcre_uint8 *new_dbuffer = (unsigned char *)malloc(new_buffer_size);
-    pcre_uint8 *new_pbuffer = (unsigned char *)malloc(new_buffer_size);
-
-    if (new_buffer == NULL || new_dbuffer == NULL || new_pbuffer == NULL)
-      {
-      fprintf(stderr, "pcretest: malloc(%d) failed\n", new_buffer_size);
-      exit(1);
-      }
-
-    memcpy(new_buffer, buffer, buffer_size);
-    memcpy(new_pbuffer, pbuffer, buffer_size);
-
-    buffer_size = new_buffer_size;
-
-    start = new_buffer + (start - buffer);
-    here = new_buffer + (here - buffer);
-
-    free(buffer);
-    free(dbuffer);
-    free(pbuffer);
-
-    buffer = new_buffer;
-    dbuffer = new_dbuffer;
-    pbuffer = new_pbuffer;
-    }
-  }
-
-return NULL;  /* Control never gets here */
-}
-
-
-
-
-
-
-
-/*************************************************
-*          Read number from string               *
-*************************************************/
-
-/* We don't use strtoul() because SunOS4 doesn't have it. Rather than mess
-around with conditional compilation, just do the job by hand. It is only used
-for unpicking arguments, so just keep it simple.
-
-Arguments:
-  str           string to be converted
-  endptr        where to put the end pointer
-
-Returns:        the unsigned long
-*/
-
-static int
-get_value(unsigned char *str, unsigned char **endptr)
-{
-int result = 0;
-while(*str != 0 && isspace(*str)) str++;
-while (isdigit(*str)) result = result * 10 + (int)(*str++ - '0');
-*endptr = str;
-return(result);
-}
-
-
-
-
 /*************************************************
 *            Convert UTF-8 string to value       *
 *************************************************/
@@ -810,7 +743,7 @@ Returns:      >  0 => the number of bytes consumed
 #if !defined NOUTF8
 
 static int
-utf82ord(unsigned char *utf8bytes, int *vptr)
+utf82ord(pcre_uint8 *utf8bytes, int *vptr)
 {
 int c = *utf8bytes++;
 int d = c;
@@ -890,15 +823,206 @@ return i + 1;
 
 
 
+#ifdef SUPPORT_PCRE16
 /*************************************************
-*             Print character string             *
+*         Convert a string to 16-bit             *
 *************************************************/
 
-/* Character string printing function. Must handle UTF-8 strings in utf8
-mode. Yields number of characters printed. If handed a NULL file, just counts
-chars without printing. */
+/* In non-UTF mode, the space needed for a 16-bit string is exactly double the
+8-bit size. For a UTF-8 string, the size needed for UTF-16 is no more than
+double, because up to 0xffff uses no more than 3 bytes in UTF-8 but possibly 4
+in UTF-16. Higher values use 4 bytes in UTF-8 and up to 4 bytes in UTF-16. The
+result is always left in buffer16. */
 
-static int pchars(unsigned char *p, int length, FILE *f)
+static int
+to16(pcre_uint8 *p, int utf, int len)
+{
+pcre_uint16 *pp;
+
+if (buffer16_size < 2*len + 2)
+  {
+  if (buffer16 != NULL) free(buffer16);
+  buffer16_size = 2*len + 2;
+  buffer16 = (pcre_uint16 *)malloc(buffer16_size);
+  if (buffer16 == NULL)
+    {
+    fprintf(stderr, "pcretest: malloc(%d) failed for buffer16\n", buffer16_size);
+    exit(1);
+    }
+  }
+
+pp = buffer16;
+
+if (!utf)
+  {
+  while (len-- > 0) *pp++ = *p++;
+  }
+
+else
+  {
+  int c;
+  while (len > 0)
+    {
+    int chlen = utf82ord(p, &c);
+    p += chlen;
+    len -= chlen; 
+    if (c < 0x10000) *pp++ = c; else
+      {
+      c -= 0x10000;
+      *pp++ = 0xD800 | (c >> 10);
+      *pp++ = 0xDC00 | (c & 0x3ff);
+      }
+    }
+  }
+
+*pp = 0;
+return pp - buffer16;
+}
+#endif
+
+
+/*************************************************
+*        Read or extend an input line            *
+*************************************************/
+
+/* Input lines are read into buffer, but both patterns and data lines can be
+continued over multiple input lines. In addition, if the buffer fills up, we
+want to automatically expand it so as to be able to handle extremely large
+lines that are needed for certain stress tests. When the input buffer is
+expanded, the other two buffers must also be expanded likewise, and the
+contents of pbuffer, which are a copy of the input for callouts, must be
+preserved (for when expansion happens for a data line). This is not the most
+optimal way of handling this, but hey, this is just a test program!
+
+Arguments:
+  f            the file to read
+  start        where in buffer to start (this *must* be within buffer)
+  prompt       for stdin or readline()
+
+Returns:       pointer to the start of new data
+               could be a copy of start, or could be moved
+               NULL if no data read and EOF reached
+*/
+
+static pcre_uint8 *
+extend_inputline(FILE *f, pcre_uint8 *start, const char *prompt)
+{
+pcre_uint8 *here = start;
+
+for (;;)
+  {
+  int rlen = (int)(buffer_size - (here - buffer));
+
+  if (rlen > 1000)
+    {
+    int dlen;
+
+    /* If libreadline support is required, use readline() to read a line if the
+    input is a terminal. Note that readline() removes the trailing newline, so
+    we must put it back again, to be compatible with fgets(). */
+
+#ifdef SUPPORT_LIBREADLINE
+    if (isatty(fileno(f)))
+      {
+      size_t len;
+      char *s = readline(prompt);
+      if (s == NULL) return (here == start)? NULL : start;
+      len = strlen(s);
+      if (len > 0) add_history(s);
+      if (len > rlen - 1) len = rlen - 1;
+      memcpy(here, s, len);
+      here[len] = '\n';
+      here[len+1] = 0;
+      free(s);
+      }
+    else
+#endif
+
+    /* Read the next line by normal means, prompting if the file is stdin. */
+
+      {
+      if (f == stdin) printf("%s", prompt);
+      if (fgets((char *)here, rlen,  f) == NULL)
+        return (here == start)? NULL : start;
+      }
+
+    dlen = (int)strlen((char *)here);
+    if (dlen > 0 && here[dlen - 1] == '\n') return start;
+    here += dlen;
+    }
+
+  else
+    {
+    int new_buffer_size = 2*buffer_size;
+    pcre_uint8 *new_buffer = (pcre_uint8 *)malloc(new_buffer_size);
+    pcre_uint8 *new_dbuffer = (pcre_uint8 *)malloc(new_buffer_size);
+    pcre_uint8 *new_pbuffer = (pcre_uint8 *)malloc(new_buffer_size);
+
+    if (new_buffer == NULL || new_dbuffer == NULL || new_pbuffer == NULL)
+      {
+      fprintf(stderr, "pcretest: malloc(%d) failed\n", new_buffer_size);
+      exit(1);
+      }
+
+    memcpy(new_buffer, buffer, buffer_size);
+    memcpy(new_pbuffer, pbuffer, buffer_size);
+
+    buffer_size = new_buffer_size;
+
+    start = new_buffer + (start - buffer);
+    here = new_buffer + (here - buffer);
+
+    free(buffer);
+    free(dbuffer);
+    free(pbuffer);
+
+    buffer = new_buffer;
+    dbuffer = new_dbuffer;
+    pbuffer = new_pbuffer;
+    }
+  }
+
+return NULL;  /* Control never gets here */
+}
+
+
+
+/*************************************************
+*          Read number from string               *
+*************************************************/
+
+/* We don't use strtoul() because SunOS4 doesn't have it. Rather than mess
+around with conditional compilation, just do the job by hand. It is only used
+for unpicking arguments, so just keep it simple.
+
+Arguments:
+  str           string to be converted
+  endptr        where to put the end pointer
+
+Returns:        the unsigned long
+*/
+
+static int
+get_value(pcre_uint8 *str, pcre_uint8 **endptr)
+{
+int result = 0;
+while(*str != 0 && isspace(*str)) str++;
+while (isdigit(*str)) result = result * 10 + (int)(*str++ - '0');
+*endptr = str;
+return(result);
+}
+
+
+
+#ifdef SUPPORT_PCRE8
+/*************************************************
+*         Print 8-bit character string           *
+*************************************************/
+
+/* Must handle UTF-8 strings in utf8 mode. Yields number of characters printed.
+If handed a NULL file, just counts chars without printing. */
+
+static int pchars(pcre_uint8 *p, int length, FILE *f)
 {
 int c = 0;
 int yield = 0;
@@ -914,7 +1038,7 @@ while (length-- > 0)
       {
       length -= rc - 1;
       p += rc;
-      if (PRINTHEX(c))
+      if (PRINTOK(c))
         {
         if (f != NULL) fprintf(f, "%c", c);
         yield++;
@@ -936,7 +1060,7 @@ while (length-- > 0)
    /* Not UTF-8, or malformed UTF-8  */
 
   c = *p++;
-  if (PRINTHEX(c))
+  if (PRINTOK(c))
     {
     if (f != NULL) fprintf(f, "%c", c);
     yield++;
@@ -950,6 +1074,65 @@ while (length-- > 0)
 
 return yield;
 }
+#endif
+
+
+
+#ifdef SUPPORT_PCRE16
+/*************************************************
+*           Print 16-bit character string        *
+*************************************************/
+
+/* Must handle UTF-16 strings in utf mode. Yields number of characters printed.
+If handed a NULL file, just counts chars without printing. */
+
+static int pchars16(PCRE_SPTR16 p, int length, FILE *f)
+{
+int yield = 0;
+
+while (length-- > 0)
+  {
+  int c = *p++ & 0xffff;
+  
+#if !defined NOUTF8
+  if (use_utf8 && c >= 0xD800 && c < 0xDC00 && length > 0)
+    {
+    int d = *p & 0xffff;
+    if (d >= 0xDC00 && d < 0xDFFF)
+      {
+      c = ((c & 0x3ff) << 10) + (d & 0x3ff) + 0x10000;
+      length--;
+      p++; 
+      }
+    }   
+#endif
+
+  if (PRINTOK(c))
+    {
+    if (f != NULL) fprintf(f, "%c", c);
+    yield++;
+    }
+  else
+    {
+    yield += 4;
+    if (c < 0x100)
+      {
+      if (f != NULL) fprintf(f, "\\x%02x", c);
+      }
+    else
+      {
+      if (f != NULL) fprintf(f, "\\x{%02x}", c);
+      yield += (c <= 0x000000ff)? 2 :
+               (c <= 0x00000fff)? 3 :
+               (c <= 0x0000ffff)? 4 :
+               (c <= 0x000fffff)? 5 : 6;
+      }
+    }
+  }
+
+return yield;
+}
+#endif
 
 
 
@@ -978,7 +1161,7 @@ if (callout_extra)
     else
       {
       fprintf(f, "%2d: ", i/2);
-      (void)pchars((unsigned char *)cb->subject + cb->offset_vector[i],
+      PCHARSV(cb->subject + cb->offset_vector[i],
         cb->offset_vector[i+1] - cb->offset_vector[i], f);
       fprintf(f, "\n");
       }
@@ -991,13 +1174,13 @@ printed lengths of the substrings. */
 
 if (f != NULL) fprintf(f, "--->");
 
-pre_start = pchars((unsigned char *)cb->subject, cb->start_match, f);
-post_start = pchars((unsigned char *)(cb->subject + cb->start_match),
+PCHARS(pre_start, cb->subject, cb->start_match, f);
+PCHARS(post_start, cb->subject + cb->start_match,
   cb->current_position - cb->start_match, f);
 
-subject_length = pchars((unsigned char *)cb->subject, cb->subject_length, NULL);
+PCHARS(subject_length, cb->subject, cb->subject_length, NULL);
 
-(void)pchars((unsigned char *)(cb->subject + cb->current_position),
+PCHARSV(cb->subject + cb->current_position,
   cb->subject_length - cb->current_position, f);
 
 if (f != NULL) fprintf(f, "\n");
@@ -1103,13 +1286,29 @@ free(block);
 *          Call pcre_fullinfo()                  *
 *************************************************/
 
-/* Get one piece of information from the pcre_fullinfo() function */
+/* Get one piece of information from the pcre_fullinfo() function. When only
+one of 8-bit or 16-bit is supported, use_pcre16 should always have the correct
+value, but the code is defensive. */
 
 static void new_info(pcre *re, pcre_extra *study, int option, void *ptr)
 {
 int rc;
-if ((rc = (fullinfo)(re, study, option, ptr)) < 0)
-  fprintf(outfile, "Error %d from pcre_fullinfo(%d)\n", rc, option);
+
+if (use_pcre16)
+#ifdef SUPPORT_PCRE16
+  rc = pcre16_fullinfo(re, study, option, ptr);
+#else
+  rc = PCRE_ERROR_BADMODE;
+#endif
+else
+#ifdef SUPPORT_PCRE8
+  rc = pcre_fullinfo(re, study, option, ptr);
+#else
+  rc = PCRE_ERROR_BADMODE;
+#endif
+
+if (rc < 0) fprintf(outfile, "Error %d from pcre%s_fullinfo(%d)\n", rc,
+  use_pcre16? "16" : "", option);
 }
 
 
@@ -1151,7 +1350,7 @@ for (;;)
   {
   *limit = mid;
 
-  count = pcre_exec(re, extra, (char *)bptr, len, start_offset, options,
+  PCRE_EXEC(count, re, extra, bptr, len, start_offset, options,
     use_offsets, use_size_offsets);
 
   if (count == errnumber)
@@ -1313,7 +1512,6 @@ int posix = 0;
 int debug = 0;
 int done = 0;
 int all_use_dfa = 0;
-int use_pcre16 = 0;
 int yield = 0;
 int stack_size;
 
@@ -1329,7 +1527,7 @@ pcre_uchar *copynamesptr;
 pcre_uchar *getnamesptr;
 
 /* Get buffers from malloc() so that valgrind will check their misuse when
-debugging. They grow automatically when very long lines are read. The 16-bit 
+debugging. They grow automatically when very long lines are read. The 16-bit
 buffer (buffer16) is obtained only if needed. */
 
 buffer = (pcre_uint8 *)malloc(buffer_size);
@@ -1353,16 +1551,19 @@ _setmode( _fileno( stdout ), _O_BINARY );
 
 while (argc > 1 && argv[op][0] == '-')
   {
-  unsigned char *endptr;
+  pcre_uint8 *endptr;
 
-  if (strcmp(argv[op], "-16") == 0) use_pcre16 = 1;
-  else if (strcmp(argv[op], "-m") == 0) showstore = 1;
+  if (strcmp(argv[op], "-m") == 0) showstore = 1;
   else if (strcmp(argv[op], "-s") == 0) force_study = 0;
   else if (strcmp(argv[op], "-s+") == 0)
     {
     force_study = 1;
     force_study_options = PCRE_STUDY_JIT_COMPILE;
     }
+#ifdef SUPPORT_PCRE16
+  else if (strcmp(argv[op], "-16") == 0) use_pcre16 = 1;
+#endif
+
   else if (strcmp(argv[op], "-q") == 0) quiet = 1;
   else if (strcmp(argv[op], "-b") == 0) debug = 1;
   else if (strcmp(argv[op], "-i") == 0) showinfo = 1;
@@ -1372,7 +1573,7 @@ while (argc > 1 && argv[op][0] == '-')
   else if (strcmp(argv[op], "-dfa") == 0) all_use_dfa = 1;
 #endif
   else if (strcmp(argv[op], "-o") == 0 && argc > 2 &&
-      ((size_offsets = get_value((unsigned char *)argv[op+1], &endptr)),
+      ((size_offsets = get_value((pcre_uint8 *)argv[op+1], &endptr)),
         *endptr == 0))
     {
     op++;
@@ -1382,7 +1583,7 @@ while (argc > 1 && argv[op][0] == '-')
     {
     int both = argv[op][2] == 0;
     int temp;
-    if (argc > 2 && (temp = get_value((unsigned char *)argv[op+1], &endptr),
+    if (argc > 2 && (temp = get_value((pcre_uint8 *)argv[op+1], &endptr),
                      *endptr == 0))
       {
       timeitm = temp;
@@ -1393,7 +1594,7 @@ while (argc > 1 && argv[op][0] == '-')
     if (both) timeit = timeitm;
     }
   else if (strcmp(argv[op], "-S") == 0 && argc > 2 &&
-      ((stack_size = get_value((unsigned char *)argv[op+1], &endptr)),
+      ((stack_size = get_value((pcre_uint8 *)argv[op+1], &endptr)),
         *endptr == 0))
     {
 #if defined(_WIN32) || defined(WIN32) || defined(__minix)
@@ -1423,25 +1624,27 @@ while (argc > 1 && argv[op][0] == '-')
     unsigned long int lrc;
     printf("PCRE version %s\n", pcre_version());
     printf("Compiled with\n");
-    
-/* At least one of SUPPORT_PCRE8 and SUPPORT_PCRE16 will be set. */
+
+/* At least one of SUPPORT_PCRE8 and SUPPORT_PCRE16 will be set. If both
+are set, either both UTFs are supported or both are not supported. */
 
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
     printf("  8-bit and 16-bit support\n");
     (void)pcre_config(PCRE_CONFIG_UTF8, &rc);
-    printf("  %sUTF-8 support\n", rc? "" : "No ");
-    (void)pcre16_config(PCRE_CONFIG_UTF16, &rc);
-    printf("  %sUTF-16 support\n", rc? "" : "No ");
+    if (rc)
+      printf("  UTF-8 and UTF-16 support\n");
+    else 
+      printf("  No UTF-8 or UTF-16 support\n");
 #elif defined SUPPORT_PCRE8
     printf("  8-bit support only\n");
     (void)pcre_config(PCRE_CONFIG_UTF8, &rc);
     printf("  %sUTF-8 support\n", rc? "" : "No ");
-#else    
+#else
     printf("  16-bit support only\n");
     (void)pcre16_config(PCRE_CONFIG_UTF16, &rc);
     printf("  %sUTF-16 support\n", rc? "" : "No ");
-#endif     
- 
+#endif
+
     (void)pcre_config(PCRE_CONFIG_UNICODE_PROPERTIES, &rc);
     printf("  %sUnicode properties support\n", rc? "" : "No ");
     (void)pcre_config(PCRE_CONFIG_JIT, &rc);
@@ -1487,10 +1690,6 @@ while (argc > 1 && argv[op][0] == '-')
   op++;
   argc--;
   }
-
-/* Select which fullinfo function to use. */
-
-fullinfo = use_pcre16? pcre16_fullinfo : pcre_fullinfo;
 
 /* Get the store for the offsets vector, and remember what it was */
 
@@ -1561,10 +1760,10 @@ while (!done)
 #endif
 
   const char *error;
-  unsigned char *markptr;
-  unsigned char *p, *pp, *ppp;
-  unsigned char *to_file = NULL;
-  const unsigned char *tables = NULL;
+  pcre_uint8 *markptr;
+  pcre_uint8 *p, *pp, *ppp;
+  pcre_uint8 *to_file = NULL;
+  const pcre_uint8 *tables = NULL;
   unsigned long int true_size, true_study_size = 0;
   size_t size, regex_gotten_store;
   int do_allcaps = 0;
@@ -1898,15 +2097,15 @@ while (!done)
 
     {
     unsigned long int get_options;
-    
-    /* In 16-bit mode, convert the input. The space needed for a non-UTF string 
-    is exactly double the 8-bit size. For a UTF-8 string, the size needed for 
-    UTF-16 is no more than double, because up to 0xffff uses no more than 3
-    bytes in UTF-8 but possibly 4 in UTF-16. Higher values use 4 bytes in UTF-8
-    and up to 4 bytes in UTF-16. */
-    
+
+    /* In 16-bit mode, convert the input. */
+
 #ifdef SUPPORT_PCRE16
-    if (use_pcre16) (void)to16(p, options & PCRE_UTF8);
+    if (use_pcre16) 
+      {
+      (void)to16(p, options & PCRE_UTF8, (int)strlen((char *)p));
+      p = (pcre_uint8 *)buffer16; 
+      } 
 #endif
 
     /* Compile many times when timing */
@@ -1918,12 +2117,7 @@ while (!done)
       clock_t start_time = clock();
       for (i = 0; i < timeit; i++)
         {
-#ifdef SUPPORT_PCRE16
-        if (use_pcre16)         
-          re = pcre16_compile((PCRE_SPTR16)buffer16, options, &error, &erroroffset, tables);
-        else 
-#endif         
-          re = pcre_compile((char *)p, options, &error, &erroroffset, tables);
+        PCRE_COMPILE(re, p, options, &error, &erroroffset, tables);
         if (re != NULL) free(re);
         }
       time_taken = clock() - start_time;
@@ -1933,13 +2127,7 @@ while (!done)
       }
 
     first_gotten_store = 0;
-    
-#ifdef SUPPORT_PCRE16
-    if (use_pcre16) 
-      re = pcre16_compile((PCRE_SPTR16)buffer16, options, &error, &erroroffset, tables);
-    else
-#endif        
-      re = pcre_compile((char *)p, options, &error, &erroroffset, tables);
+    PCRE_COMPILE(re, p, options, &error, &erroroffset, tables);
 
     /* Compilation failed; go back for another re, skipping to blank line
     if non-interactive. */
@@ -2001,21 +2189,15 @@ while (!done)
         clock_t start_time = clock();
         for (i = 0; i < timeit; i++)
           {
-          if (use_pcre16)  
-            extra = pcre16_study(re, study_options | force_study_options, &error);
-          else
-            extra = pcre_study(re, study_options | force_study_options, &error);
-          } 
+          PCRE_STUDY(extra, re, study_options | force_study_options, &error);
+          }
         time_taken = clock() - start_time;
         if (extra != NULL) pcre_free_study(extra);
         fprintf(outfile, "  Study time %.4f milliseconds\n",
           (((double)time_taken * 1000.0) / (double)timeit) /
             (double)CLOCKS_PER_SEC);
         }
-      if (use_pcre16)   
-        extra = pcre16_study(re, study_options | force_study_options, &error);
-      else   
-        extra = pcre_study(re, study_options | force_study_options, &error);
+      PCRE_STUDY(extra, re, study_options | force_study_options, &error);
       if (error != NULL)
         fprintf(outfile, "Failed to study: %s\n", error);
       else if (extra != NULL)
@@ -2090,7 +2272,7 @@ while (!done)
       fprintf(outfile, "------------------------------------------------------------------\n");
       if (use_pcre16)
         pcre16_printint(re, outfile, debug_lengths);
-      else   
+      else
         pcre_printint(re, outfile, debug_lengths);
       }
 
@@ -2121,10 +2303,10 @@ while (!done)
 
       /* The old, obsolete function pcre_info() works only in 8-bit mode. Check
       that it gives the same results as the new function. */
-        
+
 #if !defined NOINFOCHECK
       if (!use_pcre16)
-        { 
+        {
         old_count = pcre_info(re, &old_options, &old_first_char);
         if (count < 0) fprintf(outfile,
           "Error %d from pcre_info()\n", count);
@@ -2133,16 +2315,16 @@ while (!done)
           if (old_count != count) fprintf(outfile,
             "Count disagreement: pcre_fullinfo=%d pcre_info=%d\n", count,
               old_count);
-        
+
           if (old_first_char != first_char) fprintf(outfile,
             "First char disagreement: pcre_fullinfo=%d pcre_info=%d\n",
               first_char, old_first_char);
-        
+
           if (old_options != (int)get_options) fprintf(outfile,
             "Options disagreement: pcre_fullinfo=%ld pcre_info=%d\n",
               get_options, old_options);
           }
-        }   
+        }
 #endif
 
       if (size != regex_gotten_store) fprintf(outfile,
@@ -2233,7 +2415,7 @@ while (!done)
           ((((real_pcre *)re)->flags & PCRE_FCH_CASELESS) == 0)?
           "" : " (caseless)";
 
-        if (PRINTHEX(first_char))
+        if (PRINTOK(first_char))
           fprintf(outfile, "First char = \'%c\'%s\n", first_char, caseless);
         else
           fprintf(outfile, "First char = %d%s\n", first_char, caseless);
@@ -2249,7 +2431,7 @@ while (!done)
           ((((real_pcre *)re)->flags & PCRE_RCH_CASELESS) == 0)?
           "" : " (caseless)";
 
-        if (PRINTHEX(need_char))
+        if (PRINTOK(need_char))
           fprintf(outfile, "Need char = \'%c\'%s\n", need_char, caseless);
         else
           fprintf(outfile, "Need char = %d%s\n", need_char, caseless);
@@ -2292,7 +2474,7 @@ while (!done)
                   fprintf(outfile, "\n  ");
                   c = 2;
                   }
-                if (PRINTHEX(i) && i != ' ')
+                if (PRINTOK(i) && i != ' ')
                   {
                   fprintf(outfile, "%c ", i);
                   c += 2;
@@ -2479,7 +2661,7 @@ while (!done)
 #if !defined NOUTF8
         if (use_utf8 && c > 255)
           {
-          unsigned char buff8[8];
+          pcre_uint8 buff8[8];
           int ii, utn;
           utn = ord2utf8(c, buff8);
           for (ii = 0; ii < utn - 1; ii++) *q++ = buff8[ii];
@@ -2495,7 +2677,7 @@ while (!done)
 #if !defined NOUTF8
         if (*p == '{')
           {
-          unsigned char *pt = p;
+          pcre_uint8 *pt = p;
           c = 0;
 
           /* We used to have "while (isxdigit(*(++pt)))" here, but it fails
@@ -2507,7 +2689,7 @@ while (!done)
             c = c * 16 + tolower(*pt) - ((isdigit(*pt))? '0' : 'a' - 10);
           if (*pt == '}')
             {
-            unsigned char buff8[8];
+            pcre_uint8 buff8[8];
             int ii, utn;
             if (use_utf8)
               {
@@ -2817,13 +2999,13 @@ while (!done)
           if (pmatch[i].rm_so >= 0)
             {
             fprintf(outfile, "%2d: ", (int)i);
-            (void)pchars(dbuffer + pmatch[i].rm_so,
+            PCHARSV(dbuffer + pmatch[i].rm_so,
               pmatch[i].rm_eo - pmatch[i].rm_so, outfile);
             fprintf(outfile, "\n");
             if (do_showcaprest || (i == 0 && do_showrest))
               {
               fprintf(outfile, "%2d+ ", (int)i);
-              (void)pchars(dbuffer + pmatch[i].rm_eo, len - pmatch[i].rm_eo,
+              PCHARSV(dbuffer + pmatch[i].rm_eo, len - pmatch[i].rm_eo,
                 outfile);
               fprintf(outfile, "\n");
               }
@@ -2831,12 +3013,20 @@ while (!done)
           }
         }
       free(pmatch);
+      goto NEXT_DATA;
       }
+
+#endif  /* !defined NOPOSIX */
 
     /* Handle matching via the native interface - repeats for /g and /G */
 
-    else
-#endif  /* !defined NOPOSIX */
+#ifdef SUPPORT_PCRE16
+    if (use_pcre16) 
+      {
+      len = to16(bptr, (((real_pcre *)re)->options) & PCRE_UTF8, len);
+      bptr = (pcre_uint8 *)buffer16;
+      }  
+#endif
 
     for (;; gmatched++)    /* Loop for /g or /G */
       {
@@ -2847,11 +3037,6 @@ while (!done)
         register int i;
         clock_t time_taken;
         clock_t start_time = clock();
-        
-#ifdef SUPPORT_PCRE16
-        if (use_pcre16) len = to16(bptr, options & PCRE_UTF8);
-#endif
- 
 
 #if !defined NODFA
         if (all_use_dfa || use_dfa)
@@ -2866,9 +3051,10 @@ while (!done)
 #endif
 
         for (i = 0; i < timeitm; i++)
-          count = pcre_exec(re, extra, (char *)bptr, len,
+          {
+          PCRE_EXEC(count, re, extra, bptr, len,
             start_offset, options | g_notempty, use_offsets, use_size_offsets);
-
+          }
         time_taken = clock() - start_time;
         fprintf(outfile, "Execute time %.4f milliseconds\n",
           (((double)time_taken * 1000.0) / (double)timeitm) /
@@ -2913,7 +3099,7 @@ while (!done)
           }
         extra->flags |= PCRE_EXTRA_CALLOUT_DATA;
         extra->callout_data = &callout_data;
-        count = pcre_exec(re, extra, (char *)bptr, len, start_offset,
+        PCRE_EXEC(count, re, extra, bptr, len, start_offset,
           options | g_notempty, use_offsets, use_size_offsets);
         extra->flags &= ~PCRE_EXTRA_CALLOUT_DATA;
         }
@@ -2938,12 +3124,8 @@ while (!done)
 
       else
         {
-        if (use_pcre16) 
-          count = pcre16_exec(re, extra, (PCRE_SPTR16)buffer16, len,
-            start_offset, options | g_notempty, use_offsets, use_size_offsets);
-        else     
-          count = pcre_exec(re, extra, (char *)bptr, len,
-            start_offset, options | g_notempty, use_offsets, use_size_offsets);
+        PCRE_EXEC(count, re, extra, bptr, len, start_offset,
+          options | g_notempty, use_offsets, use_size_offsets);
         if (count == 0)
           {
           fprintf(outfile, "Matched, but too many substrings\n");
@@ -3004,13 +3186,13 @@ while (!done)
           else
             {
             fprintf(outfile, "%2d: ", i/2);
-            (void)pchars(bptr + use_offsets[i],
+            PCHARSV(bptr + use_offsets[i],
               use_offsets[i+1] - use_offsets[i], outfile);
             fprintf(outfile, "\n");
             if (do_showcaprest || (i == 0 && do_showrest))
               {
               fprintf(outfile, "%2d+ ", i/2);
-              (void)pchars(bptr + use_offsets[i+1], len - use_offsets[i+1],
+              PCHARSV(bptr + use_offsets[i+1], len - use_offsets[i+1],
                 outfile);
               fprintf(outfile, "\n");
               }
@@ -3106,7 +3288,7 @@ while (!done)
         if (use_size_offsets > 1)
           {
           fprintf(outfile, ": ");
-          pchars(bptr + use_offsets[0], use_offsets[1] - use_offsets[0],
+          PCHARSV(bptr + use_offsets[0], use_offsets[1] - use_offsets[0],
             outfile);
           }
         fprintf(outfile, "\n");
