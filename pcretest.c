@@ -219,11 +219,11 @@ use these in the definitions of generic macros. */
   count = pcre16_exec(re, extra, (PCRE_SPTR16)bptr, len, start_offset, \
     options, offsets, size_offsets)
 
-#define PCRE_STUDY16(extra, re, options, error) \
-  extra = pcre16_study(re, options, error)
-
 #define PCRE_FREE_STUDY16(extra) \
   pcre16_free_study(extra)
+
+#define PCRE_STUDY16(extra, re, options, error) \
+  extra = pcre16_study(re, options, error)
 
 #endif /* SUPPORT_PCRE16 */
 
@@ -259,17 +259,17 @@ use these in the definitions of generic macros. */
     PCRE_EXEC8(count, re, extra, bptr, len, start_offset, options, \
       offsets, size_offsets)
 
-#define PCRE_STUDY(extra, re, options, error) \
-  if (use_pcre16) \
-    PCRE_STUDY16(extra, re, options, error); \
-  else \
-    PCRE_STUDY8(extra, re, options, error)
-
 #define PCRE_FREE_STUDY(extra) \
   if (use_pcre16) \
     PCRE_FREE_STUDY16(extra); \
   else \
     PCRE_FREE_STUDY8(extra)
+
+#define PCRE_STUDY(extra, re, options, error) \
+  if (use_pcre16) \
+    PCRE_STUDY16(extra, re, options, error); \
+  else \
+    PCRE_STUDY8(extra, re, options, error)
 
 /* ----- Only 8-bit mode is supported ----- */
 
@@ -278,8 +278,8 @@ use these in the definitions of generic macros. */
 #define PCHARSV          PCHARSV8
 #define PCRE_COMPILE     PCRE_COMPILE8
 #define PCRE_EXEC        PCRE_EXEC8
-#define PCRE_STUDY       PCRE_STUDY8
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY8
+#define PCRE_STUDY       PCRE_STUDY8
 
 /* ----- Only 16-bit mode is supported ----- */
 
@@ -288,8 +288,8 @@ use these in the definitions of generic macros. */
 #define PCHARSV          PCHARSV16
 #define PCRE_COMPILE     PCRE_COMPILE16
 #define PCRE_EXEC        PCRE_EXEC16
-#define PCRE_STUDY       PCRE_STUDY16
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY16
+#define PCRE_STUDY       PCRE_STUDY16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -321,7 +321,7 @@ static int debug_lengths;
 static int first_callout;
 static int locale_set = 0;
 static int show_malloc;
-static int use_utf8;
+static int use_utf;
 static size_t gotten_store;
 static size_t first_gotten_store = 0;
 static const unsigned char *last_callout_mark = NULL;
@@ -848,7 +848,16 @@ return i + 1;
 8-bit size. For a UTF-8 string, the size needed for UTF-16 is no more than
 double, because up to 0xffff uses no more than 3 bytes in UTF-8 but possibly 4
 in UTF-16. Higher values use 4 bytes in UTF-8 and up to 4 bytes in UTF-16. The
-result is always left in buffer16. */
+result is always left in buffer16. 
+
+Arguments:
+  p          points to a byte string
+  utf        true if UTF-8 (to be converted to UTF-16)
+  len        number of bytes in the string (excluding trailing zero)
+  
+Returns:     number of 16-bit data items used (excluding trailing zero)
+             OR -1 if a UTF-8 string is malformed  
+*/
 
 static int
 to16(pcre_uint8 *p, int utf, int len)
@@ -880,6 +889,7 @@ else
   while (len > 0)
     {
     int chlen = utf82ord(p, &c);
+    if (chlen <= 0) return -1;
     p += chlen;
     len -= chlen; 
     if (c < 0x10000) *pp++ = c; else
@@ -1030,6 +1040,43 @@ return(result);
 
 
 
+/*************************************************
+*             Print one character                *
+*************************************************/
+
+/* Print a single character either literally, or as a hex escape. */
+
+static int pchar(int c, FILE *f)
+{
+if (PRINTOK(c))
+  {
+  if (f != NULL) fprintf(f, "%c", c);
+  return 1;
+  }
+  
+if (c < 0x100)
+  {
+  if (use_utf)
+    {  
+    if (f != NULL) fprintf(f, "\\x{%02x}", c);
+    return 6;
+    }  
+  else 
+    {
+    if (f != NULL) fprintf(f, "\\x%02x", c);
+    return 4; 
+    } 
+  }
+  
+if (f != NULL) fprintf(f, "\\x{%02x}", c);
+return (c <= 0x000000ff)? 6 :
+       (c <= 0x00000fff)? 7 :
+       (c <= 0x0000ffff)? 8 :
+       (c <= 0x000fffff)? 9 : 10;
+}
+
+
+
 #ifdef SUPPORT_PCRE8
 /*************************************************
 *         Print 8-bit character string           *
@@ -1046,46 +1093,20 @@ int yield = 0;
 while (length-- > 0)
   {
 #if !defined NOUTF8
-  if (use_utf8)
+  if (use_utf)
     {
     int rc = utf82ord(p, &c);
-
     if (rc > 0 && rc <= length + 1)   /* Mustn't run over the end */
       {
       length -= rc - 1;
       p += rc;
-      if (PRINTOK(c))
-        {
-        if (f != NULL) fprintf(f, "%c", c);
-        yield++;
-        }
-      else
-        {
-        int n = 4;
-        if (f != NULL) fprintf(f, "\\x{%02x}", c);
-        yield += (n <= 0x000000ff)? 2 :
-                 (n <= 0x00000fff)? 3 :
-                 (n <= 0x0000ffff)? 4 :
-                 (n <= 0x000fffff)? 5 : 6;
-        }
-      continue;
+      yield += pchar(c, f);
+      continue;  
       }
     }
 #endif
-
-   /* Not UTF-8, or malformed UTF-8  */
-
   c = *p++;
-  if (PRINTOK(c))
-    {
-    if (f != NULL) fprintf(f, "%c", c);
-    yield++;
-    }
-  else
-    {
-    if (f != NULL) fprintf(f, "\\x%02x", c);
-    yield += 4;
-    }
+  yield += pchar(c, f);
   }
 
 return yield;
@@ -1109,9 +1130,8 @@ int yield = 0;
 while (length-- > 0)
   {
   int c = *p++ & 0xffff;
-  
 #if !defined NOUTF8
-  if (use_utf8 && c >= 0xD800 && c < 0xDC00 && length > 0)
+  if (use_utf && c >= 0xD800 && c < 0xDC00 && length > 0)
     {
     int d = *p & 0xffff;
     if (d >= 0xDC00 && d < 0xDFFF)
@@ -1122,28 +1142,7 @@ while (length-- > 0)
       }
     }   
 #endif
-
-  if (PRINTOK(c))
-    {
-    if (f != NULL) fprintf(f, "%c", c);
-    yield++;
-    }
-  else
-    {
-    yield += 4;
-    if (c < 0x100)
-      {
-      if (f != NULL) fprintf(f, "\\x%02x", c);
-      }
-    else
-      {
-      if (f != NULL) fprintf(f, "\\x{%02x}", c);
-      yield += (c <= 0x000000ff)? 2 :
-               (c <= 0x00000fff)? 3 :
-               (c <= 0x0000ffff)? 4 :
-               (c <= 0x000fffff)? 5 : 6;
-      }
-    }
+  yield += pchar(c, f);
   }
 
 return yield;
@@ -1795,7 +1794,7 @@ while (!done)
   int do_flip = 0;
   int erroroffset, len, delimiter, poffset;
 
-  use_utf8 = 0;
+  use_utf = 0;
   debug_lengths = 1;
 
   if (extend_inputline(infile, buffer, "  re> ") == NULL) break;
@@ -1859,7 +1858,7 @@ while (!done)
     /* Need to know if UTF-8 for printing data strings */
 
     new_info(re, NULL, PCRE_INFO_OPTIONS, &get_options);
-    use_utf8 = (get_options & PCRE_UTF8) != 0;
+    use_utf = (get_options & PCRE_UTF8) != 0;
 
     /* Now see if there is any following study data. */
 
@@ -2004,7 +2003,7 @@ while (!done)
       case 'X': options |= PCRE_EXTRA; break;
       case 'Y': options |= PCRE_NO_START_OPTIMISE; break;
       case 'Z': debug_lengths = 0; break;
-      case '8': options |= PCRE_UTF8; use_utf8 = 1; break;
+      case '8': options |= PCRE_UTF8; use_utf = 1; break;
       case '?': options |= PCRE_NO_UTF8_CHECK; break;
 
       case 'T':
@@ -2122,7 +2121,12 @@ while (!done)
 #ifdef SUPPORT_PCRE16
     if (use_pcre16) 
       {
-      (void)to16(p, options & PCRE_UTF8, (int)strlen((char *)p));
+      if (to16(p, options & PCRE_UTF8, (int)strlen((char *)p)) < 0)
+        {
+        fprintf(outfile, "**Failed: invalid UTF-8 string cannot be "
+          "converted to UTF-16\n"); 
+        goto SKIP_DATA;  
+        }   
       p = (pcre_uint8 *)buffer16; 
       } 
 #endif
@@ -2178,7 +2182,7 @@ while (!done)
     lines. */
 
     new_info(re, NULL, PCRE_INFO_OPTIONS, &get_options);
-    if ((get_options & PCRE_UTF8) != 0) use_utf8 = 1;
+    if ((get_options & PCRE_UTF8) != 0) use_utf = 1;
 
     /* Extract the size for possible writing before possibly flipping it,
     and remember the store that was got. */
@@ -2395,9 +2399,9 @@ while (!done)
           ((get_options & PCRE_EXTRA) != 0)? " extra" : "",
           ((get_options & PCRE_UNGREEDY) != 0)? " ungreedy" : "",
           ((get_options & PCRE_NO_AUTO_CAPTURE) != 0)? " no_auto_capture" : "",
-          ((get_options & PCRE_UTF8) != 0)? " utf8" : "",
+          ((get_options & PCRE_UTF8) != 0)? " utf" : "",
           ((get_options & PCRE_UCP) != 0)? " ucp" : "",
-          ((get_options & PCRE_NO_UTF8_CHECK) != 0)? " no_utf8_check" : "",
+          ((get_options & PCRE_NO_UTF8_CHECK) != 0)? " no_utf_check" : "",
           ((get_options & PCRE_NO_START_OPTIMIZE) != 0)? " no_start_optimize" : "",
           ((get_options & PCRE_DUPNAMES) != 0)? " dupnames" : "");
 
@@ -2442,11 +2446,15 @@ while (!done)
         const char *caseless =
           ((((real_pcre *)re)->flags & PCRE_FCH_CASELESS) == 0)?
           "" : " (caseless)";
-
+          
         if (PRINTOK(first_char))
           fprintf(outfile, "First char = \'%c\'%s\n", first_char, caseless);
         else
-          fprintf(outfile, "First char = %d%s\n", first_char, caseless);
+          { 
+          fprintf(outfile, "First char = ");
+          pchar(first_char, outfile); 
+          fprintf(outfile, "%s\n", caseless);
+          } 
         }
 
       if (need_char < 0)
@@ -2690,7 +2698,7 @@ while (!done)
           c = c * 8 + *p++ - '0';
 
 #if !defined NOUTF8
-        if (use_utf8 && c > 255)
+        if (use_utf && c > 255)
           {
           pcre_uint8 buff8[8];
           int ii, utn;
@@ -2722,7 +2730,7 @@ while (!done)
             {
             pcre_uint8 buff8[8];
             int ii, utn;
-            if (use_utf8)
+            if (use_utf)
               {
               utn = ord2utf8(c, buff8);
               for (ii = 0; ii < utn - 1; ii++) *q++ = buff8[ii];
@@ -3055,6 +3063,12 @@ while (!done)
     if (use_pcre16) 
       {
       len = to16(bptr, (((real_pcre *)re)->options) & PCRE_UTF8, len);
+      if (len < 0)
+        {
+        fprintf(outfile, "**Failed: invalid UTF-8 string cannot be "
+          "converted to UTF-16\n"); 
+        goto NEXT_DATA;  
+        }   
       bptr = (pcre_uint8 *)buffer16;
       }  
 #endif
@@ -3369,7 +3383,7 @@ while (!done)
               bptr[start_offset] == '\r' &&
               bptr[start_offset+1] == '\n')
             onechar++;
-          else if (use_utf8)
+          else if (use_utf)
             {
             while (start_offset + onechar < len)
               {

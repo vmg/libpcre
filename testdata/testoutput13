@@ -57,7 +57,7 @@ No need char
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
+Options: utf
 No first char
 No need char
 
@@ -69,7 +69,7 @@ No need char
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
+Options: utf
 No first char
 No need char
     1234
@@ -83,7 +83,7 @@ No need char
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
+Options: utf
 No first char
 No need char
     1234
@@ -105,7 +105,7 @@ No match
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: caseless utf8
+Options: caseless utf
 First char = 'A' (caseless)
 No need char
 
@@ -117,7 +117,7 @@ No need char
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
+Options: utf
 First char = 'A'
 Need char = 176
 
@@ -129,7 +129,7 @@ Need char = 176
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
+Options: utf
 First char = 'A'
 Need char = 176
 
@@ -141,7 +141,7 @@ Need char = 176
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: caseless utf8
+Options: caseless utf
 First char = 'A' (caseless)
 Need char = 'B' (caseless)
 
@@ -153,7 +153,7 @@ Need char = 'B' (caseless)
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: caseless utf8
+Options: caseless utf
 No first char
 No need char
     \x{104}
@@ -177,7 +177,7 @@ No match
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: caseless utf8
+Options: caseless utf
 No first char
 No need char
     Z
@@ -215,7 +215,7 @@ No match
         End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: caseless utf8
+Options: caseless utf
 No first char
 No need char
 
@@ -1049,7 +1049,7 @@ No match: POSIX code 17: match failed
 
 /\x{401}\x{420}\x{421}\x{422}\x{423}\x{424}\x{425}\x{426}\x{427}\x{428}\x{429}\x{42a}\x{42b}\x{42c}\x{42d}\x{42e}\x{42f}/8iSI
 Capturing subpattern count = 0
-Options: caseless utf8
+Options: caseless utf
 No first char
 No need char
 Subject length lower bound = 17

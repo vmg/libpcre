@@ -374,7 +374,7 @@ Memory allocation (code space): 18
  17     End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
+Options: utf
 First char = 'A'
 Need char = '.'
     
@@ -387,8 +387,8 @@ Memory allocation (code space): 19
  18     End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
-First char = 237
+Options: utf
+First char = \x{ed}
 Need char = 180
 
 /\x{65e5}\x{672c}\x{8a9e}/D8M
@@ -400,8 +400,8 @@ Memory allocation (code space): 19
  18     End
 ------------------------------------------------------------------
 Capturing subpattern count = 0
-Options: utf8
-First char = 230
+Options: utf
+First char = \x{e6}
 Need char = 158
 
 /[\x{100}]/8BM

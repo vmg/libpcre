@@ -5,8 +5,8 @@
     either because PCRE can't be compatible, or there is a possible Perl 
     bug.
     
-    NOTE: This is a non-UTF-8 set of tests. When UTF-8 is needed, use test
-    5, and if Unicode Property Support is needed, use test 13. --/  
+    NOTE: This is a non-UTF set of tests. When UTF support is needed, use
+    test 5, and if Unicode Property Support is needed, use test 13. --/
   
 /-- Originally, the Perl >= 5.10 things were in here too, but now I have 
     separated many (most?) of them out into test 11. However, there may still 
@@ -6178,7 +6178,7 @@ Failed: character value in \x{...} sequence is too large at offset 6
 /\x{0000ff}/I
 Capturing subpattern count = 0
 No options
-First char = 255
+First char = \xff
 No need char
 
 /^((?P<A>a1)|(?P<A>a2)b)/I

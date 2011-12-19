@@ -473,7 +473,10 @@ for(;;)
     case OP_NOT:
     c = code[1];
     if (PRINTABLE(c)) fprintf(f, " %s [^%c]", flag, c);
-      else fprintf(f, " %s [^\\x%02x]", flag, c);
+    else if (utf || c > 0xff)
+      fprintf(f, " %s [^\\x{%02x}]", flag, c);
+    else   
+      fprintf(f, " %s [^\\x%02x]", flag, c);
     break;
 
     case OP_NOTSTARI:

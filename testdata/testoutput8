@@ -1210,7 +1210,7 @@ No match
      
 /a\Rb/I8<bsr_anycrlf>
 Capturing subpattern count = 0
-Options: bsr_anycrlf utf8
+Options: bsr_anycrlf utf
 First char = 'a'
 Need char = 'b'
     a\rb
@@ -1228,7 +1228,7 @@ No match
 
 /a\Rb/I8<bsr_unicode>
 Capturing subpattern count = 0
-Options: bsr_unicode utf8
+Options: bsr_unicode utf
 First char = 'a'
 Need char = 'b'
     a\rb
@@ -1250,7 +1250,7 @@ No match
     
 /a\R?b/I8<bsr_anycrlf>
 Capturing subpattern count = 0
-Options: bsr_anycrlf utf8
+Options: bsr_anycrlf utf
 First char = 'a'
 Need char = 'b'
     a\rb
@@ -1268,7 +1268,7 @@ No match
 
 /a\R?b/I8<bsr_unicode>
 Capturing subpattern count = 0
-Options: bsr_unicode utf8
+Options: bsr_unicode utf
 First char = 'a'
 Need char = 'b'
     a\rb
