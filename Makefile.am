@@ -176,6 +176,7 @@ endif # WITH_REBUILD_CHARTABLES
 if WITH_PCRE8
 lib_LTLIBRARIES += libpcre.la
 libpcre_la_SOURCES = \
+  pcre_byte_order.c \
   pcre_compile.c \
   pcre_config.c \
   pcre_dfa_exec.c \
@@ -193,7 +194,6 @@ libpcre_la_SOURCES = \
   pcre_string_utils.c \
   pcre_study.c \
   pcre_tables.c \
-  pcre_try_flipped.c \
   pcre_ucd.c \
   pcre_valid_utf8.c \
   pcre_version.c \
@@ -210,6 +210,7 @@ endif # WITH_PCRE8
 if WITH_PCRE16
 lib_LTLIBRARIES += libpcre16.la
 libpcre16_la_SOURCES = \
+  pcre16_byte_order.c \
   pcre16_chartables.c \
   pcre16_compile.c \
   pcre16_config.c \
@@ -227,7 +228,6 @@ libpcre16_la_SOURCES = \
   pcre16_string_utils.c \
   pcre16_study.c \
   pcre16_tables.c \
-  pcre16_try_flipped.c \
   pcre16_ucd.c \
   pcre16_utf16_utils.c \
   pcre16_valid_utf16.c \
@@ -423,13 +423,12 @@ test: check ;
 # A PCRE user submitted the following addition, saying that it "will allow
 # anyone using the 'mingw32' compiler to simply type 'make pcre.dll' and get a
 # nice DLL for Windows use". (It is used by the pcre.dll target.)
-DLL_OBJS= pcre_compile.o pcre_config.o \
+DLL_OBJS= pcre_byte_order.o pcre_compile.o pcre_config.o \
 	pcre_dfa_exec.o pcre_exec.o pcre_fullinfo.o pcre_get.o \
 	pcre_globals.o pcre_info.o pcre_jit_compile.o pcre_maketables.o \
 	pcre_newline.o pcre_ord2utf8.o pcre_refcount.o \
-	pcre_study.o pcre_tables.o pcre_try_flipped.o \
-	pcre_ucd.o pcre_valid_utf8.o pcre_version.o \
-	pcre_chartables.o \
+	pcre_study.o pcre_tables.o pcre_ucd.o \
+	pcre_valid_utf8.o pcre_version.o pcre_chartables.o \
 	pcre_xclass.o
 
 # A PCRE user submitted the following addition, saying that it "will allow

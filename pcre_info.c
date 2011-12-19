@@ -80,15 +80,19 @@ PCRE_EXP_DEFN int PCRE_CALL_CONVENTION
 pcre16_info(const pcre *argument_re, int *optptr, int *first_char)
 #endif
 {
-real_pcre internal_re;
 const real_pcre *re = (const real_pcre *)argument_re;
 if (re == NULL) return PCRE_ERROR_NULL;
+
+/* Check that the first field in the block is the magic number. If it is not,
+return with PCRE_ERROR_BADMAGIC. However, if the magic number is equal to
+REVERSED_MAGIC_NUMBER we return with PCRE_ERROR_BADENDIANNESS, which
+means that the pattern is likely compiled with different endianness. */
+
 if (re->magic_number != MAGIC_NUMBER)
-  {
-  re = PRIV(try_flipped)(re, &internal_re, NULL, NULL);
-  if (re == NULL) return PCRE_ERROR_BADMAGIC;
-  }
+  return re->magic_number == REVERSED_MAGIC_NUMBER?
+    PCRE_ERROR_BADENDIANNESS:PCRE_ERROR_BADMAGIC;
 if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
+
 if (optptr != NULL) *optptr = (int)(re->options & PUBLIC_COMPILE_OPTIONS);
 if (first_char != NULL)
   *first_char = ((re->flags & PCRE_FIRSTSET) != 0)? re->first_char :

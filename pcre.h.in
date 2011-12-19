@@ -175,6 +175,7 @@ compiling). */
 #define PCRE_ERROR_RECURSELOOP    (-26)
 #define PCRE_ERROR_JIT_STACKLIMIT (-27)
 #define PCRE_ERROR_BADMODE        (-28)
+#define PCRE_ERROR_BADENDIANNESS  (-29)
 
 /* Specific error codes for UTF-8 validity checks */
 
@@ -432,9 +433,13 @@ PCRE_EXP_DECL void pcre16_free_study(pcre_extra *);
 PCRE_EXP_DECL const char *pcre_version(void);
 PCRE_EXP_DECL const char *pcre16_version(void);
 
-/* Utility functions. */
+/* Utility functions for byte order swaps. */
+PCRE_EXP_DECL int  pcre_pattern_to_host_byte_order(pcre *, pcre_extra *,
+                  const unsigned char *);
+PCRE_EXP_DECL int  pcre16_pattern_to_host_byte_order(pcre *, pcre_extra *,
+                  const unsigned char *);
 PCRE_EXP_DECL int  pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *,
-                  PCRE_SPTR16, int, int);
+                  PCRE_SPTR16, int, int *, int);
 
 /* JIT compiler related functions. */
 

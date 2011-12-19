@@ -194,6 +194,7 @@ files="\
   pcreposix.h \
   pcre.h.in \
   pcre_internal.h
+  pcre_byte_order.c \
   pcre_compile.c \
   pcre_config.c \
   pcre_dfa_exec.c \
@@ -210,7 +211,6 @@ files="\
   pcre_refcount.c \
   pcre_study.c \
   pcre_tables.c \
-  pcre_try_flipped.c \
   pcre_ucp_searchfuncs.c \
   pcre_valid_utf8.c \
   pcre_version.c \

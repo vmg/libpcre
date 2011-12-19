@@ -197,7 +197,11 @@ use these in the definitions of generic macros. */
 
 #define PCRE_STUDY8(extra, re, options, error) \
   extra = pcre_study(re, options, error)
-#endif
+
+#define PCRE_FREE_STUDY8(extra) \
+  pcre_free_study(extra)
+
+#endif /* SUPPORT_PCRE8 */
 
 
 #ifdef SUPPORT_PCRE16
@@ -217,7 +221,11 @@ use these in the definitions of generic macros. */
 
 #define PCRE_STUDY16(extra, re, options, error) \
   extra = pcre16_study(re, options, error)
-#endif
+
+#define PCRE_FREE_STUDY16(extra) \
+  pcre16_free_study(extra)
+
+#endif /* SUPPORT_PCRE16 */
 
 
 /* ----- Both modes are supported; a runtime test is needed ----- */
@@ -257,23 +265,31 @@ use these in the definitions of generic macros. */
   else \
     PCRE_STUDY8(extra, re, options, error)
 
+#define PCRE_FREE_STUDY(extra) \
+  if (use_pcre16) \
+    PCRE_FREE_STUDY16(extra); \
+  else \
+    PCRE_FREE_STUDY8(extra)
+
 /* ----- Only 8-bit mode is supported ----- */
 
 #elif defined SUPPORT_PCRE8
-#define PCHARS       PCHARS8
-#define PCHARSV      PCHARSV8
-#define PCRE_COMPILE PCRE_COMPILE8
-#define PCRE_EXEC    PCRE_EXEC8
-#define PCRE_STUDY   PCRE_STUDY8
+#define PCHARS           PCHARS8
+#define PCHARSV          PCHARSV8
+#define PCRE_COMPILE     PCRE_COMPILE8
+#define PCRE_EXEC        PCRE_EXEC8
+#define PCRE_STUDY       PCRE_STUDY8
+#define PCRE_FREE_STUDY  PCRE_FREE_STUDY8
 
 /* ----- Only 16-bit mode is supported ----- */
 
 #else
-#define PCHARS       PCHARS16
-#define PCHARSV      PCHARSV16
-#define PCRE_COMPILE PCRE_COMPILE16
-#define PCRE_EXEC    PCRE_EXEC16
-#define PCRE_STUDY   PCRE_STUDY16
+#define PCHARS           PCHARS16
+#define PCHARSV          PCHARSV16
+#define PCRE_COMPILE     PCRE_COMPILE16
+#define PCRE_EXEC        PCRE_EXEC16
+#define PCRE_STUDY       PCRE_STUDY16
+#define PCRE_FREE_STUDY  PCRE_FREE_STUDY16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -1861,7 +1877,10 @@ while (!done)
         {
         FAIL_READ:
         fprintf(outfile, "Failed to read data from %s\n", p);
-        if (extra != NULL) pcre_free_study(extra);
+        if (extra != NULL)
+          {
+          PCRE_FREE_STUDY(extra);
+          }
         if (re != NULL) new_free(re);
         fclose(f);
         continue;
@@ -2192,7 +2211,10 @@ while (!done)
           PCRE_STUDY(extra, re, study_options | force_study_options, &error);
           }
         time_taken = clock() - start_time;
-        if (extra != NULL) pcre_free_study(extra);
+        if (extra != NULL)
+          {
+          PCRE_FREE_STUDY(extra);
+          }
         fprintf(outfile, "  Study time %.4f milliseconds\n",
           (((double)time_taken * 1000.0) / (double)timeit) /
             (double)CLOCKS_PER_SEC);
@@ -2270,10 +2292,16 @@ while (!done)
     if (do_debug)
       {
       fprintf(outfile, "------------------------------------------------------------------\n");
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
       if (use_pcre16)
         pcre16_printint(re, outfile, debug_lengths);
       else
         pcre_printint(re, outfile, debug_lengths);
+#elif defined SUPPORT_PCRE8
+      pcre_printint(re, outfile, debug_lengths);
+#else
+      pcre16_printint(re, outfile, debug_lengths);
+#endif
       }
 
     /* We already have the options in get_options (see above) */
@@ -2558,7 +2586,10 @@ while (!done)
         }
 
       new_free(re);
-      if (extra != NULL) pcre_free_study(extra);
+      if (extra != NULL) 
+        {
+        PCRE_FREE_STUDY(extra);
+        }
       if (locale_set)
         {
         new_free((void *)tables);
@@ -3424,7 +3455,10 @@ while (!done)
 #endif
 
   if (re != NULL) new_free(re);
-  if (extra != NULL) pcre_free_study(extra);
+  if (extra != NULL)
+    {
+    PCRE_FREE_STUDY(extra);
+    }
   if (locale_set)
     {
     new_free((void *)tables);

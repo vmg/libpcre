@@ -889,10 +889,14 @@ time, run time, or study time, respectively. */
 #define PUBLIC_STUDY_OPTIONS \
    PCRE_STUDY_JIT_COMPILE
 
-/* Magic number to provide a small check against being handed junk. Also used
-to detect whether a pattern was compiled on a host of different endianness. */
+/* Magic number to provide a small check against being handed junk. */
 
 #define MAGIC_NUMBER  0x50435245UL   /* 'PCRE' */
+
+/* This variable is used to detect a loaded regular expression
+in different endianness. */
+
+#define REVERSED_MAGIC_NUMBER  0x45524350UL   /* 'ERCP' */
 
 /* Negative values for the firstchar and reqchar variables */
 
@@ -2264,8 +2268,6 @@ extern const pcre_uchar *PRIV(find_bracket)(const pcre_uchar *, BOOL, int);
 extern BOOL              PRIV(is_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);
 extern int               PRIV(ord2utf)(pcre_uint32, pcre_uchar *);
-extern real_pcre        *PRIV(try_flipped)(const real_pcre *, real_pcre *,
-                           const pcre_study_data *, pcre_study_data *);
 extern int               PRIV(valid_utf)(PCRE_PUCHAR, int, int *);
 extern BOOL              PRIV(was_newline)(PCRE_PUCHAR, int, PCRE_PUCHAR,
                            int *, BOOL);

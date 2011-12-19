@@ -6041,10 +6041,7 @@ PCRE_PUCHAR end_subject;
 PCRE_PUCHAR start_partial = NULL;
 PCRE_PUCHAR req_char_ptr = start_match - 1;
 
-pcre_study_data internal_study;
 const pcre_study_data *study;
-
-real_pcre internal_re;
 const real_pcre *external_re = (const real_pcre *)argument_re;
 const real_pcre *re = external_re;
 
@@ -6151,16 +6148,13 @@ in other programs later. */
 if (tables == NULL) tables = PRIV(default_tables);
 
 /* Check that the first field in the block is the magic number. If it is not,
-test for a regex that was compiled on a host of opposite endianness. If this is
-the case, flipped values are put in internal_re and internal_study if there was
-study data too. */
+return with PCRE_ERROR_BADMAGIC. However, if the magic number is equal to
+REVERSED_MAGIC_NUMBER we return with PCRE_ERROR_BADENDIANNESS, which
+means that the pattern is likely compiled with different endianness. */
 
 if (re->magic_number != MAGIC_NUMBER)
-  {
-  re = PRIV(try_flipped)(re, &internal_re, study, &internal_study);
-  if (re == NULL) return PCRE_ERROR_BADMAGIC;
-  if (study != NULL) study = &internal_study;
-  }
+  return re->magic_number == REVERSED_MAGIC_NUMBER?
+    PCRE_ERROR_BADENDIANNESS:PCRE_ERROR_BADMAGIC;
 if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 
 /* Set up other data */

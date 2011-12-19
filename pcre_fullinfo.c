@@ -75,8 +75,6 @@ pcre16_fullinfo(const pcre *argument_re, const pcre_extra *extra_data, int what,
   void *where)
 #endif
 {
-real_pcre internal_re;
-pcre_study_data internal_study;
 const real_pcre *re = (const real_pcre *)argument_re;
 const pcre_study_data *study = NULL;
 
@@ -85,12 +83,14 @@ if (re == NULL || where == NULL) return PCRE_ERROR_NULL;
 if (extra_data != NULL && (extra_data->flags & PCRE_EXTRA_STUDY_DATA) != 0)
   study = (const pcre_study_data *)extra_data->study_data;
 
+/* Check that the first field in the block is the magic number. If it is not,
+return with PCRE_ERROR_BADMAGIC. However, if the magic number is equal to
+REVERSED_MAGIC_NUMBER we return with PCRE_ERROR_BADENDIANNESS, which
+means that the pattern is likely compiled with different endianness. */
+
 if (re->magic_number != MAGIC_NUMBER)
-  {
-  re = PRIV(try_flipped)(re, &internal_re, study, &internal_study);
-  if (re == NULL) return PCRE_ERROR_BADMAGIC;
-  if (study != NULL) study = &internal_study;
-  }
+  return re->magic_number == REVERSED_MAGIC_NUMBER?
+    PCRE_ERROR_BADENDIANNESS:PCRE_ERROR_BADMAGIC;
 if ((re->flags & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 
 switch (what)

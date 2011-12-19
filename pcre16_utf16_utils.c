@@ -67,6 +67,13 @@ Arguments:
   input      any UTF-16 string
   length     the number of characters in the input string
              can be less than zero for zero terminated strings
+  host_byte_order
+             A non-zero value means the input is in host byte
+             order, which can be dynamically changed by BOMs later.
+             Initially it contains the starting byte order and returns
+             with the last byte order so it can be used for stream
+             processing. It can be NULL, which set the host byte
+             order mode by default.
   keep_boms  for a non-zero value, the BOM (0xfeff) characters
              are copied as well
 
@@ -75,12 +82,13 @@ Returns:     the number of characters placed into the output buffer,
 */
 
 int
-pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input, int length, int keep_boms)
+pcre16_utf16_to_host_byte_order(PCRE_SCHAR16 *output, PCRE_SPTR16 input,
+  int length, int *host_byte_order, int keep_boms)
 {
 #ifdef SUPPORT_UTF
-/* This function converts any UTF-16 string to host byte order and optionally removes
-any Byte Order Marks (BOMS). Returns with the remainig length. */
-BOOL same_bo = TRUE;
+/* This function converts any UTF-16 string to host byte order and optionally
+removes any Byte Order Marks (BOMS). Returns with the remainig length. */
+int host_bo = host_byte_order != NULL ? *host_byte_order : 1;
 pcre_uchar *optr = (pcre_uchar *)output;
 const pcre_uchar *iptr = (const pcre_uchar *)input;
 const pcre_uchar *end;
@@ -98,15 +106,17 @@ while (iptr < end)
     {
     /* Detecting the byte order of the machine is unnecessary, it is
     enough to know that the UTF-16 string has the same byte order or not. */
-    same_bo = c == 0xfeff;
+    host_bo = c == 0xfeff;
     if (keep_boms != 0)
       *optr++ = 0xfeff;
     else
       length--;
     }
   else
-    *optr++ = same_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
+    *optr++ = host_bo ? c : ((c >> 8) | (c << 8)); /* Flip bytes if needed. */
   }
+if (host_byte_order != NULL)
+  *host_byte_order = host_bo;
 
 #else /* SUPPORT_UTF */
 (void)(output);  /* Keep picky compilers happy */

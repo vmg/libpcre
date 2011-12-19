@@ -510,7 +510,6 @@ switch(*cc)
   case OP_CHARI:
   case OP_NOT:
   case OP_NOTI:
-
   case OP_STAR:
   case OP_MINSTAR:
   case OP_PLUS:

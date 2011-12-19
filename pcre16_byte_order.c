@@ -40,6 +40,6 @@ POSSIBILITY OF SUCH DAMAGE.
 /* Generate code with 16 bit character support. */
 #define COMPILE_PCRE16
 
-#include "pcre_try_flipped.c"
+#include "pcre_byte_order.c"
 
-/* End of pcre16_try_flipped.c */
+/* End of pcre16_byte_order.c */
