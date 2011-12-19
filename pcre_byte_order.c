@@ -84,7 +84,7 @@ return (value >> 8) | (value << 8);
 *************************************************/
 
 /* This function swaps the bytes of a compiled pattern usually
-loaeded form the disk. It also sets the tables pointer, which
+loaded form the disk. It also sets the tables pointer, which
 is likely an invalid pointer after reload.
 
 Arguments:
@@ -123,7 +123,7 @@ if (re->magic_number == MAGIC_NUMBER)
   }
 
 if (re->magic_number != REVERSED_MAGIC_NUMBER) return PCRE_ERROR_BADMAGIC;
-if ((swap_uint16(re->flags)  & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
+if ((swap_uint16(re->flags) & PCRE_MODE) == 0) return PCRE_ERROR_BADMODE;
 
 re->magic_number = MAGIC_NUMBER;
 re->size = swap_uint32(re->size);
@@ -137,6 +137,7 @@ re->name_table_offset = swap_uint16(re->name_table_offset);
 re->name_entry_size = swap_uint16(re->name_entry_size);
 re->name_count = swap_uint16(re->name_count);
 re->ref_count = swap_uint16(re->ref_count);
+re->tables = tables;
 
 if (extra_data != NULL && (re->flags & PCRE_EXTRA_STUDY_DATA) != 0)
   {

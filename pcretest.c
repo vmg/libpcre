@@ -201,6 +201,9 @@ use these in the definitions of generic macros. */
 #define PCRE_FREE_STUDY8(extra) \
   pcre_free_study(extra)
 
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables) \
+  pcre_pattern_to_host_byte_order(re, extra, tables)
+
 #endif /* SUPPORT_PCRE8 */
 
 
@@ -224,6 +227,9 @@ use these in the definitions of generic macros. */
 
 #define PCRE_STUDY16(extra, re, options, error) \
   extra = pcre16_study(re, options, error)
+
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
+  pcre16_pattern_to_host_byte_order(re, extra, tables)
 
 #endif /* SUPPORT_PCRE16 */
 
@@ -271,6 +277,12 @@ use these in the definitions of generic macros. */
   else \
     PCRE_STUDY8(extra, re, options, error)
 
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, tables) \
+  if (use_pcre16) \
+    PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables); \
+  else \
+    PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables)
+
 /* ----- Only 8-bit mode is supported ----- */
 
 #elif defined SUPPORT_PCRE8
@@ -280,6 +292,7 @@ use these in the definitions of generic macros. */
 #define PCRE_EXEC        PCRE_EXEC8
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY8
 #define PCRE_STUDY       PCRE_STUDY8
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER8
 
 /* ----- Only 16-bit mode is supported ----- */
 
@@ -290,6 +303,7 @@ use these in the definitions of generic macros. */
 #define PCRE_EXEC        PCRE_EXEC16
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY16
 #define PCRE_STUDY       PCRE_STUDY16
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -1855,11 +1869,6 @@ while (!done)
     fprintf(outfile, "Compiled pattern%s loaded from %s\n",
       do_flip? " (byte-inverted)" : "", p);
 
-    /* Need to know if UTF-8 for printing data strings */
-
-    new_info(re, NULL, PCRE_INFO_OPTIONS, &get_options);
-    use_utf = (get_options & PCRE_UTF8) != 0;
-
     /* Now see if there is any following study data. */
 
     if (true_study_size != 0)
@@ -1889,12 +1898,23 @@ while (!done)
       }
     else fprintf(outfile, "No study data\n");
 
+    /* Flip the necessary bytes. */
+    if (do_flip != 0)
+      {
+      PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, NULL);
+      }
+
+    /* Need to know if UTF-8 for printing data strings */
+
+    new_info(re, NULL, PCRE_INFO_OPTIONS, &get_options);
+    use_utf = (get_options & PCRE_UTF8) != 0;
+
     fclose(f);
     goto SHOW_INFO;
     }
 
   /* In-line pattern (the usual case). Get the delimiter and seek the end of
-  the pattern; if is isn't complete, read more. */
+  the pattern; if it isn't complete, read more. */
 
   delimiter = *p++;
 
@@ -2252,43 +2272,6 @@ while (!done)
       extra->flags |= PCRE_EXTRA_MARK;
       }
 
-    /* If the 'F' option was present, we flip the bytes of all the integer
-    fields in the regex data block and the study block. This is to make it
-    possible to test PCRE's handling of byte-flipped patterns, e.g. those
-    compiled on a different architecture. */
-
-    if (do_flip)
-      {
-      real_pcre *rre = (real_pcre *)re;
-      rre->magic_number =
-        byteflip(rre->magic_number, sizeof(rre->magic_number));
-      rre->size = byteflip(rre->size, sizeof(rre->size));
-      rre->options = byteflip(rre->options, sizeof(rre->options));
-      rre->flags = (pcre_uint16)byteflip(rre->flags, sizeof(rre->flags));
-      rre->top_bracket =
-        (pcre_uint16)byteflip(rre->top_bracket, sizeof(rre->top_bracket));
-      rre->top_backref =
-        (pcre_uint16)byteflip(rre->top_backref, sizeof(rre->top_backref));
-      rre->first_char =
-        (pcre_uint16)byteflip(rre->first_char, sizeof(rre->first_char));
-      rre->req_char =
-        (pcre_uint16)byteflip(rre->req_char, sizeof(rre->req_char));
-      rre->name_table_offset = (pcre_uint16)byteflip(rre->name_table_offset,
-        sizeof(rre->name_table_offset));
-      rre->name_entry_size = (pcre_uint16)byteflip(rre->name_entry_size,
-        sizeof(rre->name_entry_size));
-      rre->name_count = (pcre_uint16)byteflip(rre->name_count,
-        sizeof(rre->name_count));
-
-      if (extra != NULL)
-        {
-        pcre_study_data *rsd = (pcre_study_data *)(extra->study_data);
-        rsd->size = byteflip(rsd->size, sizeof(rsd->size));
-        rsd->flags = byteflip(rsd->flags, sizeof(rsd->flags));
-        rsd->minlength = byteflip(rsd->minlength, sizeof(rsd->minlength));
-        }
-      }
-
     /* Extract and display information from the compiled data if required. */
 
     SHOW_INFO:
@@ -2550,6 +2533,43 @@ while (!done)
 
     if (to_file != NULL)
       {
+      /* If the 'F' option was present, we flip the bytes of all the integer
+      fields in the regex data block and the study block. This is to make it
+      possible to test PCRE's handling of byte-flipped patterns, e.g. those
+      compiled on a different architecture. */
+
+      if (do_flip)
+        {
+        real_pcre *rre = (real_pcre *)re;
+        rre->magic_number =
+          byteflip(rre->magic_number, sizeof(rre->magic_number));
+        rre->size = byteflip(rre->size, sizeof(rre->size));
+        rre->options = byteflip(rre->options, sizeof(rre->options));
+        rre->flags = (pcre_uint16)byteflip(rre->flags, sizeof(rre->flags));
+        rre->top_bracket =
+          (pcre_uint16)byteflip(rre->top_bracket, sizeof(rre->top_bracket));
+        rre->top_backref =
+          (pcre_uint16)byteflip(rre->top_backref, sizeof(rre->top_backref));
+        rre->first_char =
+          (pcre_uint16)byteflip(rre->first_char, sizeof(rre->first_char));
+        rre->req_char =
+          (pcre_uint16)byteflip(rre->req_char, sizeof(rre->req_char));
+        rre->name_table_offset = (pcre_uint16)byteflip(rre->name_table_offset,
+          sizeof(rre->name_table_offset));
+        rre->name_entry_size = (pcre_uint16)byteflip(rre->name_entry_size,
+          sizeof(rre->name_entry_size));
+        rre->name_count = (pcre_uint16)byteflip(rre->name_count,
+          sizeof(rre->name_count));
+
+        if (extra != NULL)
+          {
+          pcre_study_data *rsd = (pcre_study_data *)(extra->study_data);
+          rsd->size = byteflip(rsd->size, sizeof(rsd->size));
+          rsd->flags = byteflip(rsd->flags, sizeof(rsd->flags));
+          rsd->minlength = byteflip(rsd->minlength, sizeof(rsd->minlength));
+          }
+        }
+
       FILE *f = fopen((char *)to_file, "wb");
       if (f == NULL)
         {
