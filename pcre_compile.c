@@ -1195,7 +1195,7 @@ if (c == CHAR_LEFT_CURLY_BRACKET)
     *negptr = TRUE;
     ptr++;
     }
-  for (i = 0; i < (int)sizeof(name) - 1; i++)
+  for (i = 0; i < (int)(sizeof(name) / sizeof(pcre_uchar)) - 1; i++)
     {
     c = *(++ptr);
     if (c == 0) goto ERROR_RETURN;
@@ -4568,8 +4568,7 @@ for (;; ptr++)
 
 #ifdef SUPPORT_UTF
     if (xclass && (!should_flip_negation || (options & PCRE_UCP) != 0))
-#endif
-#ifndef COMPILE_PCRE8
+#elif !defined COMPILE_PCRE8
     if (xclass && !should_flip_negation)
 #endif
 #if defined SUPPORT_UTF || !defined COMPILE_PCRE8
