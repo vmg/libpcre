@@ -4,7 +4,7 @@
 
 /* This program was hacked up as a tester for PCRE. I really should have
 written it more tidily in the first place. Will I ever learn? It has grown and
-been extended and consequently is now rather, er, *very* untidy in places. The 
+been extended and consequently is now rather, er, *very* untidy in places. The
 addition of 16-bit support has made it even worse. :-(
 
 -----------------------------------------------------------------------------
@@ -181,6 +181,7 @@ SUPPORT_PCRE16 must be set. First define macros for each individual mode; then
 use these in the definitions of generic macros. */
 
 #ifdef SUPPORT_PCRE8
+
 #define PCHARS8(lv, p, len, f) \
   lv = pchars((pcre_uint8 *)p, len, f)
 
@@ -195,19 +196,20 @@ use these in the definitions of generic macros. */
   count = pcre_exec(re, extra, (char *)bptr, len, start_offset, options, \
     offsets, size_offsets)
 
-#define PCRE_STUDY8(extra, re, options, error) \
-  extra = pcre_study(re, options, error)
-
 #define PCRE_FREE_STUDY8(extra) \
   pcre_free_study(extra)
 
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables) \
   pcre_pattern_to_host_byte_order(re, extra, tables)
 
+#define PCRE_STUDY8(extra, re, options, error) \
+  extra = pcre_study(re, options, error)
+
 #endif /* SUPPORT_PCRE8 */
 
 
 #ifdef SUPPORT_PCRE16
+
 #define PCHARS16(lv, p, len, f) \
   lv = pchars16((PCRE_SPTR16)p, len, f)
 
@@ -217,19 +219,19 @@ use these in the definitions of generic macros. */
 #define PCRE_COMPILE16(re, pat, options, error, erroffset, tables) \
   re = pcre16_compile((PCRE_SPTR16)pat, options, error, erroffset, tables)
 
+#define PCRE_FREE_STUDY16(extra) \
+  pcre16_free_study(extra)
+
 #define PCRE_EXEC16(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets) \
   count = pcre16_exec(re, extra, (PCRE_SPTR16)bptr, len, start_offset, \
     options, offsets, size_offsets)
 
-#define PCRE_FREE_STUDY16(extra) \
-  pcre16_free_study(extra)
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
+  pcre16_pattern_to_host_byte_order(re, extra, tables)
 
 #define PCRE_STUDY16(extra, re, options, error) \
   extra = pcre16_study(re, options, error)
-
-#define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
-  pcre16_pattern_to_host_byte_order(re, extra, tables)
 
 #endif /* SUPPORT_PCRE16 */
 
@@ -256,6 +258,12 @@ use these in the definitions of generic macros. */
   else \
     PCRE_COMPILE8(re, pat, options, error, erroffset, tables)
 
+#define PCRE_FREE_STUDY(extra) \
+  if (use_pcre16) \
+    PCRE_FREE_STUDY16(extra); \
+  else \
+    PCRE_FREE_STUDY8(extra)
+
 #define PCRE_EXEC(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets) \
   if (use_pcre16) \
@@ -265,23 +273,17 @@ use these in the definitions of generic macros. */
     PCRE_EXEC8(count, re, extra, bptr, len, start_offset, options, \
       offsets, size_offsets)
 
-#define PCRE_FREE_STUDY(extra) \
+#define PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, tables) \
   if (use_pcre16) \
-    PCRE_FREE_STUDY16(extra); \
+    PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables); \
   else \
-    PCRE_FREE_STUDY8(extra)
+    PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables)
 
 #define PCRE_STUDY(extra, re, options, error) \
   if (use_pcre16) \
     PCRE_STUDY16(extra, re, options, error); \
   else \
     PCRE_STUDY8(extra, re, options, error)
-
-#define PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, tables) \
-  if (use_pcre16) \
-    PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables); \
-  else \
-    PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables)
 
 /* ----- Only 8-bit mode is supported ----- */
 
@@ -291,8 +293,8 @@ use these in the definitions of generic macros. */
 #define PCRE_COMPILE     PCRE_COMPILE8
 #define PCRE_EXEC        PCRE_EXEC8
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY8
-#define PCRE_STUDY       PCRE_STUDY8
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER8
+#define PCRE_STUDY       PCRE_STUDY8
 
 /* ----- Only 16-bit mode is supported ----- */
 
@@ -302,8 +304,8 @@ use these in the definitions of generic macros. */
 #define PCRE_COMPILE     PCRE_COMPILE16
 #define PCRE_EXEC        PCRE_EXEC16
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY16
-#define PCRE_STUDY       PCRE_STUDY16
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER16
+#define PCRE_STUDY       PCRE_STUDY16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -347,10 +349,36 @@ static pcre_uint8 *buffer = NULL;
 static pcre_uint8 *dbuffer = NULL;
 static pcre_uint8 *pbuffer = NULL;
 
+/* Another buffer is needed translation to 16-bit character strings. It will 
+obtained and extended as required. */
+
 #ifdef SUPPORT_PCRE16
 static int buffer16_size = 0;
 static pcre_uint16 *buffer16 = NULL;
+
+/* We need the table of operator lengths that is used for 16-bit compiling, in 
+order to swap bytes in a pattern for saving/reloading testing. Luckily, the
+data is defined as a macro. However, we must ensure that LINK_SIZE is adjusted
+appropriately for the 16-bit world. Just as a safety check, make sure that
+COMPILE_PCRE16 is *not* set. */
+
+#ifdef COMPILE_PCRE16
+#error COMPILE_PCRE16 must not be set when compiling pcretest.c
 #endif
+
+#if LINK_SIZE == 2
+#undef LINK_SIZE
+#define LINK_SIZE 1
+#elif LINK_SIZE == 3 || LINK_SIZE == 4
+#undef LINK_SIZE
+#define LINK_SIZE 2
+#else
+#error LINK_SIZE must be either 2, 3, or 4
+#endif
+
+static const pcre_uint16 OP_lengths16[] = { OP_LENGTHS };
+
+#endif  /* SUPPORT_PCRE16 */
 
 /* If we have 8-bit support, default use_pcre16 to false; if there is also
 16-bit support, it can be changed by an option. If there is no 8-bit support,
@@ -862,15 +890,15 @@ return i + 1;
 8-bit size. For a UTF-8 string, the size needed for UTF-16 is no more than
 double, because up to 0xffff uses no more than 3 bytes in UTF-8 but possibly 4
 in UTF-16. Higher values use 4 bytes in UTF-8 and up to 4 bytes in UTF-16. The
-result is always left in buffer16. 
+result is always left in buffer16.
 
 Arguments:
   p          points to a byte string
   utf        true if UTF-8 (to be converted to UTF-16)
   len        number of bytes in the string (excluding trailing zero)
-  
+
 Returns:     number of 16-bit data items used (excluding trailing zero)
-             OR -1 if a UTF-8 string is malformed  
+             OR -1 if a UTF-8 string is malformed
 */
 
 static int
@@ -905,7 +933,7 @@ else
     int chlen = utf82ord(p, &c);
     if (chlen <= 0) return -1;
     p += chlen;
-    len -= chlen; 
+    len -= chlen;
     if (c < 0x10000) *pp++ = c; else
       {
       c -= 0x10000;
@@ -1067,21 +1095,21 @@ if (PRINTOK(c))
   if (f != NULL) fprintf(f, "%c", c);
   return 1;
   }
-  
+
 if (c < 0x100)
   {
   if (use_utf)
-    {  
+    {
     if (f != NULL) fprintf(f, "\\x{%02x}", c);
     return 6;
-    }  
-  else 
+    }
+  else
     {
     if (f != NULL) fprintf(f, "\\x%02x", c);
-    return 4; 
-    } 
+    return 4;
+    }
   }
-  
+
 if (f != NULL) fprintf(f, "\\x{%02x}", c);
 return (c <= 0x000000ff)? 6 :
        (c <= 0x00000fff)? 7 :
@@ -1115,7 +1143,7 @@ while (length-- > 0)
       length -= rc - 1;
       p += rc;
       yield += pchar(c, f);
-      continue;  
+      continue;
       }
     }
 #endif
@@ -1152,9 +1180,9 @@ while (length-- > 0)
       {
       c = ((c & 0x3ff) << 10) + (d & 0x3ff) + 0x10000;
       length--;
-      p++; 
+      p++;
       }
-    }   
+    }
 #endif
   yield += pchar(c, f);
   }
@@ -1343,19 +1371,226 @@ if (rc < 0) fprintf(outfile, "Error %d from pcre%s_fullinfo(%d)\n", rc,
 
 
 /*************************************************
-*         Byte flipping function                 *
+*             Swap byte functions                *
 *************************************************/
 
-static unsigned long int
-byteflip(unsigned long int value, int n)
+/* The following functions swap the bytes of a pcre_uint16
+and pcre_uint32 value.
+
+Arguments:
+  value        any number
+
+Returns:       the byte swapped value
+*/
+
+static pcre_uint32
+swap_uint32(pcre_uint32 value)
 {
-if (n == 2) return ((value & 0x00ff) << 8) | ((value & 0xff00) >> 8);
 return ((value & 0x000000ff) << 24) |
        ((value & 0x0000ff00) <<  8) |
        ((value & 0x00ff0000) >>  8) |
-       ((value & 0xff000000) >> 24);
+       (value >> 24);
 }
 
+static pcre_uint16
+swap_uint16(pcre_uint16 value)
+{
+return (value >> 8) | (value << 8);
+}
+
+
+
+/*************************************************
+*        Flip bytes in a compiled pattern        *
+*************************************************/
+
+/* This function is called if the 'F' option was present on a pattern that is 
+to be written to a file. We flip the bytes of all the integer fields in the
+regex data block and the study block. In 16-bit mode this also flips relevant
+bytes in the pattern itself. This is to make it possible to test PCRE's
+ability to reload byte-flipped patterns, e.g. those compiled on a different
+architecture. */
+
+static void
+regexflip(pcre *ere, pcre_extra *extra)
+{
+real_pcre *re = (real_pcre *)ere;
+int op;
+
+#ifdef SUPPORT_PCRE16
+pcre_uint16 *ptr = (pcre_uint16 *)re + re->name_table_offset;
+int length = re->name_count * re->name_entry_size;
+#ifdef SUPPORT_UTF
+BOOL utf = (re->options & PCRE_UTF16) != 0;
+BOOL utf16_char = FALSE;
+#endif /* SUPPORT_UTF */
+#endif /* SUPPORT_PCRE16 */
+
+/* Always flip the bytes in the main data block and study blocks. */
+
+re->magic_number = REVERSED_MAGIC_NUMBER;
+re->size = swap_uint32(re->size);
+re->options = swap_uint32(re->options);
+re->flags = swap_uint16(re->flags);
+re->top_bracket = swap_uint16(re->top_bracket);
+re->top_backref = swap_uint16(re->top_backref);
+re->first_char = swap_uint16(re->first_char);
+re->req_char = swap_uint16(re->req_char);
+re->name_table_offset = swap_uint16(re->name_table_offset);
+re->name_entry_size = swap_uint16(re->name_entry_size);
+re->name_count = swap_uint16(re->name_count);
+
+if (extra != NULL)
+  {
+  pcre_study_data *rsd = (pcre_study_data *)(extra->study_data);
+  rsd->size = swap_uint32(rsd->size);
+  rsd->flags = swap_uint32(rsd->flags);
+  rsd->minlength = swap_uint32(rsd->minlength);
+  }
+  
+/* In 8-bit mode, that is all we need to do. In 16-bit mode we must swap bytes 
+in the name table, if present, and then in the pattern itself. */ 
+
+#ifdef SUPPORT_PCRE16
+if (!use_pcre16) return;
+
+while(TRUE)
+  {
+  /* Swap previous characters. */
+  while (length-- > 0)
+    {
+    *ptr = swap_uint16(*ptr);
+    ptr++;
+    }
+#ifdef SUPPORT_UTF
+  if (utf16_char)
+    {
+    if ((ptr[-1] & 0xfc00) == 0xd800) 
+      {
+      /* We know that there is only one extra character in UTF-16. */
+      *ptr = swap_uint16(*ptr);
+      ptr++;
+      }
+    }
+  utf16_char = FALSE;
+#endif /* SUPPORT_UTF */
+
+  /* Get next opcode. */
+   
+  length = 0;
+  op = *ptr; 
+  *ptr++ = swap_uint16(op);
+   
+  switch (op)
+    {
+    case OP_END:
+    return;
+
+    case OP_CHAR:
+    case OP_CHARI:
+    case OP_NOT:
+    case OP_NOTI:
+    case OP_STAR:
+    case OP_MINSTAR:
+    case OP_PLUS:
+    case OP_MINPLUS:
+    case OP_QUERY:
+    case OP_MINQUERY:
+    case OP_UPTO:
+    case OP_MINUPTO:
+    case OP_EXACT:
+    case OP_POSSTAR:
+    case OP_POSPLUS:
+    case OP_POSQUERY:
+    case OP_POSUPTO:
+    case OP_STARI:
+    case OP_MINSTARI:
+    case OP_PLUSI:
+    case OP_MINPLUSI:
+    case OP_QUERYI:
+    case OP_MINQUERYI:
+    case OP_UPTOI:
+    case OP_MINUPTOI:
+    case OP_EXACTI:
+    case OP_POSSTARI:
+    case OP_POSPLUSI:
+    case OP_POSQUERYI:
+    case OP_POSUPTOI:
+    case OP_NOTSTAR:
+    case OP_NOTMINSTAR:
+    case OP_NOTPLUS:
+    case OP_NOTMINPLUS:
+    case OP_NOTQUERY:
+    case OP_NOTMINQUERY:
+    case OP_NOTUPTO:
+    case OP_NOTMINUPTO:
+    case OP_NOTEXACT:
+    case OP_NOTPOSSTAR:
+    case OP_NOTPOSPLUS:
+    case OP_NOTPOSQUERY:
+    case OP_NOTPOSUPTO:
+    case OP_NOTSTARI:
+    case OP_NOTMINSTARI:
+    case OP_NOTPLUSI:
+    case OP_NOTMINPLUSI:
+    case OP_NOTQUERYI:
+    case OP_NOTMINQUERYI:
+    case OP_NOTUPTOI:
+    case OP_NOTMINUPTOI:
+    case OP_NOTEXACTI:
+    case OP_NOTPOSSTARI:
+    case OP_NOTPOSPLUSI:
+    case OP_NOTPOSQUERYI:
+    case OP_NOTPOSUPTOI:
+#ifdef SUPPORT_UTF     
+    if (utf) utf16_char = TRUE;
+#endif     
+    length = OP_lengths16[op] - 1;
+    break;
+
+    case OP_CLASS:
+    case OP_NCLASS:
+    /* Skip the character bit map. */
+    ptr += 32/sizeof(pcre_uint16);
+    length = 0;
+    break;
+
+    case OP_XCLASS:
+    /* Reverse the size of the XCLASS instance. */
+    ptr++;
+    *ptr = swap_uint16(*ptr);
+    if (LINK_SIZE > 1)
+      {
+      /* LINK_SIZE can be 1 or 2 in 16 bit mode. */
+      ptr++;
+      *ptr = swap_uint16(*ptr);
+      }
+    ptr++;
+ 
+    if (LINK_SIZE > 1)
+      length = ((ptr[-LINK_SIZE] << 16) | ptr[-LINK_SIZE + 1]) -
+        (1 + LINK_SIZE + 1); 
+    else 
+      length = ptr[-LINK_SIZE] - (1 + LINK_SIZE + 1);
+ 
+    op = *ptr;
+    *ptr = swap_uint16(op);
+    if ((op & XCL_MAP) != 0)
+      {
+      /* Skip the character bit map. */
+      ptr += 32/sizeof(pcre_uint16);
+      length -= 32/sizeof(pcre_uint16);
+      }
+    break;
+
+    default:
+    length = OP_lengths16[op] - 1;
+    break;
+    }
+  }
+/* Control should never reach here in 16 bit mode. */
+#endif /* SUPPORT_PCRE16 */
+} 
 
 
 
@@ -1662,7 +1897,7 @@ are set, either both UTFs are supported or both are not supported. */
     (void)pcre_config(PCRE_CONFIG_UTF8, &rc);
     if (rc)
       printf("  UTF-8 and UTF-16 support\n");
-    else 
+    else
       printf("  No UTF-8 or UTF-16 support\n");
 #elif defined SUPPORT_PCRE8
     printf("  8-bit support only\n");
@@ -1854,7 +2089,7 @@ while (!done)
     magic = ((real_pcre *)re)->magic_number;
     if (magic != MAGIC_NUMBER)
       {
-      if (byteflip(magic, sizeof(magic)) == MAGIC_NUMBER)
+      if (swap_uint32(magic) == MAGIC_NUMBER)
         {
         do_flip = 1;
         }
@@ -1899,7 +2134,7 @@ while (!done)
     else fprintf(outfile, "No study data\n");
 
     /* Flip the necessary bytes. */
-    if (do_flip != 0)
+    if (do_flip)
       {
       PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, NULL);
       }
@@ -2139,16 +2374,16 @@ while (!done)
     /* In 16-bit mode, convert the input. */
 
 #ifdef SUPPORT_PCRE16
-    if (use_pcre16) 
+    if (use_pcre16)
       {
       if (to16(p, options & PCRE_UTF8, (int)strlen((char *)p)) < 0)
         {
         fprintf(outfile, "**Failed: invalid UTF-8 string cannot be "
-          "converted to UTF-16\n"); 
-        goto SKIP_DATA;  
-        }   
-      p = (pcre_uint8 *)buffer16; 
-      } 
+          "converted to UTF-16\n");
+        goto SKIP_DATA;
+        }
+      p = (pcre_uint8 *)buffer16;
+      }
 #endif
 
     /* Compile many times when timing */
@@ -2366,7 +2601,7 @@ while (!done)
       if (hascrorlf) fprintf(outfile, "Contains explicit CR or LF match\n");
 
       all_options = ((real_pcre *)re)->options;
-      if (do_flip) all_options = byteflip(all_options, sizeof(all_options));
+      if (do_flip) all_options = swap_uint32(all_options);
 
       if (get_options == 0) fprintf(outfile, "No options\n");
         else fprintf(outfile, "Options:%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
@@ -2429,15 +2664,15 @@ while (!done)
         const char *caseless =
           ((((real_pcre *)re)->flags & PCRE_FCH_CASELESS) == 0)?
           "" : " (caseless)";
-          
+
         if (PRINTOK(first_char))
           fprintf(outfile, "First char = \'%c\'%s\n", first_char, caseless);
         else
-          { 
+          {
           fprintf(outfile, "First char = ");
-          pchar(first_char, outfile); 
+          pchar(first_char, outfile);
           fprintf(outfile, "%s\n", caseless);
-          } 
+          }
         }
 
       if (need_char < 0)
@@ -2533,43 +2768,6 @@ while (!done)
 
     if (to_file != NULL)
       {
-      /* If the 'F' option was present, we flip the bytes of all the integer
-      fields in the regex data block and the study block. This is to make it
-      possible to test PCRE's handling of byte-flipped patterns, e.g. those
-      compiled on a different architecture. */
-
-      if (do_flip)
-        {
-        real_pcre *rre = (real_pcre *)re;
-        rre->magic_number =
-          byteflip(rre->magic_number, sizeof(rre->magic_number));
-        rre->size = byteflip(rre->size, sizeof(rre->size));
-        rre->options = byteflip(rre->options, sizeof(rre->options));
-        rre->flags = (pcre_uint16)byteflip(rre->flags, sizeof(rre->flags));
-        rre->top_bracket =
-          (pcre_uint16)byteflip(rre->top_bracket, sizeof(rre->top_bracket));
-        rre->top_backref =
-          (pcre_uint16)byteflip(rre->top_backref, sizeof(rre->top_backref));
-        rre->first_char =
-          (pcre_uint16)byteflip(rre->first_char, sizeof(rre->first_char));
-        rre->req_char =
-          (pcre_uint16)byteflip(rre->req_char, sizeof(rre->req_char));
-        rre->name_table_offset = (pcre_uint16)byteflip(rre->name_table_offset,
-          sizeof(rre->name_table_offset));
-        rre->name_entry_size = (pcre_uint16)byteflip(rre->name_entry_size,
-          sizeof(rre->name_entry_size));
-        rre->name_count = (pcre_uint16)byteflip(rre->name_count,
-          sizeof(rre->name_count));
-
-        if (extra != NULL)
-          {
-          pcre_study_data *rsd = (pcre_study_data *)(extra->study_data);
-          rsd->size = byteflip(rsd->size, sizeof(rsd->size));
-          rsd->flags = byteflip(rsd->flags, sizeof(rsd->flags));
-          rsd->minlength = byteflip(rsd->minlength, sizeof(rsd->minlength));
-          }
-        }
-
       FILE *f = fopen((char *)to_file, "wb");
       if (f == NULL)
         {
@@ -2578,11 +2776,12 @@ while (!done)
       else
         {
         pcre_uint8 sbuf[8];
+         
+        if (do_flip) regexflip(re, extra);
         sbuf[0] = (pcre_uint8)((true_size >> 24) & 255);
         sbuf[1] = (pcre_uint8)((true_size >> 16) & 255);
         sbuf[2] = (pcre_uint8)((true_size >>  8) & 255);
         sbuf[3] = (pcre_uint8)((true_size) & 255);
-
         sbuf[4] = (pcre_uint8)((true_study_size >> 24) & 255);
         sbuf[5] = (pcre_uint8)((true_study_size >> 16) & 255);
         sbuf[6] = (pcre_uint8)((true_study_size >>  8) & 255);
@@ -2614,7 +2813,7 @@ while (!done)
         }
 
       new_free(re);
-      if (extra != NULL) 
+      if (extra != NULL)
         {
         PCRE_FREE_STUDY(extra);
         }
@@ -3080,17 +3279,17 @@ while (!done)
     /* Handle matching via the native interface - repeats for /g and /G */
 
 #ifdef SUPPORT_PCRE16
-    if (use_pcre16) 
+    if (use_pcre16)
       {
       len = to16(bptr, (((real_pcre *)re)->options) & PCRE_UTF8, len);
       if (len < 0)
         {
         fprintf(outfile, "**Failed: invalid UTF-8 string cannot be "
-          "converted to UTF-16\n"); 
-        goto NEXT_DATA;  
-        }   
+          "converted to UTF-16\n");
+        goto NEXT_DATA;
+        }
       bptr = (pcre_uint8 *)buffer16;
-      }  
+      }
 #endif
 
     for (;; gmatched++)    /* Loop for /g or /G */

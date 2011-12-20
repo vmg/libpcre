@@ -240,7 +240,9 @@ while(TRUE)
     case OP_NOTPOSPLUSI:
     case OP_NOTPOSQUERYI:
     case OP_NOTPOSUPTOI:
-    utf16_char = TRUE;
+#ifdef SUPPORT_UTF    
+    if (utf) utf16_char = TRUE;
+#endif     
     length = PRIV(OP_lengths)[*ptr] - 1;
     break;
 
