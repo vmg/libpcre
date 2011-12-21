@@ -191,6 +191,11 @@ use these in the definitions of generic macros. */
 #define PCRE_COMPILE8(re, pat, options, error, erroffset, tables) \
   re = pcre_compile((char *)pat, options, error, erroffset, tables)
 
+#define PCRE_DFA_EXEC8(count, re, extra, bptr, len, start_offset, options, \
+    offsets, size_offsets, workspace, size_workspace) \
+  count = pcre_dfa_exec(re, extra, (char *)bptr, len, start_offset, options, \
+    offsets, size_offsets, workspace, size_workspace)
+
 #define PCRE_EXEC8(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets) \
   count = pcre_exec(re, extra, (char *)bptr, len, start_offset, options, \
@@ -219,13 +224,18 @@ use these in the definitions of generic macros. */
 #define PCRE_COMPILE16(re, pat, options, error, erroffset, tables) \
   re = pcre16_compile((PCRE_SPTR16)pat, options, error, erroffset, tables)
 
-#define PCRE_FREE_STUDY16(extra) \
-  pcre16_free_study(extra)
+#define PCRE_DFA_EXEC16(count, re, extra, bptr, len, start_offset, options, \
+    offsets, size_offsets, workspace, size_workspace) \
+  count = pcre16_dfa_exec(re, extra, (PCRE_SPTR16)bptr, len, start_offset, \
+    options, offsets, size_offsets, workspace, size_workspace)
 
 #define PCRE_EXEC16(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets) \
   count = pcre16_exec(re, extra, (PCRE_SPTR16)bptr, len, start_offset, \
     options, offsets, size_offsets)
+
+#define PCRE_FREE_STUDY16(extra) \
+  pcre16_free_study(extra)
 
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
   pcre16_pattern_to_host_byte_order(re, extra, tables)
@@ -258,11 +268,14 @@ use these in the definitions of generic macros. */
   else \
     PCRE_COMPILE8(re, pat, options, error, erroffset, tables)
 
-#define PCRE_FREE_STUDY(extra) \
+#define PCRE_DFA_EXEC(count, re, extra, bptr, len, start_offset, options, \
+    offsets, size_offsets, workspace, size_workspace) \
   if (use_pcre16) \
-    PCRE_FREE_STUDY16(extra); \
+    PCRE_DFA_EXEC16(count, re, extra, bptr, len, start_offset, options, \
+      offsets, size_offsets, workspace, size_workspace); \
   else \
-    PCRE_FREE_STUDY8(extra)
+    PCRE_DFA_EXEC8(count, re, extra, bptr, len, start_offset, options, \
+      offsets, size_offsets, workspace, size_workspace)
 
 #define PCRE_EXEC(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets) \
@@ -272,6 +285,12 @@ use these in the definitions of generic macros. */
   else \
     PCRE_EXEC8(count, re, extra, bptr, len, start_offset, options, \
       offsets, size_offsets)
+
+#define PCRE_FREE_STUDY(extra) \
+  if (use_pcre16) \
+    PCRE_FREE_STUDY16(extra); \
+  else \
+    PCRE_FREE_STUDY8(extra)
 
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, tables) \
   if (use_pcre16) \
@@ -291,6 +310,7 @@ use these in the definitions of generic macros. */
 #define PCHARS           PCHARS8
 #define PCHARSV          PCHARSV8
 #define PCRE_COMPILE     PCRE_COMPILE8
+#define PCRE_DFA_EXEC    PCRE_DFA_EXEC8
 #define PCRE_EXEC        PCRE_EXEC8
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY8
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER8
@@ -302,6 +322,7 @@ use these in the definitions of generic macros. */
 #define PCHARS           PCHARS16
 #define PCHARSV          PCHARSV16
 #define PCRE_COMPILE     PCRE_COMPILE16
+#define PCRE_DFA_EXEC    PCRE_DFA_EXEC16
 #define PCRE_EXEC        PCRE_EXEC16
 #define PCRE_FREE_STUDY  PCRE_FREE_STUDY16
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER16
@@ -349,14 +370,14 @@ static pcre_uint8 *buffer = NULL;
 static pcre_uint8 *dbuffer = NULL;
 static pcre_uint8 *pbuffer = NULL;
 
-/* Another buffer is needed translation to 16-bit character strings. It will 
+/* Another buffer is needed translation to 16-bit character strings. It will
 obtained and extended as required. */
 
 #ifdef SUPPORT_PCRE16
 static int buffer16_size = 0;
 static pcre_uint16 *buffer16 = NULL;
 
-/* We need the table of operator lengths that is used for 16-bit compiling, in 
+/* We need the table of operator lengths that is used for 16-bit compiling, in
 order to swap bytes in a pattern for saving/reloading testing. Luckily, the
 data is defined as a macro. However, we must ensure that LINK_SIZE is adjusted
 appropriately for the 16-bit world. Just as a safety check, make sure that
@@ -1404,7 +1425,7 @@ return (value >> 8) | (value << 8);
 *        Flip bytes in a compiled pattern        *
 *************************************************/
 
-/* This function is called if the 'F' option was present on a pattern that is 
+/* This function is called if the 'F' option was present on a pattern that is
 to be written to a file. We flip the bytes of all the integer fields in the
 regex data block and the study block. In 16-bit mode this also flips relevant
 bytes in the pattern itself. This is to make it possible to test PCRE's
@@ -1447,9 +1468,9 @@ if (extra != NULL)
   rsd->flags = swap_uint32(rsd->flags);
   rsd->minlength = swap_uint32(rsd->minlength);
   }
-  
-/* In 8-bit mode, that is all we need to do. In 16-bit mode we must swap bytes 
-in the name table, if present, and then in the pattern itself. */ 
+
+/* In 8-bit mode, that is all we need to do. In 16-bit mode we must swap bytes
+in the name table, if present, and then in the pattern itself. */
 
 #ifdef SUPPORT_PCRE16
 if (!use_pcre16) return;
@@ -1465,7 +1486,7 @@ while(TRUE)
 #ifdef SUPPORT_UTF
   if (utf16_char)
     {
-    if ((ptr[-1] & 0xfc00) == 0xd800) 
+    if ((ptr[-1] & 0xfc00) == 0xd800)
       {
       /* We know that there is only one extra character in UTF-16. */
       *ptr = swap_uint16(*ptr);
@@ -1476,11 +1497,11 @@ while(TRUE)
 #endif /* SUPPORT_UTF */
 
   /* Get next opcode. */
-   
+
   length = 0;
-  op = *ptr; 
+  op = *ptr;
   *ptr++ = swap_uint16(op);
-   
+
   switch (op)
     {
     case OP_END:
@@ -1542,9 +1563,9 @@ while(TRUE)
     case OP_NOTPOSPLUSI:
     case OP_NOTPOSQUERYI:
     case OP_NOTPOSUPTOI:
-#ifdef SUPPORT_UTF     
+#ifdef SUPPORT_UTF
     if (utf) utf16_char = TRUE;
-#endif     
+#endif
     length = OP_lengths16[op] - 1;
     break;
 
@@ -1566,13 +1587,13 @@ while(TRUE)
       *ptr = swap_uint16(*ptr);
       }
     ptr++;
- 
+
     if (LINK_SIZE > 1)
       length = ((ptr[-LINK_SIZE] << 16) | ptr[-LINK_SIZE + 1]) -
-        (1 + LINK_SIZE + 1); 
-    else 
+        (1 + LINK_SIZE + 1);
+    else
       length = ptr[-LINK_SIZE] - (1 + LINK_SIZE + 1);
- 
+
     op = *ptr;
     *ptr = swap_uint16(op);
     if ((op & XCL_MAP) != 0)
@@ -1590,7 +1611,7 @@ while(TRUE)
   }
 /* Control should never reach here in 16 bit mode. */
 #endif /* SUPPORT_PCRE16 */
-} 
+}
 
 
 
@@ -2688,7 +2709,11 @@ while (!done)
         if (PRINTOK(need_char))
           fprintf(outfile, "Need char = \'%c\'%s\n", need_char, caseless);
         else
-          fprintf(outfile, "Need char = %d%s\n", need_char, caseless);
+          {
+          fprintf(outfile, "Need char = ");
+          pchar(need_char, outfile);
+          fprintf(outfile, "%s\n", caseless);
+          }
         }
 
       /* Don't output study size; at present it is in any case a fixed
@@ -2776,7 +2801,7 @@ while (!done)
       else
         {
         pcre_uint8 sbuf[8];
-         
+
         if (do_flip) regexflip(re, extra);
         sbuf[0] = (pcre_uint8)((true_size >> 24) & 255);
         sbuf[1] = (pcre_uint8)((true_size >> 16) & 255);
@@ -2958,9 +2983,19 @@ while (!done)
             else
              {
              if (c > 255)
-               fprintf(outfile, "** Character \\x{%x} is greater than 255 and "
-                 "UTF-8 mode is not enabled.\n"
-                 "** Truncation will probably give the wrong result.\n", c);
+               {
+               if (use_pcre16)
+                 fprintf(outfile, "** Character \\x{%x} is greater than 255.\n"
+                   "** Because its input is first processed as 8-bit, pcretest "
+                   "does not\n** support such characters in 16-bit mode when "
+                   "UTF-16 is not set.\n", c);
+               else
+                 fprintf(outfile, "** Character \\x{%x} is greater than 255 "
+                   "and UTF-8 mode is not enabled.\n", c);
+
+               fprintf(outfile, "** Truncation will probably give the wrong "
+                 "result.\n");
+               }
              }
             p = pt + 1;
             break;
@@ -3307,17 +3342,19 @@ while (!done)
           {
           int workspace[1000];
           for (i = 0; i < timeitm; i++)
-            count = pcre_dfa_exec(re, extra, (char *)bptr, len, start_offset,
-              options | g_notempty, use_offsets, use_size_offsets, workspace,
-              sizeof(workspace)/sizeof(int));
+            { 
+            PCRE_DFA_EXEC(count, re, extra, bptr, len, start_offset,
+              (options | g_notempty), use_offsets, use_size_offsets, workspace,
+              (sizeof(workspace)/sizeof(int)));
+            }   
           }
         else
 #endif
 
         for (i = 0; i < timeitm; i++)
           {
-          PCRE_EXEC(count, re, extra, bptr, len,
-            start_offset, options | g_notempty, use_offsets, use_size_offsets);
+          PCRE_EXEC(count, re, extra, bptr, len, start_offset, 
+            (options | g_notempty), use_offsets, use_size_offsets);
           }
         time_taken = clock() - start_time;
         fprintf(outfile, "Execute time %.4f milliseconds\n",
@@ -3375,9 +3412,9 @@ while (!done)
       else if (all_use_dfa || use_dfa)
         {
         int workspace[1000];
-        count = pcre_dfa_exec(re, extra, (char *)bptr, len, start_offset,
-          options | g_notempty, use_offsets, use_size_offsets, workspace,
-          sizeof(workspace)/sizeof(int));
+        PCRE_DFA_EXEC(count, re, extra, bptr, len, start_offset,
+          (options | g_notempty), use_offsets, use_size_offsets, workspace,
+          (sizeof(workspace)/sizeof(int)));
         if (count == 0)
           {
           fprintf(outfile, "Matched, but too many subsidiary matches\n");
@@ -3463,7 +3500,20 @@ while (!done)
             }
           }
 
-        if (markptr != NULL) fprintf(outfile, "MK: %s\n", markptr);
+        if (markptr != NULL)
+          {
+          int mplen;
+          if (use_pcre16)
+            {
+            pcre_uint16 *mp = (pcre_uint16 *)markptr;
+            mplen = 0;
+            while (*mp++ != 0) mplen++;
+            }
+          else mplen = (int)strlen((char *)markptr);
+          fprintf(outfile, "MK: ");
+          PCHARSV(markptr, mplen, outfile);
+          fprintf(outfile, "\n");
+          }
 
         for (i = 0; i < 32; i++)
           {

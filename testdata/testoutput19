@@ -1,14 +1,5 @@
-/-- This set of tests is run only with the 8-bit library when Unicode property 
-    support is available. It starts with tests of the POSIX interface, because
-    that is supported only with the 8-bit library. --/
-
-/\w/P
-    +++\x{c2}
-No match: POSIX code 17: match failed
-
-/\w/WP
-    +++\x{c2}
- 0: \xc2
+/-- This set of tests is for Unicode property support, relevant only to the
+    16-bit library. --/
     
 /A\x{391}\x{10427}\x{ff3a}\x{1fb0}/8iDZ
 ------------------------------------------------------------------
@@ -20,7 +11,7 @@ No match: POSIX code 17: match failed
 Capturing subpattern count = 0
 Options: caseless utf
 First char = 'A' (caseless)
-No need char
+Need char = \x{1fb0} (caseless)
 
 /A\x{391}\x{10427}\x{ff3a}\x{1fb0}/8DZ
 ------------------------------------------------------------------
@@ -32,7 +23,7 @@ No need char
 Capturing subpattern count = 0
 Options: utf
 First char = 'A'
-Need char = \x{b0}
+Need char = \x{1fb0}
 
 /AB\x{1fb0}/8DZ
 ------------------------------------------------------------------
@@ -44,7 +35,7 @@ Need char = \x{b0}
 Capturing subpattern count = 0
 Options: utf
 First char = 'A'
-Need char = \x{b0}
+Need char = \x{1fb0}
 
 /AB\x{1fb0}/8DZi
 ------------------------------------------------------------------
@@ -56,15 +47,15 @@ Need char = \x{b0}
 Capturing subpattern count = 0
 Options: caseless utf
 First char = 'A' (caseless)
-Need char = 'B' (caseless)
+Need char = \x{1fb0} (caseless)
 
 /\x{401}\x{420}\x{421}\x{422}\x{423}\x{424}\x{425}\x{426}\x{427}\x{428}\x{429}\x{42a}\x{42b}\x{42c}\x{42d}\x{42e}\x{42f}/8iSI
 Capturing subpattern count = 0
 Options: caseless utf
-No first char
-No need char
+First char = \x{401} (caseless)
+Need char = \x{42f} (caseless)
 Subject length lower bound = 17
-Starting byte set: \xd0 \xd1 
+No set of starting bytes
     \x{401}\x{420}\x{421}\x{422}\x{423}\x{424}\x{425}\x{426}\x{427}\x{428}\x{429}\x{42a}\x{42b}\x{42c}\x{42d}\x{42e}\x{42f}
  0: \x{401}\x{420}\x{421}\x{422}\x{423}\x{424}\x{425}\x{426}\x{427}\x{428}\x{429}\x{42a}\x{42b}\x{42c}\x{42d}\x{42e}\x{42f}
     \x{451}\x{440}\x{441}\x{442}\x{443}\x{444}\x{445}\x{446}\x{447}\x{448}\x{449}\x{44a}\x{44b}\x{44c}\x{44d}\x{44e}\x{44f}
@@ -81,9 +72,9 @@ Starting byte set: \xd0 \xd1
 /[^ⱥ]/8iBZ
 ------------------------------------------------------------------
         Bra
-        [^\x{2c65}\x{23a}]
+     /i [^\x{2c65}]
         Ket
         End
 ------------------------------------------------------------------
 
-/-- End of testinput16 --/
+/-- End of testinput19 --/ 

@@ -6,12 +6,8 @@
     bug.
     
     NOTE: This is a non-UTF set of tests. When UTF support is needed, use
-    test 5, and if Unicode Property Support is needed, use test 13. --/
+    test 5, and if Unicode Property Support is needed, use test 7. --/
   
-/-- Originally, the Perl >= 5.10 things were in here too, but now I have 
-    separated many (most?) of them out into test 11. However, there may still 
-    be some that were overlooked. --/   
-
 /(a)b|/I
 
 /abc/I
@@ -146,40 +142,6 @@
 /.*((abc)$|(def))/I
     defabc
     \Zdefabc
-
-/abc/P
-    abc
-    *** Failers
-
-/^abc|def/P
-    abcdef
-    abcdef\B
-
-/.*((abc)$|(def))/P
-    defabc
-    \Zdefabc
-
-/the quick brown fox/P
-    the quick brown fox
-    *** Failers
-    The Quick Brown Fox
-
-/the quick brown fox/Pi
-    the quick brown fox
-    The Quick Brown Fox
-
-/abc.def/P
-    *** Failers
-    abc\ndef
-
-/abc$/P
-    abc
-    abc\n
-
-/(abc)\2/P
-
-/(abc\1)/P
-    abc
 
 /)/
 
@@ -631,15 +593,6 @@
     \Nab-c
     *** Failers
     \Nabc
-
-/a*(b+)(z)(z)/P
-    aaaabbbbzzzz
-    aaaabbbbzzzz\O0
-    aaaabbbbzzzz\O1
-    aaaabbbbzzzz\O2
-    aaaabbbbzzzz\O3
-    aaaabbbbzzzz\O4
-    aaaabbbbzzzz\O5
 
 /^.?abcd/IS
 
@@ -1494,17 +1447,6 @@
     ** Failers
     line one\nthis is a line\nbreak in the second line
 
-/ab.cd/P
-    ab-cd
-    ab=cd
-    ** Failers
-    ab\ncd
-
-/ab.cd/Ps
-    ab-cd
-    ab=cd
-    ab\ncd
-
 /(?i)(?-i)AbCd/I
     AbCd
     ** Failers
@@ -1554,12 +1496,6 @@
     (this(and)that)
     (this)
     ((this))
-
-/a(b)c/PN
-    abc
-
-/a(?P<name>b)c/PN
-    abc
 
 /\x{100}/I
 
@@ -2619,11 +2555,6 @@ a random value. /Ix
 
 /(?(?=.*b).*b|^d)/I
 
-/a?|b?/P
-    abc
-    ** Failers
-    ddd\N   
-
 /xyz/C
   xyz 
   abcxyz 
@@ -2815,12 +2746,6 @@ a random value. /Ix
    abc\P
    abc\P\P
    
-/\w+A/P
-   CDAAAAB 
-
-/\w+A/PU
-   CDAAAAB 
-
 /abc\K123/
     xyzabc123pqr
     xyzabc12\P

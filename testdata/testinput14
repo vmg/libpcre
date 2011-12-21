@@ -1,19 +1,84 @@
-/-- This test is run only when JIT support is available. It checks for a
-successful and an unsuccessful JIT compile and save and restore behaviour,
-and a couple of things that are different with JIT. --/
+/-- This set of tests is run only with the 8-bit library. It starts with all
+    the tests of the POSIX interface, because that is supported only with the
+    8-bit library. --/
 
-/abc/S+I
+/abc/P
+    abc
+    *** Failers
 
-/ab(*COMMIT)/S+I
+/^abc|def/P
+    abcdef
+    abcdef\B
 
-/abc/S+I>testsavedregex
+/.*((abc)$|(def))/P
+    defabc
+    \Zdefabc
 
-<testsavedregex
+/the quick brown fox/P
+    the quick brown fox
+    *** Failers
+    The Quick Brown Fox
+
+/the quick brown fox/Pi
+    the quick brown fox
+    The Quick Brown Fox
+
+/abc.def/P
+    *** Failers
+    abc\ndef
+
+/abc$/P
+    abc
+    abc\n
+
+/(abc)\2/P
+
+/(abc\1)/P
     abc
 
-/a*/SI
+/a*(b+)(z)(z)/P
+    aaaabbbbzzzz
+    aaaabbbbzzzz\O0
+    aaaabbbbzzzz\O1
+    aaaabbbbzzzz\O2
+    aaaabbbbzzzz\O3
+    aaaabbbbzzzz\O4
+    aaaabbbbzzzz\O5
 
-/(?(R)a*(?1)|((?R))b)/S+
-    aaaabcde
+/ab.cd/P
+    ab-cd
+    ab=cd
+    ** Failers
+    ab\ncd
 
+/ab.cd/Ps
+    ab-cd
+    ab=cd
+    ab\ncd
+
+/a(b)c/PN
+    abc
+
+/a(?P<name>b)c/PN
+    abc
+
+/a?|b?/P
+    abc
+    ** Failers
+    ddd\N   
+
+/\w+A/P
+   CDAAAAB 
+
+/\w+A/PU
+   CDAAAAB 
+   
+/-- End of POSIX tests --/ 
+
+/a\Cb/
+    aXb
+    a\nb
+    ** Failers (too big char) 
+    A\x{123}B 
+  
 /-- End of testinput14 --/

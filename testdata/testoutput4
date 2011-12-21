@@ -1,6 +1,6 @@
 /-- This set of tests is for UTF support, excluding Unicode properties. It is
-    compatible with all versions of Perl 5 and both the 8-bit and 16-bit PCRE 
-    libraries. --/
+    compatible with all versions of Perl >= 5.10 and both the 8-bit and 16-bit
+    PCRE libraries. --/
    
 /a.b/8
     acb
@@ -1080,5 +1080,15 @@ No match
 /(abc)\1/8
    abc
 No match
+
+/a(*:a\x{1234}b)/8K
+    abc
+ 0: a
+MK: a\x{1234}b
+
+/a(*:a£b)/8K 
+    abc
+ 0: a
+MK: a\x{a3}b
 
 /-- End of testinput4 --/

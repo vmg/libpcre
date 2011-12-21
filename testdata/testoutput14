@@ -1,51 +1,143 @@
-/-- This test is run only when JIT support is available. It checks for a
-successful and an unsuccessful JIT compile and save and restore behaviour,
-and a couple of things that are different with JIT. --/
+/-- This set of tests is run only with the 8-bit library. It starts with all
+    the tests of the POSIX interface, because that is supported only with the
+    8-bit library. --/
 
-/abc/S+I
-Capturing subpattern count = 0
-No options
-First char = 'a'
-Need char = 'c'
-Subject length lower bound = 3
-No set of starting bytes
-JIT study was successful
-
-/ab(*COMMIT)/S+I
-Capturing subpattern count = 0
-No options
-First char = 'a'
-Need char = 'b'
-Subject length lower bound = 2
-No set of starting bytes
-JIT study was not successful
-
-/abc/S+I>testsavedregex
-Capturing subpattern count = 0
-No options
-First char = 'a'
-Need char = 'c'
-Subject length lower bound = 3
-No set of starting bytes
-JIT study was successful
-Compiled pattern written to testsavedregex
-Study data written to testsavedregex
-
-<testsavedregex
-Compiled pattern loaded from testsavedregex
-Study data loaded from testsavedregex
+/abc/P
     abc
  0: abc
+    *** Failers
+No match: POSIX code 17: match failed
 
-/a*/SI
-Capturing subpattern count = 0
-No options
-No first char
-No need char
-Study returned NULL
+/^abc|def/P
+    abcdef
+ 0: abc
+    abcdef\B
+ 0: def
 
-/(?(R)a*(?1)|((?R))b)/S+
-    aaaabcde
-Error -27 (JIT stack limit reached)
+/.*((abc)$|(def))/P
+    defabc
+ 0: defabc
+ 1: abc
+ 2: abc
+    \Zdefabc
+ 0: def
+ 1: def
+ 3: def
 
+/the quick brown fox/P
+    the quick brown fox
+ 0: the quick brown fox
+    *** Failers
+No match: POSIX code 17: match failed
+    The Quick Brown Fox
+No match: POSIX code 17: match failed
+
+/the quick brown fox/Pi
+    the quick brown fox
+ 0: the quick brown fox
+    The Quick Brown Fox
+ 0: The Quick Brown Fox
+
+/abc.def/P
+    *** Failers
+No match: POSIX code 17: match failed
+    abc\ndef
+No match: POSIX code 17: match failed
+
+/abc$/P
+    abc
+ 0: abc
+    abc\n
+ 0: abc
+
+/(abc)\2/P
+Failed: POSIX code 15: bad back reference at offset 7     
+
+/(abc\1)/P
+    abc
+No match: POSIX code 17: match failed
+
+/a*(b+)(z)(z)/P
+    aaaabbbbzzzz
+ 0: aaaabbbbzz
+ 1: bbbb
+ 2: z
+ 3: z
+    aaaabbbbzzzz\O0
+    aaaabbbbzzzz\O1
+ 0: aaaabbbbzz
+    aaaabbbbzzzz\O2
+ 0: aaaabbbbzz
+ 1: bbbb
+    aaaabbbbzzzz\O3
+ 0: aaaabbbbzz
+ 1: bbbb
+ 2: z
+    aaaabbbbzzzz\O4
+ 0: aaaabbbbzz
+ 1: bbbb
+ 2: z
+ 3: z
+    aaaabbbbzzzz\O5
+ 0: aaaabbbbzz
+ 1: bbbb
+ 2: z
+ 3: z
+
+/ab.cd/P
+    ab-cd
+ 0: ab-cd
+    ab=cd
+ 0: ab=cd
+    ** Failers
+No match: POSIX code 17: match failed
+    ab\ncd
+No match: POSIX code 17: match failed
+
+/ab.cd/Ps
+    ab-cd
+ 0: ab-cd
+    ab=cd
+ 0: ab=cd
+    ab\ncd
+ 0: ab\x0acd
+
+/a(b)c/PN
+    abc
+Matched with REG_NOSUB
+
+/a(?P<name>b)c/PN
+    abc
+Matched with REG_NOSUB
+
+/a?|b?/P
+    abc
+ 0: a
+    ** Failers
+ 0: 
+    ddd\N   
+No match: POSIX code 17: match failed
+
+/\w+A/P
+   CDAAAAB 
+ 0: CDAAAA
+
+/\w+A/PU
+   CDAAAAB 
+ 0: CDA
+   
+/-- End of POSIX tests --/ 
+
+/a\Cb/
+    aXb
+ 0: aXb
+    a\nb
+ 0: a\x0ab
+    ** Failers (too big char) 
+No match
+    A\x{123}B 
+** Character \x{123} is greater than 255 and UTF-8 mode is not enabled.
+** Truncation will probably give the wrong result.
+No match
+  
 /-- End of testinput14 --/

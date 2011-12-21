@@ -6,12 +6,8 @@
     bug.
     
     NOTE: This is a non-UTF set of tests. When UTF support is needed, use
-    test 5, and if Unicode Property Support is needed, use test 13. --/
+    test 5, and if Unicode Property Support is needed, use test 7. --/
   
-/-- Originally, the Perl >= 5.10 things were in here too, but now I have 
-    separated many (most?) of them out into test 11. However, there may still 
-    be some that were overlooked. --/   
-
 /(a)b|/I
 Capturing subpattern count = 1
 No options
@@ -379,61 +375,6 @@ No need char
  1: def
  2: <unset>
  3: def
-
-/abc/P
-    abc
- 0: abc
-    *** Failers
-No match: POSIX code 17: match failed
-
-/^abc|def/P
-    abcdef
- 0: abc
-    abcdef\B
- 0: def
-
-/.*((abc)$|(def))/P
-    defabc
- 0: defabc
- 1: abc
- 2: abc
-    \Zdefabc
- 0: def
- 1: def
- 3: def
-
-/the quick brown fox/P
-    the quick brown fox
- 0: the quick brown fox
-    *** Failers
-No match: POSIX code 17: match failed
-    The Quick Brown Fox
-No match: POSIX code 17: match failed
-
-/the quick brown fox/Pi
-    the quick brown fox
- 0: the quick brown fox
-    The Quick Brown Fox
- 0: The Quick Brown Fox
-
-/abc.def/P
-    *** Failers
-No match: POSIX code 17: match failed
-    abc\ndef
-No match: POSIX code 17: match failed
-
-/abc$/P
-    abc
- 0: abc
-    abc\n
- 0: abc
-
-/(abc)\2/P
-Failed: POSIX code 15: bad back reference at offset 7     
-
-/(abc\1)/P
-    abc
-No match: POSIX code 17: match failed
 
 /)/
 Failed: unmatched parentheses at offset 0
@@ -1405,7 +1346,7 @@ Capturing subpattern count = 0
 Contains explicit CR or LF match
 Options: multiline
 First char at start or follows newline
-Need char = 10
+Need char = \x0a
     ab\nab\ncd
  0: ab\x0a
  0+ ab\x0acd
@@ -1691,33 +1632,6 @@ No need char
  0: 
     \Nabc
 No match
-
-/a*(b+)(z)(z)/P
-    aaaabbbbzzzz
- 0: aaaabbbbzz
- 1: bbbb
- 2: z
- 3: z
-    aaaabbbbzzzz\O0
-    aaaabbbbzzzz\O1
- 0: aaaabbbbzz
-    aaaabbbbzzzz\O2
- 0: aaaabbbbzz
- 1: bbbb
-    aaaabbbbzzzz\O3
- 0: aaaabbbbzz
- 1: bbbb
- 2: z
-    aaaabbbbzzzz\O4
- 0: aaaabbbbzz
- 1: bbbb
- 2: z
- 3: z
-    aaaabbbbzzzz\O5
- 0: aaaabbbbzz
- 1: bbbb
- 2: z
- 3: z
 
 /^.?abcd/IS
 Capturing subpattern count = 0
@@ -5854,24 +5768,6 @@ No match
     line one\nthis is a line\nbreak in the second line
 No match
 
-/ab.cd/P
-    ab-cd
- 0: ab-cd
-    ab=cd
- 0: ab=cd
-    ** Failers
-No match: POSIX code 17: match failed
-    ab\ncd
-No match: POSIX code 17: match failed
-
-/ab.cd/Ps
-    ab-cd
- 0: ab-cd
-    ab=cd
- 0: ab=cd
-    ab\ncd
- 0: ab\x0acd
-
 /(?i)(?-i)AbCd/I
 Capturing subpattern count = 0
 No options
@@ -6163,14 +6059,6 @@ No need char
  0: (this)
     ((this))
  0: ((this))
-
-/a(b)c/PN
-    abc
-Matched with REG_NOSUB
-
-/a(?P<name>b)c/PN
-    abc
-Matched with REG_NOSUB
 
 /\x{100}/I
 Failed: character value in \x{...} sequence is too large at offset 6
@@ -9478,14 +9366,6 @@ No options
 First char at start or follows newline
 No need char
 
-/a?|b?/P
-    abc
- 0: a
-    ** Failers
- 0: 
-    ddd\N   
-No match: POSIX code 17: match failed
-
 /xyz/C
   xyz 
 --->xyz
@@ -9880,14 +9760,6 @@ Partial match: the cat
    abc\P\P
  0: abc
    
-/\w+A/P
-   CDAAAAB 
- 0: CDAAAA
-
-/\w+A/PU
-   CDAAAAB 
- 0: CDA
-
 /abc\K123/
     xyzabc123pqr
  0: 123

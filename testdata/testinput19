@@ -1,12 +1,5 @@
-/-- This set of tests is run only with the 8-bit library when Unicode property 
-    support is available. It starts with tests of the POSIX interface, because
-    that is supported only with the 8-bit library. --/
-
-/\w/P
-    +++\x{c2}
-
-/\w/WP
-    +++\x{c2}
+/-- This set of tests is for Unicode property support, relevant only to the
+    16-bit library. --/
     
 /A\x{391}\x{10427}\x{ff3a}\x{1fb0}/8iDZ
 
@@ -24,4 +17,4 @@
 
 /[^ⱥ]/8iBZ
 
-/-- End of testinput16 --/
+/-- End of testinput19 --/ 
