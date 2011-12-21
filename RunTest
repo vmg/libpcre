@@ -164,36 +164,6 @@ if [ $jit -ne 0 ] ; then
   jitopt=-s+
 fi
 
-if [ "$test8" = skip ] ; then
-  if [ $do14 = yes ] ; then
-    echo "Can't run test 14 because the 8-bit library is not built"
-    exit 1
-  fi     
-  if [ $do15 = yes ] ; then
-    echo "Can't run test 15 because the 8-bit library is not built"
-    exit 1
-  fi     
-  if [ $do16 = yes ] ; then
-    echo "Can't run test 16 because the 8-bit library is not built"
-    exit 1
-  fi     
-fi
-
-if [ "$test17" = skip ] ; then
-  if [ $do17 = yes ] ; then
-    echo "Can't run test 17 because the 16-bit library is not built"
-    exit 1
-  fi     
-  if [ $do18 = yes ] ; then
-    echo "Can't run test 18 because the 16-bit library is not built"
-    exit 1
-  fi     
-  if [ $do19 = yes ] ; then
-    echo "Can't run test 19 because the 16-bit library is not built"
-    exit 1
-  fi     
-fi
-
 if [ $utf -eq 0 ] ; then
   if [ $do4 = yes ] ; then
     echo "Can't run test 4 because UTF support is not configured"

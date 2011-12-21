@@ -1093,7 +1093,7 @@ No first char
 No need char
     abc\00def\L\C0
  0: abc\x00def
- 0C abc (7)
+ 0C abc\x00def (7)
  0L abc
 
 /word ((?:[a-zA-Z0-9]+ )((?:[a-zA-Z0-9]+ )((?:[a-zA-Z0-9]+ )((?:[a-zA-Z0-9]+
@@ -6176,7 +6176,7 @@ no parentheses with name "Z"
  0: a1
  1: a1
  2: a1
-copy substring Z failed -7
+get substring Z failed -7
   G a1 (2) A
 
 /^(?P<A>a)(?P<A>b)/IJ
@@ -6208,7 +6208,7 @@ No need char
   G a (1) A
     cd\GA
  0: cd
-copy substring A failed -7
+get substring A failed -7
 
 /^(?P<A>a)(?P<A>b)|cd(?P<A>ef)(?P<A>gh)/IJ
 Capturing subpattern count = 4

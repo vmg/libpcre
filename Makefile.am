@@ -379,6 +379,10 @@ EXTRA_DIST += \
   testdata/testinput13 \
   testdata/testinput14 \
   testdata/testinput15 \
+  testdata/testinput16 \
+  testdata/testinput17 \
+  testdata/testinput18 \
+  testdata/testinput19 \
   testdata/testoutput1 \
   testdata/testoutput2 \
   testdata/testoutput3 \
@@ -389,11 +393,16 @@ EXTRA_DIST += \
   testdata/testoutput8 \
   testdata/testoutput9 \
   testdata/testoutput10 \
-  testdata/testoutput11 \
+  testdata/testoutput11-8 \
+  testdata/testoutput11-16 \
   testdata/testoutput12 \
   testdata/testoutput13 \
   testdata/testoutput14 \
   testdata/testoutput15 \
+  testdata/testoutput16 \
+  testdata/testoutput17 \
+  testdata/testoutput18 \
+  testdata/testoutput19 \
   testdata/wintestinput3 \
   testdata/wintestoutput3 \
   perltest.pl

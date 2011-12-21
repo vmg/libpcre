@@ -188,8 +188,18 @@ use these in the definitions of generic macros. */
 #define PCHARSV8(p, len, f) \
   (void)pchars((pcre_uint8 *)p, len, f)
 
+#define STRLEN8(p) (int)strlen((char *)p)
+
 #define PCRE_COMPILE8(re, pat, options, error, erroffset, tables) \
   re = pcre_compile((char *)pat, options, error, erroffset, tables)
+
+#define PCRE_COPY_NAMED_SUBSTRING8(rc, re, bptr, offsets, count, \
+    namesptr, cbuffer, size) \
+  rc = pcre_copy_named_substring(re, (char *)bptr, offsets, count, \
+    (char *)copynamesptr, cbuffer, size)
+
+#define PCRE_COPY_SUBSTRING8(rc, bptr, offsets, count, i, cbuffer, size) \
+  rc = pcre_copy_substring((char *)bptr, offsets, count, i, cbuffer, size)
 
 #define PCRE_DFA_EXEC8(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets, workspace, size_workspace) \
@@ -204,6 +214,26 @@ use these in the definitions of generic macros. */
 #define PCRE_FREE_STUDY8(extra) \
   pcre_free_study(extra)
 
+#define PCRE_FREE_SUBSTRING8(substring) \
+  pcre_free_substring(substring)
+
+#define PCRE_FREE_SUBSTRING_LIST8(listptr) \
+  pcre_free_substring_list(listptr)
+
+#define PCRE_GET_NAMED_SUBSTRING8(rc, re, bptr, offsets, count, \
+    getnamesptr, subsptr) \
+  rc = pcre_get_named_substring(re, (char *)bptr, offsets, count, \
+    (char *)getnamesptr, subsptr)
+
+#define PCRE_GET_STRINGNUMBER8(n, rc, ptr) \
+  n = pcre_get_stringnumber(re, (char *)ptr)
+
+#define PCRE_GET_SUBSTRING8(rc, bptr, offsets, count, i, subsptr) \
+  rc = pcre_get_substring((char *)bptr, offsets, count, i, subsptr)
+
+#define PCRE_GET_SUBSTRING_LIST8(rc, bptr, offsets, count, listptr) \
+  rc = pcre_get_substring_list((const char *)bptr, offsets, count, listptr)
+
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables) \
   pcre_pattern_to_host_byte_order(re, extra, tables)
 
@@ -212,6 +242,7 @@ use these in the definitions of generic macros. */
 
 #endif /* SUPPORT_PCRE8 */
 
+/* -----------------------------------------------------------*/
 
 #ifdef SUPPORT_PCRE16
 
@@ -221,8 +252,19 @@ use these in the definitions of generic macros. */
 #define PCHARSV16(p, len, f) \
   (void)pchars16((PCRE_SPTR16)p, len, f)
 
+#define STRLEN16(p) (int)strlen16((PCRE_SPTR16)p)
+
 #define PCRE_COMPILE16(re, pat, options, error, erroffset, tables) \
   re = pcre16_compile((PCRE_SPTR16)pat, options, error, erroffset, tables)
+
+#define PCRE_COPY_NAMED_SUBSTRING16(rc, re, bptr, offsets, count, \
+    namesptr, cbuffer, size) \
+  rc = pcre16_copy_named_substring(re, (PCRE_SPTR16)bptr, offsets, count, \
+    (PCRE_SPTR16)namesptr, (PCRE_SCHAR16 *)cbuffer, size/2)
+
+#define PCRE_COPY_SUBSTRING16(rc, bptr, offsets, count, i, cbuffer, size) \
+  rc = pcre16_copy_substring((PCRE_SPTR16)bptr, offsets, count, i, \
+    (PCRE_SCHAR16 *)cbuffer, size/2)
 
 #define PCRE_DFA_EXEC16(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets, workspace, size_workspace) \
@@ -236,6 +278,28 @@ use these in the definitions of generic macros. */
 
 #define PCRE_FREE_STUDY16(extra) \
   pcre16_free_study(extra)
+
+#define PCRE_FREE_SUBSTRING16(substring) \
+  pcre16_free_substring((PCRE_SPTR16)substring)
+
+#define PCRE_FREE_SUBSTRING_LIST16(listptr) \
+  pcre16_free_substring_list((PCRE_SPTR16 *)listptr)
+
+#define PCRE_GET_NAMED_SUBSTRING16(rc, re, bptr, offsets, count, \
+    getnamesptr, subsptr) \
+  rc = pcre16_get_named_substring(re, (PCRE_SPTR16)bptr, offsets, count, \
+    (PCRE_SPTR16)getnamesptr, (PCRE_SPTR16 *)subsptr)
+
+#define PCRE_GET_STRINGNUMBER16(n, rc, ptr) \
+  n = pcre16_get_stringnumber(re, (PCRE_SPTR16)ptr)
+
+#define PCRE_GET_SUBSTRING16(rc, bptr, offsets, count, i, subsptr) \
+  rc = pcre16_get_substring((PCRE_SPTR16)bptr, offsets, count, i, \
+    (PCRE_SPTR16 *)subsptr)
+
+#define PCRE_GET_SUBSTRING_LIST16(rc, bptr, offsets, count, listptr) \
+  rc = pcre16_get_substring_list((PCRE_SPTR16)bptr, offsets, count, \
+    (PCRE_SPTR16 **)listptr)
 
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
   pcre16_pattern_to_host_byte_order(re, extra, tables)
@@ -262,11 +326,28 @@ use these in the definitions of generic macros. */
   else \
     PCHARSV8(p, len, f)
 
+#define STRLEN(p) use_pcre16? STRLEN16(p) : STRLEN8(p)
+
 #define PCRE_COMPILE(re, pat, options, error, erroffset, tables) \
   if (use_pcre16) \
     PCRE_COMPILE16(re, pat, options, error, erroffset, tables); \
   else \
     PCRE_COMPILE8(re, pat, options, error, erroffset, tables)
+
+#define PCRE_COPY_NAMED_SUBSTRING(rc, re, bptr, offsets, count, \
+    namesptr, cbuffer, size) \
+  if (use_pcre16) \
+    PCRE_COPY_NAMED_SUBSTRING16(rc, re, bptr, offsets, count, \
+      namesptr, cbuffer, size); \
+  else \
+    PCRE_COPY_NAMED_SUBSTRING8(rc, re, bptr, offsets, count, \
+      namesptr, cbuffer, size)
+
+#define PCRE_COPY_SUBSTRING(rc, bptr, offsets, count, i, cbuffer, size) \
+  if (use_pcre16) \
+    PCRE_COPY_SUBSTRING16(rc, bptr, offsets, count, i, cbuffer, size); \
+  else \
+    PCRE_COPY_SUBSTRING8(rc, bptr, offsets, count, i, cbuffer, size)
 
 #define PCRE_DFA_EXEC(count, re, extra, bptr, len, start_offset, options, \
     offsets, size_offsets, workspace, size_workspace) \
@@ -292,6 +373,45 @@ use these in the definitions of generic macros. */
   else \
     PCRE_FREE_STUDY8(extra)
 
+#define PCRE_FREE_SUBSTRING(substring) \
+  if (use_pcre16) \
+    PCRE_FREE_SUBSTRING16(substring); \
+  else \
+    PCRE_FREE_SUBSTRING8(substring)
+
+#define PCRE_FREE_SUBSTRING_LIST(listptr) \
+  if (use_pcre16) \
+    PCRE_FREE_SUBSTRING_LIST16(listptr); \
+  else \
+    PCRE_FREE_SUBSTRING_LIST8(listptr)
+
+#define PCRE_GET_NAMED_SUBSTRING(rc, re, bptr, offsets, count, \
+    getnamesptr, subsptr) \
+  if (use_pcre16) \
+    PCRE_GET_NAMED_SUBSTRING16(rc, re, bptr, offsets, count, \
+      getnamesptr, subsptr); \
+  else \
+    PCRE_GET_NAMED_SUBSTRING8(rc, re, bptr, offsets, count, \
+      getnamesptr, subsptr)
+
+#define PCRE_GET_STRINGNUMBER(n, rc, ptr) \
+  if (use_pcre16) \
+    PCRE_GET_STRINGNUMBER16(n, rc, ptr); \
+  else \
+    PCRE_GET_STRINGNUMBER8(n, rc, ptr)
+
+#define PCRE_GET_SUBSTRING(rc, bptr, use_offsets, count, i, subsptr) \
+  if (use_pcre16) \
+    PCRE_GET_SUBSTRING16(rc, bptr, use_offsets, count, i, subsptr); \
+  else \
+    PCRE_GET_SUBSTRING8(rc, bptr, use_offsets, count, i, subsptr)
+
+#define PCRE_GET_SUBSTRING_LIST(rc, bptr, offsets, count, listptr) \
+  if (use_pcre16) \
+    PCRE_GET_SUBSTRING_LIST16(rc, bptr, offsets, count, listptr); \
+  else \
+    PCRE_GET_SUBSTRING_LIST8(rc, bptr, offsets, count, listptr)
+
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, tables) \
   if (use_pcre16) \
     PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables); \
@@ -307,26 +427,44 @@ use these in the definitions of generic macros. */
 /* ----- Only 8-bit mode is supported ----- */
 
 #elif defined SUPPORT_PCRE8
-#define PCHARS           PCHARS8
-#define PCHARSV          PCHARSV8
-#define PCRE_COMPILE     PCRE_COMPILE8
-#define PCRE_DFA_EXEC    PCRE_DFA_EXEC8
-#define PCRE_EXEC        PCRE_EXEC8
-#define PCRE_FREE_STUDY  PCRE_FREE_STUDY8
+#define PCHARS                    PCHARS8
+#define PCHARSV                   PCHARSV8
+#define STRLEN                    STRLEN8
+#define PCRE_COMPILE              PCRE_COMPILE8
+#define PCRE_COPY_NAMED_SUBSTRING PCRE_COPY_NAMED_SUBSTRING8
+#define PCRE_COPY_SUBSTRING       PCRE_COPY_SUBSTRING8
+#define PCRE_DFA_EXEC             PCRE_DFA_EXEC8
+#define PCRE_EXEC                 PCRE_EXEC8
+#define PCRE_FREE_STUDY           PCRE_FREE_STUDY8
+#define PCRE_FREE_SUBSTRING       PCRE_FREE_SUBSTRING8
+#define PCRE_FREE_SUBSTRING_LIST  PCRE_FREE_SUBSTRING_LIST8
+#define PCRE_GET_NAMED_SUBSTRING  PCRE_GET_NAMED_SUBSTRING8
+#define PCRE_GET_STRINGNUMBER     PCRE_GET_STRINGNUMBER8
+#define PCRE_GET_SUBSTRING        PCRE_GET_SUBSTRING8
+#define PCRE_GET_SUBSTRING_LIST   PCRE_GET_SUBSTRING_LIST8
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER8
-#define PCRE_STUDY       PCRE_STUDY8
+#define PCRE_STUDY                PCRE_STUDY8
 
 /* ----- Only 16-bit mode is supported ----- */
 
 #else
-#define PCHARS           PCHARS16
-#define PCHARSV          PCHARSV16
-#define PCRE_COMPILE     PCRE_COMPILE16
-#define PCRE_DFA_EXEC    PCRE_DFA_EXEC16
-#define PCRE_EXEC        PCRE_EXEC16
-#define PCRE_FREE_STUDY  PCRE_FREE_STUDY16
+#define PCHARS                    PCHARS16
+#define PCHARSV                   PCHARSV16
+#define STRLEN                    STRLEN16
+#define PCRE_COMPILE              PCRE_COMPILE16
+#define PCRE_COPY_NAMED_SUBSTRING PCRE_COPY_NAMED_SUBSTRING16
+#define PCRE_COPY_SUBSTRING       PCRE_COPY_SUBSTRING16
+#define PCRE_DFA_EXEC             PCRE_DFA_EXEC16
+#define PCRE_EXEC                 PCRE_EXEC16
+#define PCRE_FREE_STUDY           PCRE_FREE_STUDY16
+#define PCRE_FREE_SUBSTRING       PCRE_FREE_SUBSTRING16
+#define PCRE_FREE_SUBSTRING_LIST  PCRE_FREE_SUBSTRING_LIST16
+#define PCRE_GET_NAMED_SUBSTRING  PCRE_GET_NAMED_SUBSTRING16
+#define PCRE_GET_STRINGNUMBER     PCRE_GET_STRINGNUMBER16
+#define PCRE_GET_SUBSTRING        PCRE_GET_SUBSTRING16
+#define PCRE_GET_SUBSTRING_LIST   PCRE_GET_SUBSTRING_LIST16
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER16
-#define PCRE_STUDY       PCRE_STUDY16
+#define PCRE_STUDY                PCRE_STUDY16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -1180,6 +1318,19 @@ return yield;
 
 #ifdef SUPPORT_PCRE16
 /*************************************************
+*    Find length of 0-terminated 16-bit string   *
+*************************************************/
+
+static int strlen16(PCRE_SPTR16 p)
+{
+int len = 0;
+while (*p++ != 0) len++;
+return len;
+}
+
+
+
+/*************************************************
 *           Print 16-bit character string        *
 *************************************************/
 
@@ -1777,6 +1928,7 @@ options, followed by a set of test data, terminated by an empty line. */
 int main(int argc, char **argv)
 {
 FILE *infile = stdin;
+const char *version;
 int options = 0;
 int study_options = 0;
 int default_find_match_limit = FALSE;
@@ -1830,6 +1982,15 @@ it set 0x8000, but then I was advised that _O_BINARY was better. */
 
 #if defined(_WIN32) || defined(WIN32)
 _setmode( _fileno( stdout ), _O_BINARY );
+#endif
+
+/* Get the version number: both pcre_version() and pcre16_version() give the
+same answer. We just need to ensure that we call one that is availab.e */
+
+#ifdef SUPPORT_PCRE8
+version = pcre_version();
+#else
+version = pcre16_version();
 #endif
 
 /* Scan options */
@@ -1907,7 +2068,7 @@ while (argc > 1 && argv[op][0] == '-')
     {
     int rc;
     unsigned long int lrc;
-    printf("PCRE version %s\n", pcre_version());
+    printf("PCRE version %s\n", version);
     printf("Compiled with\n");
 
 /* At least one of SUPPORT_PCRE8 and SUPPORT_PCRE16 will be set. If both
@@ -2030,7 +2191,7 @@ pcre16_stack_free = stack_free;
 
 /* Heading line unless quiet, then prompt for first regex if stdin */
 
-if (!quiet) fprintf(outfile, "PCRE version %s\n\n", pcre_version());
+if (!quiet) fprintf(outfile, "PCRE version %s\n\n", version);
 
 /* Main loop */
 
@@ -3048,7 +3209,7 @@ while (!done)
           while (isalnum(*p)) *npp++ = *p++;
           *npp++ = 0;
           *npp = 0;
-          n = pcre_get_stringnumber(re, (char *)copynamesptr);
+          PCRE_GET_STRINGNUMBER(n, re, copynamesptr);
           if (n < 0)
             fprintf(outfile, "no parentheses with name \"%s\"\n", copynamesptr);
           copynamesptr = npp;
@@ -3118,7 +3279,7 @@ while (!done)
           while (isalnum(*p)) *npp++ = *p++;
           *npp++ = 0;
           *npp = 0;
-          n = pcre_get_stringnumber(re, (char *)getnamesptr);
+          PCRE_GET_STRINGNUMBER(n, re, getnamesptr);
           if (n < 0)
             fprintf(outfile, "no parentheses with name \"%s\"\n", getnamesptr);
           getnamesptr = npp;
@@ -3342,18 +3503,18 @@ while (!done)
           {
           int workspace[1000];
           for (i = 0; i < timeitm; i++)
-            { 
+            {
             PCRE_DFA_EXEC(count, re, extra, bptr, len, start_offset,
               (options | g_notempty), use_offsets, use_size_offsets, workspace,
               (sizeof(workspace)/sizeof(int)));
-            }   
+            }
           }
         else
 #endif
 
         for (i = 0; i < timeitm; i++)
           {
-          PCRE_EXEC(count, re, extra, bptr, len, start_offset, 
+          PCRE_EXEC(count, re, extra, bptr, len, start_offset,
             (options | g_notempty), use_offsets, use_size_offsets);
           }
         time_taken = clock() - start_time;
@@ -3502,16 +3663,8 @@ while (!done)
 
         if (markptr != NULL)
           {
-          int mplen;
-          if (use_pcre16)
-            {
-            pcre_uint16 *mp = (pcre_uint16 *)markptr;
-            mplen = 0;
-            while (*mp++ != 0) mplen++;
-            }
-          else mplen = (int)strlen((char *)markptr);
           fprintf(outfile, "MK: ");
-          PCHARSV(markptr, mplen, outfile);
+          PCHARSV(markptr, STRLEN(markptr), outfile);
           fprintf(outfile, "\n");
           }
 
@@ -3519,13 +3672,18 @@ while (!done)
           {
           if ((copystrings & (1 << i)) != 0)
             {
+            int rc; 
             char copybuffer[256];
-            int rc = pcre_copy_substring((char *)bptr, use_offsets, count,
-              i, copybuffer, sizeof(copybuffer));
+            PCRE_COPY_SUBSTRING(rc, bptr, use_offsets, count, i,
+              copybuffer, sizeof(copybuffer));
             if (rc < 0)
               fprintf(outfile, "copy substring %d failed %d\n", i, rc);
             else
-              fprintf(outfile, "%2dC %s (%d)\n", i, copybuffer, rc);
+              {
+              fprintf(outfile, "%2dC ", i);
+              PCHARSV(copybuffer, rc, outfile);
+              fprintf(outfile, " (%d)\n", rc);
+              }
             }
           }
 
@@ -3533,28 +3691,35 @@ while (!done)
              *copynamesptr != 0;
              copynamesptr += (int)strlen((char*)copynamesptr) + 1)
           {
+          int rc;
           char copybuffer[256];
-          int rc = pcre_copy_named_substring(re, (char *)bptr, use_offsets,
-            count, (char *)copynamesptr, copybuffer, sizeof(copybuffer));
+          PCRE_COPY_NAMED_SUBSTRING(rc, re, bptr, use_offsets, count,
+            copynamesptr, copybuffer, sizeof(copybuffer));
           if (rc < 0)
             fprintf(outfile, "copy substring %s failed %d\n", copynamesptr, rc);
           else
-            fprintf(outfile, "  C %s (%d) %s\n", copybuffer, rc, copynamesptr);
+            {
+            fprintf(outfile, "  C ");
+            PCHARSV(copybuffer, rc, outfile);
+            fprintf(outfile, " (%d) %s\n", rc, copynamesptr);
+            }
           }
 
         for (i = 0; i < 32; i++)
           {
           if ((getstrings & (1 << i)) != 0)
             {
+            int rc;
             const char *substring;
-            int rc = pcre_get_substring((char *)bptr, use_offsets, count,
-              i, &substring);
+            PCRE_GET_SUBSTRING(rc, bptr, use_offsets, count, i, &substring);
             if (rc < 0)
               fprintf(outfile, "get substring %d failed %d\n", i, rc);
             else
               {
-              fprintf(outfile, "%2dG %s (%d)\n", i, substring, rc);
-              pcre_free_substring(substring);
+              fprintf(outfile, "%2dG ", i);
+              PCHARSV(substring, rc, outfile);
+              fprintf(outfile, " (%d)\n", rc);
+              PCRE_FREE_SUBSTRING(substring);
               }
             }
           }
@@ -3563,23 +3728,26 @@ while (!done)
              *getnamesptr != 0;
              getnamesptr += (int)strlen((char*)getnamesptr) + 1)
           {
+          int rc;
           const char *substring;
-          int rc = pcre_get_named_substring(re, (char *)bptr, use_offsets,
-            count, (char *)getnamesptr, &substring);
+          PCRE_GET_NAMED_SUBSTRING(rc, re, bptr, use_offsets, count,
+            getnamesptr, &substring);
           if (rc < 0)
-            fprintf(outfile, "copy substring %s failed %d\n", getnamesptr, rc);
+            fprintf(outfile, "get substring %s failed %d\n", getnamesptr, rc);
           else
             {
-            fprintf(outfile, "  G %s (%d) %s\n", substring, rc, getnamesptr);
-            pcre_free_substring(substring);
+            fprintf(outfile, "  G ");
+            PCHARSV(substring, rc, outfile);
+            fprintf(outfile, " (%d) %s\n", rc, getnamesptr);
+            PCRE_FREE_SUBSTRING(substring);
             }
           }
 
         if (getlist)
           {
+          int rc;
           const char **stringlist;
-          int rc = pcre_get_substring_list((char *)bptr, use_offsets, count,
-            &stringlist);
+          PCRE_GET_SUBSTRING_LIST(rc, bptr, use_offsets, count, &stringlist);
           if (rc < 0)
             fprintf(outfile, "get substring list failed %d\n", rc);
           else
@@ -3588,7 +3756,7 @@ while (!done)
               fprintf(outfile, "%2dL %s\n", i, stringlist[i]);
             if (stringlist[i] != NULL)
               fprintf(outfile, "string list not terminated by NULL\n");
-            pcre_free_substring_list(stringlist);
+            PCRE_FREE_SUBSTRING_LIST(stringlist);
             }
           }
         }
