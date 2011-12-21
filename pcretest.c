@@ -188,7 +188,7 @@ use these in the definitions of generic macros. */
 #define PCHARSV8(p, len, f) \
   (void)pchars((pcre_uint8 *)p, len, f)
 
-#define STRLEN8(p) (int)strlen((char *)p)
+#define STRLEN8(p) ((int)strlen((char *)p))
 
 #define PCRE_COMPILE8(re, pat, options, error, erroffset, tables) \
   re = pcre_compile((char *)pat, options, error, erroffset, tables)
@@ -240,6 +240,9 @@ use these in the definitions of generic macros. */
 #define PCRE_STUDY8(extra, re, options, error) \
   extra = pcre_study(re, options, error)
 
+#define SET_PCRE_CALLOUT8(callout) \
+  pcre_callout = callout
+
 #endif /* SUPPORT_PCRE8 */
 
 /* -----------------------------------------------------------*/
@@ -252,7 +255,7 @@ use these in the definitions of generic macros. */
 #define PCHARSV16(p, len, f) \
   (void)pchars16((PCRE_SPTR16)p, len, f)
 
-#define STRLEN16(p) (int)strlen16((PCRE_SPTR16)p)
+#define STRLEN16(p) ((int)strlen16((PCRE_SPTR16)p))
 
 #define PCRE_COMPILE16(re, pat, options, error, erroffset, tables) \
   re = pcre16_compile((PCRE_SPTR16)pat, options, error, erroffset, tables)
@@ -307,6 +310,9 @@ use these in the definitions of generic macros. */
 #define PCRE_STUDY16(extra, re, options, error) \
   extra = pcre16_study(re, options, error)
 
+#define SET_PCRE_CALLOUT16(callout) \
+  pcre16_callout = callout
+
 #endif /* SUPPORT_PCRE16 */
 
 
@@ -326,7 +332,7 @@ use these in the definitions of generic macros. */
   else \
     PCHARSV8(p, len, f)
 
-#define STRLEN(p) use_pcre16? STRLEN16(p) : STRLEN8(p)
+#define STRLEN(p) (use_pcre16? STRLEN16(p) : STRLEN8(p))
 
 #define PCRE_COMPILE(re, pat, options, error, erroffset, tables) \
   if (use_pcre16) \
@@ -424,6 +430,12 @@ use these in the definitions of generic macros. */
   else \
     PCRE_STUDY8(extra, re, options, error)
 
+#define SET_PCRE_CALLOUT(callout) \
+  if (use_pcre16) \
+    SET_PCRE_CALLOUT16(callout); \
+  else \
+    SET_PCRE_CALLOUT8(callout)
+
 /* ----- Only 8-bit mode is supported ----- */
 
 #elif defined SUPPORT_PCRE8
@@ -444,6 +456,7 @@ use these in the definitions of generic macros. */
 #define PCRE_GET_SUBSTRING_LIST   PCRE_GET_SUBSTRING_LIST8
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER8
 #define PCRE_STUDY                PCRE_STUDY8
+#define SET_PCRE_CALLOUT          SET_PCRE_CALLOUT8
 
 /* ----- Only 16-bit mode is supported ----- */
 
@@ -465,6 +478,7 @@ use these in the definitions of generic macros. */
 #define PCRE_GET_SUBSTRING_LIST   PCRE_GET_SUBSTRING_LIST16
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER16
 #define PCRE_STUDY                PCRE_STUDY16
+#define SET_PCRE_CALLOUT          SET_PCRE_CALLOUT16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -1658,6 +1672,7 @@ while(TRUE)
     case OP_END:
     return;
 
+#ifdef SUPPORT_UTF
     case OP_CHAR:
     case OP_CHARI:
     case OP_NOT:
@@ -1714,9 +1729,11 @@ while(TRUE)
     case OP_NOTPOSPLUSI:
     case OP_NOTPOSQUERYI:
     case OP_NOTPOSUPTOI:
-#ifdef SUPPORT_UTF
     if (utf) utf16_char = TRUE;
 #endif
+    /* Fall through. */
+
+    default:
     length = OP_lengths16[op] - 1;
     break;
 
@@ -1753,10 +1770,6 @@ while(TRUE)
       ptr += 32/sizeof(pcre_uint16);
       length -= 32/sizeof(pcre_uint16);
       }
-    break;
-
-    default:
-    length = OP_lengths16[op] - 1;
     break;
     }
   }
@@ -2671,7 +2684,7 @@ while (!done)
           size_t jitsize;
           new_info(re, extra, PCRE_INFO_JITSIZE, &jitsize);
           if (jitsize != 0)
-            fprintf(outfile, "Memory allocation (JIT code): %d\n", jitsize);
+            fprintf(outfile, "Memory allocation (JIT code): %d\n", (int)jitsize);
           }
         }
       }
@@ -2772,10 +2785,23 @@ while (!done)
         fprintf(outfile, "Named capturing subpatterns:\n");
         while (namecount-- > 0)
           {
-          fprintf(outfile, "  %s %*s%3d\n", nametable + 2,
-            nameentrysize - 3 - (int)strlen((char *)nametable + 2), "",
-            GET2(nametable, 0));
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+          int imm2_size = use_pcre16 ? 1 : 2;
+#else
+          int imm2_size = IMM2_SIZE;
+#endif
+          int length = (int)STRLEN(nametable + imm2_size);
+          fprintf(outfile, "  ");
+          PCHARSV(nametable + imm2_size, length, outfile);
+          while (length++ < nameentrysize - imm2_size) putc(' ', outfile);
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+          fprintf(outfile, "%3d\n", use_pcre16?
+            (int)nametable[0] : ((int)nametable[0] << 8) | (int)nametable[1]);
+          nametable += nameentrysize * (use_pcre16 ? 2 : 1);
+#else
+          fprintf(outfile, "%3d\n", GET2(nametable, 0));
           nametable += nameentrysize;
+#endif
           }
         }
 
@@ -3042,7 +3068,7 @@ while (!done)
     copynamesptr = copynames;
     getnamesptr = getnames;
 
-    pcre_callout = callout;
+    SET_PCRE_CALLOUT(callout);
     first_callout = 1;
     last_callout_mark = NULL;
     callout_extra = 0;
@@ -3205,14 +3231,35 @@ while (!done)
           }
         else if (isalnum(*p))
           {
-          pcre_uchar *npp = copynamesptr;
-          while (isalnum(*p)) *npp++ = *p++;
-          *npp++ = 0;
-          *npp = 0;
-          PCRE_GET_STRINGNUMBER(n, re, copynamesptr);
+          pcre_uchar *namestart = copynamesptr;
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+          if (use_pcre16)
+            {
+            PCRE_SCHAR16 *npp = (PCRE_SCHAR16 *)copynamesptr;
+            while (isalnum(*p)) *npp++ = *p++;
+            *npp++ = 0;
+            *npp = 0;
+            PCRE_GET_STRINGNUMBER(n, re, copynamesptr);
+            copynamesptr = (pcre_uchar *)npp;
+            }
+          else
+            {
+#endif
+            pcre_uchar *npp = copynamesptr;
+            while (isalnum(*p)) *npp++ = *p++;
+            *npp++ = 0;
+            *npp = 0;
+            PCRE_GET_STRINGNUMBER(n, re, copynamesptr);
+            copynamesptr = npp;
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+            }
+#endif
           if (n < 0)
-            fprintf(outfile, "no parentheses with name \"%s\"\n", copynamesptr);
-          copynamesptr = npp;
+            {
+            fprintf(outfile, "no parentheses with name \"");
+            PCHARSV(namestart, STRLEN(namestart), outfile);
+            fprintf(outfile, "\"\n");
+            }
           }
         else if (*p == '+')
           {
@@ -3221,7 +3268,7 @@ while (!done)
           }
         else if (*p == '-')
           {
-          pcre_callout = NULL;
+          SET_PCRE_CALLOUT(NULL);
           p++;
           }
         else if (*p == '!')
@@ -3688,8 +3735,16 @@ while (!done)
           }
 
         for (copynamesptr = copynames;
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+             use_pcre16?
+               (*(PCRE_SCHAR16*)copynamesptr) != 0 : *copynamesptr != 0;
+             copynamesptr += (int)(STRLEN(copynamesptr) + 1) *
+               (use_pcre16? 2:1)
+#else
              *copynamesptr != 0;
-             copynamesptr += (int)strlen((char*)copynamesptr) + 1)
+             copynamesptr += (int)STRLEN(copynamesptr) + 1
+#endif
+             )
           {
           int rc;
           char copybuffer[256];
@@ -3701,7 +3756,9 @@ while (!done)
             {
             fprintf(outfile, "  C ");
             PCHARSV(copybuffer, rc, outfile);
-            fprintf(outfile, " (%d) %s\n", rc, copynamesptr);
+            fprintf(outfile, " (%d) ", rc);
+            PCHARSV(copynamesptr, STRLEN(copynamesptr), outfile);
+            putc('\n', outfile);
             }
           }
 

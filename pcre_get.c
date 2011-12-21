@@ -78,6 +78,7 @@ int entrysize;
 int top, bot;
 pcre_uchar *nametable;
 
+#ifdef COMPILE_PCRE8
 if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMECOUNT, &top)) != 0)
   return rc;
 if (top <= 0) return PCRE_ERROR_NOSUBSTRING;
@@ -86,6 +87,17 @@ if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMEENTRYSIZE, &entrysize)) != 0)
   return rc;
 if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMETABLE, &nametable)) != 0)
   return rc;
+#endif
+#ifdef COMPILE_PCRE16
+if ((rc = pcre16_fullinfo(code, NULL, PCRE_INFO_NAMECOUNT, &top)) != 0)
+  return rc;
+if (top <= 0) return PCRE_ERROR_NOSUBSTRING;
+
+if ((rc = pcre16_fullinfo(code, NULL, PCRE_INFO_NAMEENTRYSIZE, &entrysize)) != 0)
+  return rc;
+if ((rc = pcre16_fullinfo(code, NULL, PCRE_INFO_NAMETABLE, &nametable)) != 0)
+  return rc;
+#endif
 
 bot = 0;
 while (top > bot)
@@ -94,7 +106,7 @@ while (top > bot)
   pcre_uchar *entry = nametable + entrysize*mid;
   int c = STRCMP_UC_UC((pcre_uchar *)stringname,
     (pcre_uchar *)(entry + IMM2_SIZE));
-  if (c == 0) return (entry[0] << 8) + entry[1];
+  if (c == 0) return GET2(entry, 0);
   if (c > 0) bot = mid + 1; else top = mid;
   }
 
@@ -135,6 +147,7 @@ int entrysize;
 int top, bot;
 pcre_uchar *nametable, *lastentry;
 
+#ifdef COMPILE_PCRE8
 if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMECOUNT, &top)) != 0)
   return rc;
 if (top <= 0) return PCRE_ERROR_NOSUBSTRING;
@@ -143,6 +156,17 @@ if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMEENTRYSIZE, &entrysize)) != 0)
   return rc;
 if ((rc = pcre_fullinfo(code, NULL, PCRE_INFO_NAMETABLE, &nametable)) != 0)
   return rc;
+#endif
+#ifdef COMPILE_PCRE16
+if ((rc = pcre16_fullinfo(code, NULL, PCRE_INFO_NAMECOUNT, &top)) != 0)
+  return rc;
+if (top <= 0) return PCRE_ERROR_NOSUBSTRING;
+
+if ((rc = pcre16_fullinfo(code, NULL, PCRE_INFO_NAMEENTRYSIZE, &entrysize)) != 0)
+  return rc;
+if ((rc = pcre16_fullinfo(code, NULL, PCRE_INFO_NAMETABLE, &nametable)) != 0)
+  return rc;
+#endif
 
 lastentry = nametable + entrysize * (top - 1);
 bot = 0;
@@ -228,10 +252,10 @@ entrysize = pcre16_get_stringtable_entries(code, stringname,
 if (entrysize <= 0) return entrysize;
 for (entry = (pcre_uchar *)first; entry <= (pcre_uchar *)last; entry += entrysize)
   {
-  int n = (entry[0] << 8) + entry[1];
+  int n = GET2(entry, 0);
   if (ovector[n*2] >= 0) return n;
   }
-return (first[0] << 8) + first[1];
+return GET2(entry, 0);
 }
 
 

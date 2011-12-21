@@ -184,6 +184,7 @@ while(TRUE)
     case OP_END:
     return 0;
 
+#ifdef SUPPORT_UTF
     case OP_CHAR:
     case OP_CHARI:
     case OP_NOT:
@@ -240,9 +241,11 @@ while(TRUE)
     case OP_NOTPOSPLUSI:
     case OP_NOTPOSQUERYI:
     case OP_NOTPOSUPTOI:
-#ifdef SUPPORT_UTF    
     if (utf) utf16_char = TRUE;
-#endif     
+#endif
+    /* Fall through. */
+
+    default:
     length = PRIV(OP_lengths)[*ptr] - 1;
     break;
 
@@ -272,10 +275,6 @@ while(TRUE)
       ptr += 32/sizeof(pcre_uchar);
       length -= 32/sizeof(pcre_uchar);
       }
-    break;
-
-    default:
-    length = PRIV(OP_lengths)[*ptr] - 1;
     break;
     }
   ptr++;
