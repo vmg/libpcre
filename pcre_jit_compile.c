@@ -6409,7 +6409,7 @@ else
   }
 common->endonly = (re->options & PCRE_DOLLAR_ENDONLY) != 0;
 common->ctypes = (sljit_w)(tables + ctypes_offset);
-common->name_table = (sljit_w)re + re->name_table_offset;
+common->name_table = (sljit_w)((pcre_uchar *)re + re->name_table_offset);
 common->name_count = re->name_count;
 common->name_entry_size = re->name_entry_size;
 common->acceptlabel = NULL;

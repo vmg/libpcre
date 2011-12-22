@@ -2433,7 +2433,7 @@ for (;;)
           if (clen > 0)
             {
             isinclass = (c > 255)? (codevalue == OP_NCLASS) :
-              ((code[1 + c/8] & (1 << (c&7))) != 0);
+              ((((pcre_uint8 *)(code + 1))[c/8] & (1 << (c&7))) != 0);
             }
           }
 
@@ -2481,7 +2481,7 @@ for (;;)
             { ADD_ACTIVE(next_state_offset + 1 + 2 * IMM2_SIZE, 0); }
           if (isinclass)
             {
-            int max = GET2(ecode, 3);
+            int max = GET2(ecode, 1 + IMM2_SIZE);
             if (++count >= max && max != 0)   /* Max 0 => no limit */
               { ADD_NEW(next_state_offset + 1 + 2 * IMM2_SIZE, 0); }
             else
@@ -2591,10 +2591,10 @@ for (;;)
 
         else if (condcode == OP_RREF || condcode == OP_NRREF)
           {
-          int value = GET2(code, LINK_SIZE+2);
+          int value = GET2(code, LINK_SIZE + 2);
           if (value != RREF_ANY) return PCRE_ERROR_DFA_UCOND;
           if (md->recursive != NULL)
-            { ADD_ACTIVE(state_offset + LINK_SIZE + 4, 0); }
+            { ADD_ACTIVE(state_offset + LINK_SIZE + 2 + IMM2_SIZE, 0); }
           else { ADD_ACTIVE(state_offset + codelink + LINK_SIZE + 1, 0); }
           }
 

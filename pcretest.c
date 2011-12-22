@@ -3076,10 +3076,21 @@ while (!done)
 
     options = 0;
 
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+    if (use_pcre16)
+      {
+      *(PCRE_SCHAR16 *)copynames = 0;
+      *(PCRE_SCHAR16 *)getnames = 0;
+      }
+    else
+      {
+      *copynames = 0;
+      *getnames = 0;
+      }
+#else
     *copynames = 0;
-    copynames[1] = 0;
     *getnames = 0;
-    getnames[1] = 0;
+#endif
 
     copynamesptr = copynames;
     getnamesptr = getnames;
@@ -3928,8 +3939,18 @@ while (!done)
                (obits & PCRE_NEWLINE_BITS) == PCRE_NEWLINE_ANYCRLF)
               &&
               start_offset < len - 1 &&
-              bptr[start_offset * CHAR_SIZE] == '\r' &&
-              bptr[(start_offset + 1) * CHAR_SIZE] == '\n')
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+              (use_pcre16?
+                   ((PCRE_SPTR16)bptr)[start_offset] == '\r'
+                && ((PCRE_SPTR16)bptr)[start_offset + 1] == '\n'
+              :
+                   bptr[start_offset] == '\r'
+                && bptr[start_offset + 1] == '\n')
+#else
+              bptr[start_offset] == '\r' &&
+              bptr[start_offset + 1] == '\n'
+#endif
+              )
             onechar++;
           else if (use_utf)
             {
