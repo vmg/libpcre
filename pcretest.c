@@ -320,6 +320,8 @@ use these in the definitions of generic macros. */
 
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
 
+#define CHAR_SIZE (use_pcre16? 2:1)
+
 #define PCHARS(lv, p, len, f) \
   if (use_pcre16) \
     PCHARS16(lv, p, len, f); \
@@ -439,6 +441,7 @@ use these in the definitions of generic macros. */
 /* ----- Only 8-bit mode is supported ----- */
 
 #elif defined SUPPORT_PCRE8
+#define CHAR_SIZE                 1
 #define PCHARS                    PCHARS8
 #define PCHARSV                   PCHARSV8
 #define STRLEN                    STRLEN8
@@ -461,6 +464,7 @@ use these in the definitions of generic macros. */
 /* ----- Only 16-bit mode is supported ----- */
 
 #else
+#define CHAR_SIZE                 1
 #define PCHARS                    PCHARS16
 #define PCHARSV                   PCHARSV16
 #define STRLEN                    STRLEN16
@@ -1305,6 +1309,9 @@ static int pchars(pcre_uint8 *p, int length, FILE *f)
 int c = 0;
 int yield = 0;
 
+if (length < 0)
+  length = strlen((char *)p);
+
 while (length-- > 0)
   {
 #if !defined NOUTF8
@@ -1354,6 +1361,9 @@ If handed a NULL file, just counts chars without printing. */
 static int pchars16(PCRE_SPTR16 p, int length, FILE *f)
 {
 int yield = 0;
+
+if (length < 0)
+  length = strlen16(p);
 
 while (length-- > 0)
   {
@@ -3257,7 +3267,7 @@ while (!done)
           if (n < 0)
             {
             fprintf(outfile, "no parentheses with name \"");
-            PCHARSV(namestart, STRLEN(namestart), outfile);
+            PCHARSV(namestart, -1, outfile);
             fprintf(outfile, "\"\n");
             }
           }
@@ -3322,14 +3332,35 @@ while (!done)
           }
         else if (isalnum(*p))
           {
-          pcre_uchar *npp = getnamesptr;
-          while (isalnum(*p)) *npp++ = *p++;
-          *npp++ = 0;
-          *npp = 0;
-          PCRE_GET_STRINGNUMBER(n, re, getnamesptr);
+          pcre_uchar *namestart = getnamesptr;
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+          if (use_pcre16)
+            {
+            PCRE_SCHAR16 *npp = (PCRE_SCHAR16 *)getnamesptr;
+            while (isalnum(*p)) *npp++ = *p++;
+            *npp++ = 0;
+            *npp = 0;
+            PCRE_GET_STRINGNUMBER(n, re, getnamesptr);
+            getnamesptr = (pcre_uchar *)npp;
+            }
+          else
+            {
+#endif
+            pcre_uchar *npp = getnamesptr;
+            while (isalnum(*p)) *npp++ = *p++;
+            *npp++ = 0;
+            *npp = 0;
+            PCRE_GET_STRINGNUMBER(n, re, getnamesptr);
+            getnamesptr = npp;
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+            }
+#endif
           if (n < 0)
-            fprintf(outfile, "no parentheses with name \"%s\"\n", getnamesptr);
-          getnamesptr = npp;
+            {
+            fprintf(outfile, "no parentheses with name \"");
+            PCHARSV(namestart, -1, outfile);
+            fprintf(outfile, "\"\n");
+            }
           }
         continue;
 
@@ -3339,9 +3370,9 @@ while (!done)
             && (extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) != 0
             && extra->executable_jit != NULL)
           {
-	  if (jit_stack != NULL) pcre_jit_stack_free(jit_stack);
-	  jit_stack = pcre_jit_stack_alloc(1, n * 1024);
-	  pcre_assign_jit_stack(extra, jit_callback, jit_stack);
+          if (jit_stack != NULL) pcre_jit_stack_free(jit_stack);
+          jit_stack = pcre_jit_stack_alloc(1, n * 1024);
+          pcre_assign_jit_stack(extra, jit_callback, jit_stack);
           }
         continue;
 
@@ -3711,7 +3742,7 @@ while (!done)
         if (markptr != NULL)
           {
           fprintf(outfile, "MK: ");
-          PCHARSV(markptr, STRLEN(markptr), outfile);
+          PCHARSV(markptr, -1, outfile);
           fprintf(outfile, "\n");
           }
 
@@ -3738,26 +3769,27 @@ while (!done)
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
              use_pcre16?
                (*(PCRE_SCHAR16*)copynamesptr) != 0 : *copynamesptr != 0;
-             copynamesptr += (int)(STRLEN(copynamesptr) + 1) *
-               (use_pcre16? 2:1)
 #else
              *copynamesptr != 0;
-             copynamesptr += (int)STRLEN(copynamesptr) + 1
 #endif
-             )
+             copynamesptr += (int)(STRLEN(copynamesptr) + 1) * CHAR_SIZE)
           {
           int rc;
           char copybuffer[256];
           PCRE_COPY_NAMED_SUBSTRING(rc, re, bptr, use_offsets, count,
             copynamesptr, copybuffer, sizeof(copybuffer));
           if (rc < 0)
-            fprintf(outfile, "copy substring %s failed %d\n", copynamesptr, rc);
+            {
+            fprintf(outfile, "copy substring ");
+            PCHARSV(copynamesptr, -1, outfile);
+            fprintf(outfile, " failed %d\n", rc);
+            }
           else
             {
             fprintf(outfile, "  C ");
             PCHARSV(copybuffer, rc, outfile);
             fprintf(outfile, " (%d) ", rc);
-            PCHARSV(copynamesptr, STRLEN(copynamesptr), outfile);
+            PCHARSV(copynamesptr, -1, outfile);
             putc('\n', outfile);
             }
           }
@@ -3782,21 +3814,32 @@ while (!done)
           }
 
         for (getnamesptr = getnames;
+#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
+             use_pcre16?
+               (*(PCRE_SCHAR16*)getnamesptr) != 0 : *getnamesptr != 0;
+#else
              *getnamesptr != 0;
-             getnamesptr += (int)strlen((char*)getnamesptr) + 1)
+#endif
+             getnamesptr += (int)(STRLEN(getnamesptr) + 1) * CHAR_SIZE)
           {
           int rc;
           const char *substring;
           PCRE_GET_NAMED_SUBSTRING(rc, re, bptr, use_offsets, count,
             getnamesptr, &substring);
           if (rc < 0)
-            fprintf(outfile, "get substring %s failed %d\n", getnamesptr, rc);
+            {
+            fprintf(outfile, "get substring ");
+            PCHARSV(getnamesptr, -1, outfile);
+            fprintf(outfile, " failed %d\n", rc);
+            }
           else
             {
             fprintf(outfile, "  G ");
             PCHARSV(substring, rc, outfile);
-            fprintf(outfile, " (%d) %s\n", rc, getnamesptr);
+            fprintf(outfile, " (%d) ", rc);
+            PCHARSV(getnamesptr, -1, outfile);
             PCRE_FREE_SUBSTRING(substring);
+            putc('\n', outfile);
             }
           }
 
@@ -3810,7 +3853,11 @@ while (!done)
           else
             {
             for (i = 0; i < count; i++)
-              fprintf(outfile, "%2dL %s\n", i, stringlist[i]);
+              {
+              fprintf(outfile, "%2dL ", i);
+              PCHARSV(stringlist[i], -1, outfile);
+              putc('\n', outfile);
+              }
             if (stringlist[i] != NULL)
               fprintf(outfile, "string list not terminated by NULL\n");
             PCRE_FREE_SUBSTRING_LIST(stringlist);
@@ -3874,8 +3921,8 @@ while (!done)
                (obits & PCRE_NEWLINE_BITS) == PCRE_NEWLINE_ANYCRLF)
               &&
               start_offset < len - 1 &&
-              bptr[start_offset] == '\r' &&
-              bptr[start_offset+1] == '\n')
+              bptr[start_offset * CHAR_SIZE] == '\r' &&
+              bptr[(start_offset + 1) * CHAR_SIZE] == '\n')
             onechar++;
           else if (use_utf)
             {
@@ -3948,7 +3995,7 @@ while (!done)
 
       else
         {
-        bptr += use_offsets[1];
+        bptr += use_offsets[1] * CHAR_SIZE;
         len -= use_offsets[1];
         }
       }  /* End of loop for /g and /G */
