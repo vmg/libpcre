@@ -685,10 +685,9 @@ if (cd->workspace_size >= COMPILE_WORK_SIZE_MAX ||
     newsize - cd->workspace_size < WORK_SIZE_SAFETY_MARGIN)
  return ERR72;
 
-newspace = (PUBL(malloc))(newsize);
+newspace = (PUBL(malloc))(newsize * sizeof(pcre_uchar));
 if (newspace == NULL) return ERR21;
-
-memcpy(newspace, cd->start_workspace, cd->workspace_size);
+memcpy(newspace, cd->start_workspace, cd->workspace_size * sizeof(pcre_uchar));
 cd->hwm = (pcre_uchar *)newspace + (cd->hwm - cd->start_workspace);
 if (cd->workspace_size > COMPILE_WORK_SIZE)
   (PUBL(free))((void *)cd->start_workspace);

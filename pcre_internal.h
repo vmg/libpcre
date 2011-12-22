@@ -465,7 +465,7 @@ is automated on Unix systems via the "configure" command. */
 
 #define PUT(a,n,d)   \
   (a[n] = (d) >> 16), \
-  (a[(n)+1] = (d) & 65536)
+  (a[(n)+1] = (d) & 65535)
 
 #define GET(a,n) \
   (((a)[n] << 16) | (a)[(n)+1])

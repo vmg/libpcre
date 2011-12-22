@@ -277,7 +277,8 @@ if (preg->re_pcre == NULL)
     eint[errorcode] : REG_BADPAT;
   }
 
-preg->re_nsub = pcre_info((const pcre *)preg->re_pcre, NULL, NULL);
+(void)pcre_fullinfo((const pcre *)preg->re_pcre, NULL, PCRE_INFO_CAPTURECOUNT,
+  &(preg->re_nsub));
 return 0;
 }
 

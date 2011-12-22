@@ -162,8 +162,7 @@ Makefile. */
 
 /* It is also possible, originally for the benefit of a version that was
 imported into Exim, to build pcretest without support for UTF8 (define NOUTF8),
-without the interface to the DFA matcher (NODFA), and without the doublecheck
-of the old "info" function (define NOINFOCHECK). In fact, we automatically cut
+without the interface to the DFA matcher (NODFA). In fact, we automatically cut
 out the UTF8 support if PCRE is built without it. */
 
 #ifndef SUPPORT_UTF8
@@ -188,7 +187,11 @@ use these in the definitions of generic macros. */
 #define PCHARSV8(p, len, f) \
   (void)pchars((pcre_uint8 *)p, len, f)
 
+#define SET_PCRE_CALLOUT8(callout) \
+  pcre_callout = callout
+
 #define STRLEN8(p) ((int)strlen((char *)p))
+
 
 #define PCRE_COMPILE8(re, pat, options, error, erroffset, tables) \
   re = pcre_compile((char *)pat, options, error, erroffset, tables)
@@ -237,11 +240,11 @@ use these in the definitions of generic macros. */
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables) \
   pcre_pattern_to_host_byte_order(re, extra, tables)
 
+#define PCRE_PRINTINT8(re, outfile, debug_lengths) \
+  pcre_printint(re, outfile, debug_lengths)
+
 #define PCRE_STUDY8(extra, re, options, error) \
   extra = pcre_study(re, options, error)
-
-#define SET_PCRE_CALLOUT8(callout) \
-  pcre_callout = callout
 
 #endif /* SUPPORT_PCRE8 */
 
@@ -256,6 +259,10 @@ use these in the definitions of generic macros. */
   (void)pchars16((PCRE_SPTR16)p, len, f)
 
 #define STRLEN16(p) ((int)strlen16((PCRE_SPTR16)p))
+
+#define SET_PCRE_CALLOUT16(callout) \
+  pcre16_callout = callout
+
 
 #define PCRE_COMPILE16(re, pat, options, error, erroffset, tables) \
   re = pcre16_compile((PCRE_SPTR16)pat, options, error, erroffset, tables)
@@ -307,16 +314,18 @@ use these in the definitions of generic macros. */
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
   pcre16_pattern_to_host_byte_order(re, extra, tables)
 
+#define PCRE_PRINTINT16(re, outfile, debug_lengths) \
+  pcre16_printint(re, outfile, debug_lengths)
+
 #define PCRE_STUDY16(extra, re, options, error) \
   extra = pcre16_study(re, options, error)
-
-#define SET_PCRE_CALLOUT16(callout) \
-  pcre16_callout = callout
 
 #endif /* SUPPORT_PCRE16 */
 
 
-/* ----- Both modes are supported; a runtime test is needed ----- */
+/* ----- Both modes are supported; a runtime test is needed, except for 
+pcre_config(), and the JIT stack functions, when it doesn't matter which
+version is called. ----- */
 
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
 
@@ -334,13 +343,23 @@ use these in the definitions of generic macros. */
   else \
     PCHARSV8(p, len, f)
 
+#define SET_PCRE_CALLOUT(callout) \
+  if (use_pcre16) \
+    SET_PCRE_CALLOUT16(callout); \
+  else \
+    SET_PCRE_CALLOUT8(callout)
+
 #define STRLEN(p) (use_pcre16? STRLEN16(p) : STRLEN8(p))
+
+#define PCRE_ASSIGN_JIT_STACK pcre_assign_jit_stack
 
 #define PCRE_COMPILE(re, pat, options, error, erroffset, tables) \
   if (use_pcre16) \
     PCRE_COMPILE16(re, pat, options, error, erroffset, tables); \
   else \
     PCRE_COMPILE8(re, pat, options, error, erroffset, tables)
+    
+#define PCRE_CONFIG pcre_config 
 
 #define PCRE_COPY_NAMED_SUBSTRING(rc, re, bptr, offsets, count, \
     namesptr, cbuffer, size) \
@@ -420,11 +439,23 @@ use these in the definitions of generic macros. */
   else \
     PCRE_GET_SUBSTRING_LIST8(rc, bptr, offsets, count, listptr)
 
+#define PCRE_JIT_STACK_ALLOC pcre_jit_stack_alloc
+#define PCRE_JIT_STACK_FREE pcre_jit_stack_free
+
+#define PCRE_MAKETABLES \
+  (use_pcre16? pcre16_maketables() : pcre_maketables())
+
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER(re, extra, tables) \
   if (use_pcre16) \
     PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables); \
   else \
     PCRE_PATTERN_TO_HOST_BYTE_ORDER8(re, extra, tables)
+
+#define PCRE_PRINTINT(re, outfile, debug_lengths) \
+  if (use_pcre16) \
+    PCRE_PRINTINT16(re, outfile, debug_lengths); \
+  else \
+    PCRE_PRINTINT8(re, outfile, debug_lengths)
 
 #define PCRE_STUDY(extra, re, options, error) \
   if (use_pcre16) \
@@ -432,20 +463,17 @@ use these in the definitions of generic macros. */
   else \
     PCRE_STUDY8(extra, re, options, error)
 
-#define SET_PCRE_CALLOUT(callout) \
-  if (use_pcre16) \
-    SET_PCRE_CALLOUT16(callout); \
-  else \
-    SET_PCRE_CALLOUT8(callout)
-
 /* ----- Only 8-bit mode is supported ----- */
 
 #elif defined SUPPORT_PCRE8
 #define CHAR_SIZE                 1
 #define PCHARS                    PCHARS8
 #define PCHARSV                   PCHARSV8
+#define SET_PCRE_CALLOUT          SET_PCRE_CALLOUT8
 #define STRLEN                    STRLEN8
+#define PCRE_ASSIGN_JIT_STACK     pcre_assign_jit_stack
 #define PCRE_COMPILE              PCRE_COMPILE8
+#define PCRE_CONFIG               pcre_config 
 #define PCRE_COPY_NAMED_SUBSTRING PCRE_COPY_NAMED_SUBSTRING8
 #define PCRE_COPY_SUBSTRING       PCRE_COPY_SUBSTRING8
 #define PCRE_DFA_EXEC             PCRE_DFA_EXEC8
@@ -457,9 +485,12 @@ use these in the definitions of generic macros. */
 #define PCRE_GET_STRINGNUMBER     PCRE_GET_STRINGNUMBER8
 #define PCRE_GET_SUBSTRING        PCRE_GET_SUBSTRING8
 #define PCRE_GET_SUBSTRING_LIST   PCRE_GET_SUBSTRING_LIST8
+#define PCRE_JIT_STACK_ALLOC      pcre_jit_stack_alloc
+#define PCRE_JIT_STACK_FREE       pcre_jit_stack_free
+#define PCRE_MAKETABLES           pcre_maketables()
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER8
+#define PCRE_PRINTINT             PCRE_PRINTINT8
 #define PCRE_STUDY                PCRE_STUDY8
-#define SET_PCRE_CALLOUT          SET_PCRE_CALLOUT8
 
 /* ----- Only 16-bit mode is supported ----- */
 
@@ -467,8 +498,11 @@ use these in the definitions of generic macros. */
 #define CHAR_SIZE                 1
 #define PCHARS                    PCHARS16
 #define PCHARSV                   PCHARSV16
+#define SET_PCRE_CALLOUT          SET_PCRE_CALLOUT16
 #define STRLEN                    STRLEN16
+#define PCRE_ASSIGN_JIT_STACK     pcre16_assign_jit_stack
 #define PCRE_COMPILE              PCRE_COMPILE16
+#define PCRE_CONFIG               pcre16_config 
 #define PCRE_COPY_NAMED_SUBSTRING PCRE_COPY_NAMED_SUBSTRING16
 #define PCRE_COPY_SUBSTRING       PCRE_COPY_SUBSTRING16
 #define PCRE_DFA_EXEC             PCRE_DFA_EXEC16
@@ -480,9 +514,12 @@ use these in the definitions of generic macros. */
 #define PCRE_GET_STRINGNUMBER     PCRE_GET_STRINGNUMBER16
 #define PCRE_GET_SUBSTRING        PCRE_GET_SUBSTRING16
 #define PCRE_GET_SUBSTRING_LIST   PCRE_GET_SUBSTRING_LIST16
+#define PCRE_JIT_STACK_ALLOC      pcre16_jit_stack_alloc
+#define PCRE_JIT_STACK_FREE       pcre16_jit_stack_free
+#define PCRE_MAKETABLES           pcre16_maketables()
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER PCRE_PATTERN_TO_HOST_BYTE_ORDER16
+#define PCRE_PRINTINT             PCRE_PRINTINT16
 #define PCRE_STUDY                PCRE_STUDY16
-#define SET_PCRE_CALLOUT          SET_PCRE_CALLOUT16
 #endif
 
 /* ----- End of mode-specific function call macros ----- */
@@ -2029,10 +2066,15 @@ while (argc > 1 && argv[op][0] == '-')
     force_study = 1;
     force_study_options = PCRE_STUDY_JIT_COMPILE;
     }
+  else if (strcmp(argv[op], "-16") == 0)
+    {
 #ifdef SUPPORT_PCRE16
-  else if (strcmp(argv[op], "-16") == 0) use_pcre16 = 1;
+    use_pcre16 = 1;
+#else
+    printf("** This version of PCRE was built without 16-bit support\n");
+    exit(1);
 #endif
-
+    }
   else if (strcmp(argv[op], "-q") == 0) quiet = 1;
   else if (strcmp(argv[op], "-b") == 0) debug = 1;
   else if (strcmp(argv[op], "-i") == 0) showinfo = 1;
@@ -2114,32 +2156,32 @@ are set, either both UTFs are supported or both are not supported. */
     printf("  %sUTF-16 support\n", rc? "" : "No ");
 #endif
 
-    (void)pcre_config(PCRE_CONFIG_UNICODE_PROPERTIES, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_UNICODE_PROPERTIES, &rc);
     printf("  %sUnicode properties support\n", rc? "" : "No ");
-    (void)pcre_config(PCRE_CONFIG_JIT, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_JIT, &rc);
     if (rc)
       printf("  Just-in-time compiler support\n");
     else
       printf("  No just-in-time compiler support\n");
-    (void)pcre_config(PCRE_CONFIG_NEWLINE, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_NEWLINE, &rc);
     /* Note that these values are always the ASCII values, even
     in EBCDIC environments. CR is 13 and NL is 10. */
     printf("  Newline sequence is %s\n", (rc == 13)? "CR" :
       (rc == 10)? "LF" : (rc == (13<<8 | 10))? "CRLF" :
       (rc == -2)? "ANYCRLF" :
       (rc == -1)? "ANY" : "???");
-    (void)pcre_config(PCRE_CONFIG_BSR, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_BSR, &rc);
     printf("  \\R matches %s\n", rc? "CR, LF, or CRLF only" :
                                      "all Unicode newlines");
-    (void)pcre_config(PCRE_CONFIG_LINK_SIZE, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_LINK_SIZE, &rc);
     printf("  Internal link size = %d\n", rc);
-    (void)pcre_config(PCRE_CONFIG_POSIX_MALLOC_THRESHOLD, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_POSIX_MALLOC_THRESHOLD, &rc);
     printf("  POSIX malloc threshold = %d\n", rc);
-    (void)pcre_config(PCRE_CONFIG_MATCH_LIMIT, &lrc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_MATCH_LIMIT, &lrc);
     printf("  Default match limit = %ld\n", lrc);
-    (void)pcre_config(PCRE_CONFIG_MATCH_LIMIT_RECURSION, &lrc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_MATCH_LIMIT_RECURSION, &lrc);
     printf("  Default recursion depth limit = %ld\n", lrc);
-    (void)pcre_config(PCRE_CONFIG_STACKRECURSE, &rc);
+    (void)PCRE_CONFIG(PCRE_CONFIG_STACKRECURSE, &rc);
     printf("  Match recursion uses %s\n", rc? "stack" : "heap");
     goto EXIT;
     }
@@ -2497,7 +2539,7 @@ while (!done)
         goto SKIP_DATA;
         }
       locale_set = 1;
-      tables = pcre_maketables();
+      tables = PCRE_MAKETABLES;
       pp = ppp;
       break;
 
@@ -2719,16 +2761,7 @@ while (!done)
     if (do_debug)
       {
       fprintf(outfile, "------------------------------------------------------------------\n");
-#if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
-      if (use_pcre16)
-        pcre16_printint(re, outfile, debug_lengths);
-      else
-        pcre_printint(re, outfile, debug_lengths);
-#elif defined SUPPORT_PCRE8
-      pcre_printint(re, outfile, debug_lengths);
-#else
-      pcre16_printint(re, outfile, debug_lengths);
-#endif
+      PCRE_PRINTINT(re, outfile, debug_lengths);
       }
 
     /* We already have the options in get_options (see above) */
@@ -2736,9 +2769,6 @@ while (!done)
     if (do_showinfo)
       {
       unsigned long int all_options;
-#if !defined NOINFOCHECK
-      int old_first_char, old_options, old_count;
-#endif
       int count, backrefmax, first_char, need_char, okpartial, jchanged,
         hascrorlf;
       int nameentrysize, namecount;
@@ -2755,32 +2785,6 @@ while (!done)
       new_info(re, NULL, PCRE_INFO_OKPARTIAL, &okpartial);
       new_info(re, NULL, PCRE_INFO_JCHANGED, &jchanged);
       new_info(re, NULL, PCRE_INFO_HASCRORLF, &hascrorlf);
-
-      /* The old, obsolete function pcre_info() works only in 8-bit mode. Check
-      that it gives the same results as the new function. */
-
-#if !defined NOINFOCHECK
-      if (!use_pcre16)
-        {
-        old_count = pcre_info(re, &old_options, &old_first_char);
-        if (count < 0) fprintf(outfile,
-          "Error %d from pcre_info()\n", count);
-        else
-          {
-          if (old_count != count) fprintf(outfile,
-            "Count disagreement: pcre_fullinfo=%d pcre_info=%d\n", count,
-              old_count);
-
-          if (old_first_char != first_char) fprintf(outfile,
-            "First char disagreement: pcre_fullinfo=%d pcre_info=%d\n",
-              first_char, old_first_char);
-
-          if (old_options != (int)get_options) fprintf(outfile,
-            "Options disagreement: pcre_fullinfo=%ld pcre_info=%d\n",
-              get_options, old_options);
-          }
-        }
-#endif
 
       if (size != regex_gotten_store) fprintf(outfile,
         "Size disagreement: pcre_fullinfo=%d call to malloc for %d\n",
@@ -3073,7 +3077,9 @@ while (!done)
     options = 0;
 
     *copynames = 0;
+    copynames[1] = 0;
     *getnames = 0;
+    getnames[1] = 0;
 
     copynamesptr = copynames;
     getnamesptr = getnames;
@@ -3370,9 +3376,9 @@ while (!done)
             && (extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) != 0
             && extra->executable_jit != NULL)
           {
-          if (jit_stack != NULL) pcre_jit_stack_free(jit_stack);
-          jit_stack = pcre_jit_stack_alloc(1, n * 1024);
-          pcre_assign_jit_stack(extra, jit_callback, jit_stack);
+          if (jit_stack != NULL) PCRE_JIT_STACK_FREE(jit_stack);
+          jit_stack = PCRE_JIT_STACK_ALLOC(1, n * 1024);
+          PCRE_ASSIGN_JIT_STACK(extra, jit_callback, jit_stack);
           }
         continue;
 
@@ -3750,7 +3756,7 @@ while (!done)
           {
           if ((copystrings & (1 << i)) != 0)
             {
-            int rc; 
+            int rc;
             char copybuffer[256];
             PCRE_COPY_SUBSTRING(rc, bptr, use_offsets, count, i,
               copybuffer, sizeof(copybuffer));
@@ -3766,6 +3772,7 @@ while (!done)
           }
 
         for (copynamesptr = copynames;
+
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
              use_pcre16?
                (*(PCRE_SCHAR16*)copynamesptr) != 0 : *copynamesptr != 0;
@@ -3891,7 +3898,7 @@ while (!done)
       terminated by CRLF, an advance of one character just passes the \r,
       whereas we should prefer the longer newline sequence, as does the code in
       pcre_exec(). Fudge the offset value to achieve this. We check for a
-      newline setting in the pattern; if none was set, use pcre_config() to
+      newline setting in the pattern; if none was set, use PCRE_CONFIG() to
       find the default.
 
       Otherwise, in the case of UTF-8 matching, the advance must be one
@@ -3907,7 +3914,7 @@ while (!done)
           if ((obits & PCRE_NEWLINE_BITS) == 0)
             {
             int d;
-            (void)pcre_config(PCRE_CONFIG_NEWLINE, &d);
+            (void)PCRE_CONFIG(PCRE_CONFIG_NEWLINE, &d);
             /* Note that these values are always the ASCII ones, even in
             EBCDIC environments. CR = 13, NL = 10. */
             obits = (d == 13)? PCRE_NEWLINE_CR :
@@ -4022,7 +4029,7 @@ while (!done)
     }
   if (jit_stack != NULL)
     {
-    pcre_jit_stack_free(jit_stack);
+    PCRE_JIT_STACK_FREE(jit_stack);
     jit_stack = NULL;
     }
   }

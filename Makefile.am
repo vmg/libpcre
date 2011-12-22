@@ -35,7 +35,6 @@ dist_html_DATA = \
   doc/html/pcre_get_stringtable_entries.html \
   doc/html/pcre_get_substring.html \
   doc/html/pcre_get_substring_list.html \
-  doc/html/pcre_info.html \
   doc/html/pcre_jit_stack_alloc.html \
   doc/html/pcre_jit_stack_free.html \
   doc/html/pcre_maketables.html \
@@ -184,7 +183,6 @@ libpcre_la_SOURCES = \
   pcre_fullinfo.c \
   pcre_get.c \
   pcre_globals.c \
-  pcre_info.c \
   pcre_internal.h \
   pcre_jit_compile.c \
   pcre_maketables.c \
@@ -219,7 +217,6 @@ libpcre16_la_SOURCES = \
   pcre16_fullinfo.c \
   pcre16_get.c \
   pcre16_globals.c \
-  pcre16_info.c \
   pcre16_jit_compile.c \
   pcre16_maketables.c \
   pcre16_newline.c \
@@ -434,7 +431,7 @@ test: check ;
 # nice DLL for Windows use". (It is used by the pcre.dll target.)
 DLL_OBJS= pcre_byte_order.o pcre_compile.o pcre_config.o \
 	pcre_dfa_exec.o pcre_exec.o pcre_fullinfo.o pcre_get.o \
-	pcre_globals.o pcre_info.o pcre_jit_compile.o pcre_maketables.o \
+	pcre_globals.o pcre_jit_compile.o pcre_maketables.o \
 	pcre_newline.o pcre_ord2utf8.o pcre_refcount.o \
 	pcre_study.o pcre_tables.o pcre_ucd.o \
 	pcre_valid_utf8.o pcre_version.o pcre_chartables.o \
@@ -477,7 +474,6 @@ dist_man_MANS = \
   doc/pcre_get_stringtable_entries.3 \
   doc/pcre_get_substring.3 \
   doc/pcre_get_substring_list.3 \
-  doc/pcre_info.3 \
   doc/pcre_jit_stack_alloc.3 \
   doc/pcre_jit_stack_free.3 \
   doc/pcre_maketables.3 \

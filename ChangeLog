@@ -9,6 +9,9 @@ Version 8.22
     
 2.  Fixed a bug in the code for calculating the fixed length of lookbehind
     assertions.
+    
+3.  Removed the function pcre_info(), which has been obsolete and deprecated
+    since it was replaced by pcre_fullinfo() in February 2000. 
       
 
 Version 8.21 12-Dec-2011
