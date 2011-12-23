@@ -6635,9 +6635,13 @@ for(;;)
 
   /* If we have just passed a CR and we are now at a LF, and the pattern does
   not contain any explicit matches for \r or \n, and the newline option is CRLF
-  or ANY or ANYCRLF, advance the match position by one more character. */
+  or ANY or ANYCRLF, advance the match position by one more character. In 
+  normal matching start_match will aways be greater than the first position at 
+  this stage, but a failed *SKIP can cause a return at the same point, which is 
+  why the first test exists. */
 
-  if (start_match[-1] == CHAR_CR &&
+  if (start_match > (PCRE_PUCHAR)subject + start_offset &&
+      start_match[-1] == CHAR_CR &&
       start_match < end_subject &&
       *start_match == CHAR_NL &&
       (re->flags & PCRE_HASCRORLF) == 0 &&

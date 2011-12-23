@@ -12,6 +12,11 @@ Version 8.22
     
 3.  Removed the function pcre_info(), which has been obsolete and deprecated
     since it was replaced by pcre_fullinfo() in February 2000. 
+    
+4.  For a non-anchored pattern, if (*SKIP) was given with a name that did not
+    match a (*MARK), and the match failed at the start of the subject, a 
+    reference to memory before the start of the subject could occur. This bug 
+    was introduced by fix 17 of release 8.21.
       
 
 Version 8.21 12-Dec-2011
