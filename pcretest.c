@@ -298,18 +298,18 @@ use these in the definitions of generic macros. */
 #define PCRE_GET_NAMED_SUBSTRING16(rc, re, bptr, offsets, count, \
     getnamesptr, subsptr) \
   rc = pcre16_get_named_substring(re, (PCRE_SPTR16)bptr, offsets, count, \
-    (PCRE_SPTR16)getnamesptr, (PCRE_SPTR16 *)subsptr)
+    (PCRE_SPTR16)getnamesptr, (PCRE_SPTR16 *)(void*)subsptr)
 
 #define PCRE_GET_STRINGNUMBER16(n, rc, ptr) \
   n = pcre16_get_stringnumber(re, (PCRE_SPTR16)ptr)
 
 #define PCRE_GET_SUBSTRING16(rc, bptr, offsets, count, i, subsptr) \
   rc = pcre16_get_substring((PCRE_SPTR16)bptr, offsets, count, i, \
-    (PCRE_SPTR16 *)subsptr)
+    (PCRE_SPTR16 *)(void*)subsptr)
 
 #define PCRE_GET_SUBSTRING_LIST16(rc, bptr, offsets, count, listptr) \
   rc = pcre16_get_substring_list((PCRE_SPTR16)bptr, offsets, count, \
-    (PCRE_SPTR16 **)listptr)
+    (PCRE_SPTR16 **)(void*)listptr)
 
 #define PCRE_PATTERN_TO_HOST_BYTE_ORDER16(re, extra, tables) \
   pcre16_pattern_to_host_byte_order(re, extra, tables)
@@ -1141,7 +1141,7 @@ if (!utf)
 
 else
   {
-  int c;
+  int c = 0;
   while (len > 0)
     {
     int chlen = utf82ord(p, &c);
@@ -1509,8 +1509,14 @@ first_callout = 0;
 
 if (cb->mark != last_callout_mark)
   {
-  fprintf(outfile, "Latest Mark: %s\n",
-    (cb->mark == NULL)? "<unset>" : (char *)(cb->mark));
+  if (cb->mark == NULL)
+    fprintf(outfile, "Latest Mark: <unset>\n");
+  else
+    {
+    fprintf(outfile, "Latest Mark: ");
+    PCHARSV(cb->mark, -1, outfile);
+    putc('\n', outfile);
+    }
   last_callout_mark = cb->mark;
   }
 
@@ -2810,7 +2816,8 @@ while (!done)
           while (length++ < nameentrysize - imm2_size) putc(' ', outfile);
 #if defined SUPPORT_PCRE8 && defined SUPPORT_PCRE16
           fprintf(outfile, "%3d\n", use_pcre16?
-            (int)nametable[0] : ((int)nametable[0] << 8) | (int)nametable[1]);
+             (int)(((PCRE_SPTR16)nametable)[0])
+            :((int)nametable[0] << 8) | (int)nametable[1]);
           nametable += nameentrysize * (use_pcre16 ? 2 : 1);
 #else
           fprintf(outfile, "%3d\n", GET2(nametable, 0));
@@ -3888,7 +3895,11 @@ while (!done)
       else if (count == PCRE_ERROR_PARTIAL)
         {
         if (markptr == NULL) fprintf(outfile, "Partial match");
-          else fprintf(outfile, "Partial match, mark=%s", markptr);
+        else
+          {
+          fprintf(outfile, "Partial match, mark=");
+          PCHARSV(markptr, -1, outfile);
+          }
         if (use_size_offsets > 1)
           {
           fprintf(outfile, ": ");
@@ -3969,8 +3980,16 @@ while (!done)
             case PCRE_ERROR_NOMATCH:
             if (gmatched == 0)
               {
-              if (markptr == NULL) fprintf(outfile, "No match\n");
-                else fprintf(outfile, "No match, mark = %s\n", markptr);
+              if (markptr == NULL)
+                {
+                fprintf(outfile, "No match\n");
+                }
+              else
+                {
+                fprintf(outfile, "No match, mark = ");
+                PCHARSV(markptr, -1, outfile);
+                putc('\n', outfile);
+                }
               }
             break;
 
