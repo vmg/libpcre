@@ -2855,7 +2855,7 @@ while (!done)
       int count, backrefmax, first_char, need_char, okpartial, jchanged,
         hascrorlf;
       int nameentrysize, namecount;
-      const pcre_uchar *nametable;
+      const pcre_uint8 *nametable;
 
       new_info(re, NULL, PCRE_INFO_SIZE, &size);
       new_info(re, NULL, PCRE_INFO_CAPTURECOUNT, &count);
@@ -2898,7 +2898,11 @@ while (!done)
           nametable += nameentrysize * (use_pcre16 ? 2 : 1);
 #else
           fprintf(outfile, "%3d\n", GET2(nametable, 0));
+#ifdef SUPPORT_PCRE8
           nametable += nameentrysize;
+#else
+          nametable += nameentrysize * 2;
+#endif
 #endif
           }
         }

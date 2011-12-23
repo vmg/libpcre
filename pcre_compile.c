@@ -7749,6 +7749,7 @@ cd->workspace_size = COMPILE_WORK_SIZE;
 cd->start_pattern = (const pcre_uchar *)pattern;
 cd->end_pattern = (const pcre_uchar *)(pattern + STRLEN_UC((const pcre_uchar *)pattern));
 cd->req_varyopt = 0;
+cd->assert_depth = 0;
 cd->external_options = options;
 cd->external_flags = 0;
 cd->open_caps = NULL;
