@@ -1,5 +1,6 @@
 /-- This set of tests is for the 16-bit library's basic (non-UTF-16) features 
-    that are not compatible with the 8-bit library. --/
+    that are not compatible with the 8-bit library, or which give different 
+    output in 16-bit mode. --/
 
 /a\Cb/
     aXb

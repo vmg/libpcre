@@ -6078,8 +6078,13 @@ if (utf && (options & PCRE_NO_UTF8_CHECK) == 0)
       offsets[0] = erroroffset;
       offsets[1] = errorcode;
       }
+#ifdef COMPILE_PCRE16
+    return (errorcode <= PCRE_UTF16_ERR1 && md->partial > 1)?
+      PCRE_ERROR_SHORTUTF16 : PCRE_ERROR_BADUTF16;
+#else
     return (errorcode <= PCRE_UTF8_ERR5 && md->partial > 1)?
       PCRE_ERROR_SHORTUTF8 : PCRE_ERROR_BADUTF8;
+#endif       
     }
 
   /* Check that a start_offset points to the start of a UTF character. */

@@ -36,6 +36,16 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------------
 */
 
+/* This program now supports the testing of both the 8-bit and 16-bit PCRE 
+libraries in a single program. This is different from the modules such as 
+pcre_compile.c in the library itself, which are compiled separately for each 
+mode. If both modes are enabled, for example, pcre_compile.c is compiled twice 
+(the second time with COMPILE_PCRE16 defined). By contrast, pcretest.c is 
+compiled only once. Therefore, it must not make use of any of the macros from 
+pcre_internal.h that depend on COMPILE_PCRE8 or COMPILE_PCRE16. It does, 
+however, make use of SUPPORT_PCRE8 and SUPPORT_PCRE16 to ensure that it calls 
+only supported library functions. */ 
+
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -161,13 +171,13 @@ Makefile. */
 #endif
 
 /* It is also possible, originally for the benefit of a version that was
-imported into Exim, to build pcretest without support for UTF8 (define NOUTF8),
-without the interface to the DFA matcher (NODFA). In fact, we automatically cut
-out the UTF8 support if PCRE is built without it. */
+imported into Exim, to build pcretest without support for UTF8 or UTF16 (define
+NOUTF), without the interface to the DFA matcher (NODFA). In fact, we
+automatically cut out the UTF support if PCRE is built without it. */
 
-#ifndef SUPPORT_UTF8
-#ifndef NOUTF8
-#define NOUTF8
+#ifndef SUPPORT_UTF
+#ifndef NOUTF
+#define NOUTF
 #endif
 #endif
 
@@ -177,7 +187,13 @@ only from one place and is handled differently). I couldn't dream up any way of
 using a single macro to do this in a generic way, because of the many different
 argument requirements. We know that at least one of SUPPORT_PCRE8 and
 SUPPORT_PCRE16 must be set. First define macros for each individual mode; then
-use these in the definitions of generic macros. */
+use these in the definitions of generic macros. 
+
+**** Special note about the PCHARSxxx macros: the address of the string to be 
+printed is always given as two arguments: a base address followed by an offset.
+The base address is cast to the correct data size for 8 or 16 bit data; the
+offset is in units of this size. If the string were given as base+offset in one 
+argument, the casting might be incorrectly applied. */
 
 #ifdef SUPPORT_PCRE8
 
@@ -605,7 +621,6 @@ COMPILE_PCRE16 is *not* set. */
 #endif
 
 static const pcre_uint16 OP_lengths16[] = { OP_LENGTHS };
-
 #endif  /* SUPPORT_PCRE16 */
 
 /* If we have 8-bit support, default use_pcre16 to false; if there is also
@@ -631,8 +646,8 @@ static const char *errtexts[] = {
   NULL,  /* never returned by pcre_exec() or pcre_dfa_exec() */
   "match limit exceeded",
   "callout error code",
-  NULL,  /* BADUTF8 is handled specially */
-  "bad UTF-8 offset",
+  NULL,  /* BADUTF8/16 is handled specially */
+  NULL,  /* BADUTF8/16 offset is handled specially */
   NULL,  /* PARTIAL is handled specially */
   "not used - internal error",
   "internal error - pattern overwritten?",
@@ -646,7 +661,7 @@ static const char *errtexts[] = {
   "not used - internal error",
   "invalid combination of newline options",
   "bad offset value",
-  NULL,  /* SHORTUTF8 is handled specially */
+  NULL,  /* SHORTUTF8/16 is handled specially */
   "nested recursion at the same subject position",
   "JIT stack limit reached",
   "pattern compiled in wrong mode (8-bit/16-bit error)"
@@ -1011,6 +1026,7 @@ return (pcre_jit_stack *)arg;
 }
 
 
+#if !defined NOUTF
 /*************************************************
 *            Convert UTF-8 string to value       *
 *************************************************/
@@ -1025,8 +1041,6 @@ Argument:
 Returns:      >  0 => the number of bytes consumed
               -6 to 0 => malformed UTF-8 character at offset = (-return)
 */
-
-#if !defined NOUTF8
 
 static int
 utf82ord(pcre_uint8 *utf8bytes, int *vptr)
@@ -1068,11 +1082,11 @@ if (j != i) return -(i+1);
 *vptr = d;
 return i+1;
 }
-
-#endif
-
+#endif  /* NOUTF */
 
 
+
+#if !defined NOUTF
 /*************************************************
 *       Convert character value to UTF-8         *
 *************************************************/
@@ -1086,8 +1100,6 @@ Arguments:
 
 Returns:     number of characters placed in the buffer
 */
-
-#if !defined NOUTF8
 
 static int
 ord2utf8(int cvalue, pcre_uint8 *utf8bytes)
@@ -1104,7 +1116,6 @@ for (j = i; j > 0; j--)
 *utf8bytes = utf8_table2[i] | cvalue;
 return i + 1;
 }
-
 #endif
 
 
@@ -1120,6 +1131,10 @@ double, because up to 0xffff uses no more than 3 bytes in UTF-8 but possibly 4
 in UTF-16. Higher values use 4 bytes in UTF-8 and up to 4 bytes in UTF-16. The
 result is always left in buffer16.
 
+Note that this function does not object to surrogate values. This is 
+deliberate; it makes it possible to construct UTF-16 strings that are invalid, 
+for the purpose of testing that they are correctly faulted.
+
 Arguments:
   p          points to a byte string
   utf        true if UTF-8 (to be converted to UTF-16)
@@ -1127,6 +1142,7 @@ Arguments:
 
 Returns:     number of 16-bit data items used (excluding trailing zero)
              OR -1 if a UTF-8 string is malformed
+             OR -2 if a value > 0x10ffff is encountered 
 */
 
 static int
@@ -1160,6 +1176,7 @@ else
     {
     int chlen = utf82ord(p, &c);
     if (chlen <= 0) return -1;
+    if (c > 0x10ffff) return -2; 
     p += chlen;
     len -= chlen;
     if (c < 0x10000) *pp++ = c; else
@@ -1365,7 +1382,7 @@ if (length < 0)
 
 while (length-- > 0)
   {
-#if !defined NOUTF8
+#if !defined NOUTF
   if (use_utf)
     {
     int rc = utf82ord(p, &c);
@@ -1399,9 +1416,10 @@ int len = 0;
 while (*p++ != 0) len++;
 return len;
 }
+#endif  /* SUPPORT_PCRE16 */
 
 
-
+#ifdef SUPPORT_PCRE16
 /*************************************************
 *           Print 16-bit character string        *
 *************************************************/
@@ -1419,7 +1437,7 @@ if (length < 0)
 while (length-- > 0)
   {
   int c = *p++ & 0xffff;
-#if !defined NOUTF8
+#if !defined NOUTF
   if (use_utf && c >= 0xD800 && c < 0xDC00 && length > 0)
     {
     int d = *p & 0xffff;
@@ -1436,7 +1454,7 @@ while (length-- > 0)
 
 return yield;
 }
-#endif
+#endif  /* SUPPORT_PCRE16 */
 
 
 
@@ -1462,7 +1480,7 @@ if (pcre_get_stringnumber(re, (char *)(*pp)) < 0)
 *pp = npp; 
 return p;
 }
-#endif
+#endif  /* SUPPORT_PCRE8 */
 
 
 
@@ -1489,7 +1507,7 @@ if (pcre16_get_stringnumber(re, (PCRE_SPTR16)(*pp)) < 0)
 *pp = npp;   
 return p;
 }
-#endif
+#endif  /* SUPPORT_PCRE16 */
 
 
 
@@ -1680,8 +1698,8 @@ if (rc < 0) fprintf(outfile, "Error %d from pcre%s_fullinfo(%d)\n", rc,
 *             Swap byte functions                *
 *************************************************/
 
-/* The following functions swap the bytes of a pcre_uint16
-and pcre_uint32 value.
+/* The following functions swap the bytes of a pcre_uint16 and pcre_uint32
+value, respectively.
 
 Arguments:
   value        any number
@@ -1721,9 +1739,8 @@ static void
 regexflip(pcre *ere, pcre_extra *extra)
 {
 real_pcre *re = (real_pcre *)ere;
-int op;
-
 #ifdef SUPPORT_PCRE16
+int op;
 pcre_uint16 *ptr = (pcre_uint16 *)re + re->name_table_offset;
 int length = re->name_count * re->name_entry_size;
 #ifdef SUPPORT_UTF
@@ -2128,7 +2145,7 @@ _setmode( _fileno( stdout ), _O_BINARY );
 #endif
 
 /* Get the version number: both pcre_version() and pcre16_version() give the
-same answer. We just need to ensure that we call one that is availab.e */
+same answer. We just need to ensure that we call one that is available. */
 
 #ifdef SUPPORT_PCRE8
 version = pcre_version();
@@ -2706,11 +2723,20 @@ while (!done)
 #ifdef SUPPORT_PCRE16
     if (use_pcre16)
       {
-      if (to16(p, options & PCRE_UTF8, (int)strlen((char *)p)) < 0)
+      switch(to16(p, options & PCRE_UTF8, (int)strlen((char *)p)))
         {
+        case -1: 
         fprintf(outfile, "**Failed: invalid UTF-8 string cannot be "
           "converted to UTF-16\n");
         goto SKIP_DATA;
+         
+        case -2:
+        fprintf(outfile, "**Failed: character value greater than 0x10ffff "
+          "cannot be converted to UTF-16\n");
+        goto SKIP_DATA;
+         
+        default:
+        break;    
         }
       p = (pcre_uint8 *)buffer16;
       }
@@ -3231,7 +3257,7 @@ while (!done)
         while (i++ < 2 && isdigit(*p) && *p != '8' && *p != '9')
           c = c * 8 + *p++ - '0';
 
-#if !defined NOUTF8
+#if !defined NOUTF
         if (use_utf && c > 255)
           {
           pcre_uint8 buff8[8];
@@ -3247,7 +3273,7 @@ while (!done)
 
         /* Handle \x{..} specially - new Perl thing for utf8 */
 
-#if !defined NOUTF8
+#if !defined NOUTF
         if (*p == '{')
           {
           pcre_uint8 *pt = p;
@@ -3593,11 +3619,20 @@ while (!done)
     if (use_pcre16)
       {
       len = to16(bptr, (((real_pcre *)re)->options) & PCRE_UTF8, len);
-      if (len < 0)
+      switch(len)
         {
+        case -1: 
         fprintf(outfile, "**Failed: invalid UTF-8 string cannot be "
           "converted to UTF-16\n");
         goto NEXT_DATA;
+         
+        case -2:
+        fprintf(outfile, "**Failed: character value greater than 0x10ffff "
+          "cannot be converted to UTF-16\n");
+        goto NEXT_DATA;
+         
+        default:
+        break;    
         }
       bptr = (pcre_uint8 *)buffer16;
       }
@@ -4021,13 +4056,19 @@ while (!done)
 
             case PCRE_ERROR_BADUTF8:
             case PCRE_ERROR_SHORTUTF8:
-            fprintf(outfile, "Error %d (%s UTF-8 string)", count,
-              (count == PCRE_ERROR_BADUTF8)? "bad" : "short");
+            fprintf(outfile, "Error %d (%s UTF-%s string)", count,
+              (count == PCRE_ERROR_BADUTF8)? "bad" : "short",
+              use_pcre16? "16" : "8");
             if (use_size_offsets >= 2)
               fprintf(outfile, " offset=%d reason=%d", use_offsets[0],
                 use_offsets[1]);
             fprintf(outfile, "\n");
             break;
+            
+            case PCRE_ERROR_BADUTF8_OFFSET:
+            fprintf(outfile, "Error %d (bad UTF-%s offset)\n", count,
+              use_pcre16? "16" : "8");
+            break;   
 
             default:
             if (count < 0 && (-count) < sizeof(errtexts)/sizeof(const char *))
