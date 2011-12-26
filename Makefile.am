@@ -168,6 +168,7 @@ pcre_chartables.c: $(srcdir)/pcre_chartables.c.dist
 
 endif # WITH_REBUILD_CHARTABLES
 
+BUILT_SOURCES = pcre_chartables.c
 
 ## The main pcre library
 

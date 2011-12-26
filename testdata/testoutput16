@@ -86,4 +86,28 @@ Starting byte set: \xd0 \xd1
         End
 ------------------------------------------------------------------
 
+/\h/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+Starting byte set: \x09 \x20 \xa0 
+
+/\v/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+Starting byte set: \x0a \x0b \x0c \x0d \x85 
+
+/\R/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+Starting byte set: \x0a \x0b \x0c \x0d \x85 
+
 /-- End of testinput16 --/

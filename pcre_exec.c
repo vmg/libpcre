@@ -4470,6 +4470,10 @@ for (;;)
             case 0x000b:
             case 0x000c:
             case 0x0085:
+#ifdef COMPILE_PCRE16
+            case 0x2028:
+            case 0x2029:
+#endif
             if (md->bsr_anycrlf) RRETURN(MATCH_NOMATCH);
             break;
             }
@@ -4490,6 +4494,24 @@ for (;;)
             case 0x09:      /* HT */
             case 0x20:      /* SPACE */
             case 0xa0:      /* NBSP */
+#ifdef COMPILE_PCRE16
+            case 0x1680:    /* OGHAM SPACE MARK */
+            case 0x180e:    /* MONGOLIAN VOWEL SEPARATOR */
+            case 0x2000:    /* EN QUAD */
+            case 0x2001:    /* EM QUAD */
+            case 0x2002:    /* EN SPACE */
+            case 0x2003:    /* EM SPACE */
+            case 0x2004:    /* THREE-PER-EM SPACE */
+            case 0x2005:    /* FOUR-PER-EM SPACE */
+            case 0x2006:    /* SIX-PER-EM SPACE */
+            case 0x2007:    /* FIGURE SPACE */
+            case 0x2008:    /* PUNCTUATION SPACE */
+            case 0x2009:    /* THIN SPACE */
+            case 0x200A:    /* HAIR SPACE */
+            case 0x202f:    /* NARROW NO-BREAK SPACE */
+            case 0x205f:    /* MEDIUM MATHEMATICAL SPACE */
+            case 0x3000:    /* IDEOGRAPHIC SPACE */
+#endif
             RRETURN(MATCH_NOMATCH);
             }
           }
@@ -4509,6 +4531,24 @@ for (;;)
             case 0x09:      /* HT */
             case 0x20:      /* SPACE */
             case 0xa0:      /* NBSP */
+#ifdef COMPILE_PCRE16
+            case 0x1680:    /* OGHAM SPACE MARK */
+            case 0x180e:    /* MONGOLIAN VOWEL SEPARATOR */
+            case 0x2000:    /* EN QUAD */
+            case 0x2001:    /* EM QUAD */
+            case 0x2002:    /* EN SPACE */
+            case 0x2003:    /* EM SPACE */
+            case 0x2004:    /* THREE-PER-EM SPACE */
+            case 0x2005:    /* FOUR-PER-EM SPACE */
+            case 0x2006:    /* SIX-PER-EM SPACE */
+            case 0x2007:    /* FIGURE SPACE */
+            case 0x2008:    /* PUNCTUATION SPACE */
+            case 0x2009:    /* THIN SPACE */
+            case 0x200A:    /* HAIR SPACE */
+            case 0x202f:    /* NARROW NO-BREAK SPACE */
+            case 0x205f:    /* MEDIUM MATHEMATICAL SPACE */
+            case 0x3000:    /* IDEOGRAPHIC SPACE */
+#endif
             break;
             }
           }
@@ -4530,6 +4570,10 @@ for (;;)
             case 0x0c:      /* FF */
             case 0x0d:      /* CR */
             case 0x85:      /* NEL */
+#ifdef COMPILE_PCRE16
+            case 0x2028:    /* LINE SEPARATOR */
+            case 0x2029:    /* PARAGRAPH SEPARATOR */
+#endif
             RRETURN(MATCH_NOMATCH);
             }
           }
@@ -4551,6 +4595,10 @@ for (;;)
             case 0x0c:      /* FF */
             case 0x0d:      /* CR */
             case 0x85:      /* NEL */
+#ifdef COMPILE_PCRE16
+            case 0x2028:    /* LINE SEPARATOR */
+            case 0x2029:    /* PARAGRAPH SEPARATOR */
+#endif
             break;
             }
           }
@@ -5063,6 +5111,10 @@ for (;;)
               case 0x000b:
               case 0x000c:
               case 0x0085:
+#ifdef COMPILE_PCRE16
+              case 0x2028:
+              case 0x2029:
+#endif
               if (md->bsr_anycrlf) RRETURN(MATCH_NOMATCH);
               break;
               }
@@ -5075,6 +5127,24 @@ for (;;)
               case 0x09:      /* HT */
               case 0x20:      /* SPACE */
               case 0xa0:      /* NBSP */
+#ifdef COMPILE_PCRE16
+              case 0x1680:    /* OGHAM SPACE MARK */
+              case 0x180e:    /* MONGOLIAN VOWEL SEPARATOR */
+              case 0x2000:    /* EN QUAD */
+              case 0x2001:    /* EM QUAD */
+              case 0x2002:    /* EN SPACE */
+              case 0x2003:    /* EM SPACE */
+              case 0x2004:    /* THREE-PER-EM SPACE */
+              case 0x2005:    /* FOUR-PER-EM SPACE */
+              case 0x2006:    /* SIX-PER-EM SPACE */
+              case 0x2007:    /* FIGURE SPACE */
+              case 0x2008:    /* PUNCTUATION SPACE */
+              case 0x2009:    /* THIN SPACE */
+              case 0x200A:    /* HAIR SPACE */
+              case 0x202f:    /* NARROW NO-BREAK SPACE */
+              case 0x205f:    /* MEDIUM MATHEMATICAL SPACE */
+              case 0x3000:    /* IDEOGRAPHIC SPACE */
+#endif
               RRETURN(MATCH_NOMATCH);
               }
             break;
@@ -5086,6 +5156,24 @@ for (;;)
               case 0x09:      /* HT */
               case 0x20:      /* SPACE */
               case 0xa0:      /* NBSP */
+#ifdef COMPILE_PCRE16
+              case 0x1680:    /* OGHAM SPACE MARK */
+              case 0x180e:    /* MONGOLIAN VOWEL SEPARATOR */
+              case 0x2000:    /* EN QUAD */
+              case 0x2001:    /* EM QUAD */
+              case 0x2002:    /* EN SPACE */
+              case 0x2003:    /* EM SPACE */
+              case 0x2004:    /* THREE-PER-EM SPACE */
+              case 0x2005:    /* FOUR-PER-EM SPACE */
+              case 0x2006:    /* SIX-PER-EM SPACE */
+              case 0x2007:    /* FIGURE SPACE */
+              case 0x2008:    /* PUNCTUATION SPACE */
+              case 0x2009:    /* THIN SPACE */
+              case 0x200A:    /* HAIR SPACE */
+              case 0x202f:    /* NARROW NO-BREAK SPACE */
+              case 0x205f:    /* MEDIUM MATHEMATICAL SPACE */
+              case 0x3000:    /* IDEOGRAPHIC SPACE */
+#endif
               break;
               }
             break;
@@ -5099,6 +5187,10 @@ for (;;)
               case 0x0c:      /* FF */
               case 0x0d:      /* CR */
               case 0x85:      /* NEL */
+#ifdef COMPILE_PCRE16
+              case 0x2028:    /* LINE SEPARATOR */
+              case 0x2029:    /* PARAGRAPH SEPARATOR */
+#endif
               RRETURN(MATCH_NOMATCH);
               }
             break;
@@ -5112,6 +5204,10 @@ for (;;)
               case 0x0c:      /* FF */
               case 0x0d:      /* CR */
               case 0x85:      /* NEL */
+#ifdef COMPILE_PCRE16
+              case 0x2028:    /* LINE SEPARATOR */
+              case 0x2029:    /* PARAGRAPH SEPARATOR */
+#endif
               break;
               }
             break;
@@ -5708,10 +5804,12 @@ for (;;)
               }
             else
               {
-              if (c != 0x000a &&
-                  (md->bsr_anycrlf ||
-                    (c != 0x000b && c != 0x000c && c != 0x0085)))
-                break;
+              if (c != 0x000a && (md->bsr_anycrlf ||
+                (c != 0x000b && c != 0x000c && c != 0x0085
+#ifdef COMPILE_PCRE16
+                && c != 0x2028 && c != 0x2029
+#endif
+                ))) break;
               eptr++;
               }
             }
@@ -5726,7 +5824,12 @@ for (;;)
               break;
               }
             c = *eptr;
-            if (c == 0x09 || c == 0x20 || c == 0xa0) break;
+            if (c == 0x09 || c == 0x20 || c == 0xa0
+#ifdef COMPILE_PCRE16
+              || c == 0x1680 || c == 0x180e || (c >= 0x2000 && c <= 0x200A)
+              || c == 0x202f || c == 0x205f || c == 0x3000
+#endif
+              ) break;
             eptr++;
             }
           break;
@@ -5740,7 +5843,12 @@ for (;;)
               break;
               }
             c = *eptr;
-            if (c != 0x09 && c != 0x20 && c != 0xa0) break;
+            if (c != 0x09 && c != 0x20 && c != 0xa0
+#ifdef COMPILE_PCRE16
+              && c != 0x1680 && c != 0x180e && (c < 0x2000 || c > 0x200A)
+              && c != 0x202f && c != 0x205f && c != 0x3000
+#endif
+              ) break;
             eptr++;
             }
           break;
@@ -5754,8 +5862,11 @@ for (;;)
               break;
               }
             c = *eptr;
-            if (c == 0x0a || c == 0x0b || c == 0x0c || c == 0x0d || c == 0x85)
-              break;
+            if (c == 0x0a || c == 0x0b || c == 0x0c || c == 0x0d || c == 0x85
+#ifdef COMPILE_PCRE16
+              || c == 0x2028 || c == 0x2029
+#endif
+              ) break;
             eptr++;
             }
           break;
@@ -5769,8 +5880,11 @@ for (;;)
               break;
               }
             c = *eptr;
-            if (c != 0x0a && c != 0x0b && c != 0x0c && c != 0x0d && c != 0x85)
-              break;
+            if (c != 0x0a && c != 0x0b && c != 0x0c && c != 0x0d && c != 0x85
+#ifdef COMPILE_PCRE16
+              && c != 0x2028 && c != 0x2029
+#endif
+              ) break;
             eptr++;
             }
           break;

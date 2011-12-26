@@ -24,4 +24,10 @@
 
 /[^ⱥ]/8iBZ
 
+/\h/SI
+
+/\v/SI
+
+/\R/SI
+
 /-- End of testinput16 --/

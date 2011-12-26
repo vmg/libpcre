@@ -87,7 +87,11 @@ static int regression_tests(void);
 int main(void)
 {
 	int jit = 0;
+#ifdef SUPPORT_PCRE8
 	pcre_config(PCRE_CONFIG_JIT, &jit);
+#else
+	pcre16_config(PCRE_CONFIG_JIT, &jit);
+#endif
 	if (!jit) {
 		printf("JIT must be enabled to run pcre_jit_test\n");
 		return 1;
@@ -115,6 +119,7 @@ int main(void)
 #define F_NOMATCH	0x040000
 #define F_DIFF		0x080000
 #define F_FORCECONV	0x100000
+#define F_PROPERTY	0x200000
 
 struct regression_test_case {
 	int flags;
@@ -192,7 +197,7 @@ static struct regression_test_case regression_test_cases[] = {
 	{ PCRE_NOTBOL | PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0, "^a", "aa\naa" },
 	{ PCRE_NOTEOL | PCRE_NEWLINE_ANY, 0 | F_NOMATCH, "a$", "aa\naa" },
 	{ PCRE_NOTEOL | PCRE_NEWLINE_ANY, 0 | F_NOMATCH, "a$", "aa\r\n" },
-	{ PCRE_UTF8 | PCRE_DOLLAR_ENDONLY | PCRE_NEWLINE_ANY, 0, "\\p{Any}{2,}$", "aa\r\n" },
+	{ PCRE_UTF8 | PCRE_DOLLAR_ENDONLY | PCRE_NEWLINE_ANY, 0 | F_PROPERTY, "\\p{Any}{2,}$", "aa\r\n" },
 	{ PCRE_NOTEOL | PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0, "a$", "aa\naa" },
 	{ PCRE_NEWLINE_CR, 0, ".\\Z", "aaa" },
 	{ PCRE_NEWLINE_CR | PCRE_UTF8, 0, "a\\Z", "aaa\r" },
@@ -305,24 +310,24 @@ static struct regression_test_case regression_test_cases[] = {
 
 	/* Unicode properties. */
 	{ MUAP, 0, "[1-5\xc3\xa9\\w]", "\xc3\xa1_" },
-	{ MUAP, 0, "[\xc3\x81\\p{Ll}]", "A_\xc3\x89\xc3\xa1" },
+	{ MUAP, 0 | F_PROPERTY, "[\xc3\x81\\p{Ll}]", "A_\xc3\x89\xc3\xa1" },
 	{ MUAP, 0, "[\\Wd-h_x-z]+", "a\xc2\xa1#_yhzdxi" },
-	{ MUAP, 0 | F_NOMATCH, "[\\P{Any}]", "abc" },
-	{ MUAP, 0 | F_NOMATCH, "[^\\p{Any}]", "abc" },
-	{ MUAP, 0 | F_NOMATCH, "[\\P{Any}\xc3\xa1-\xc3\xa8]", "abc" },
-	{ MUAP, 0 | F_NOMATCH, "[^\\p{Any}\xc3\xa1-\xc3\xa8]", "abc" },
-	{ MUAP, 0 | F_NOMATCH, "[\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
-	{ MUAP, 0 | F_NOMATCH, "[^\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
-	{ MUAP, 0, "[\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
-	{ MUAP, 0, "[^\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH | F_PROPERTY, "[\\P{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH | F_PROPERTY, "[^\\p{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH | F_PROPERTY, "[\\P{Any}\xc3\xa1-\xc3\xa8]", "abc" },
+	{ MUAP, 0 | F_NOMATCH | F_PROPERTY, "[^\\p{Any}\xc3\xa1-\xc3\xa8]", "abc" },
+	{ MUAP, 0 | F_NOMATCH | F_PROPERTY, "[\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
+	{ MUAP, 0 | F_NOMATCH | F_PROPERTY, "[^\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
+	{ MUAP, 0 | F_PROPERTY, "[\xc3\xa1-\xc3\xa8\\p{Any}]", "abc" },
+	{ MUAP, 0 | F_PROPERTY, "[^\xc3\xa1-\xc3\xa8\\P{Any}]", "abc" },
 	{ MUAP, 0, "[b-\xc3\xa9\\s]", "a\xc\xe6\x92\xad" },
 	{ CMUAP, 0, "[\xc2\x85-\xc2\x89\xc3\x89]", "\xc2\x84\xc3\xa9" },
 	{ MUAP, 0, "[^b-d^&\\s]{3,}", "db^ !a\xe2\x80\xa8_ae" },
-	{ MUAP, 0, "[^\\S\\P{Any}][\\sN]{1,3}[\\P{N}]{4}", "\xe2\x80\xaa\xa N\x9\xc3\xa9_0" },
-	{ MUA, 0, "[^\\P{L}\x9!D-F\xa]{2,3}", "\x9,.DF\xa.CG\xc3\x81" },
+	{ MUAP, 0 | F_PROPERTY, "[^\\S\\P{Any}][\\sN]{1,3}[\\P{N}]{4}", "\xe2\x80\xaa\xa N\x9\xc3\xa9_0" },
+	{ MUA, 0 | F_PROPERTY, "[^\\P{L}\x9!D-F\xa]{2,3}", "\x9,.DF\xa.CG\xc3\x81" },
 	{ CMUAP, 0, "[\xc3\xa1-\xc3\xa9_\xe2\x80\xa0-\xe2\x80\xaf]{1,5}[^\xe2\x80\xa0-\xe2\x80\xaf]", "\xc2\xa1\xc3\x89\xc3\x89\xe2\x80\xaf_\xe2\x80\xa0" },
-	{ MUAP, 0, "[\xc3\xa2-\xc3\xa6\xc3\x81-\xc3\x84\xe2\x80\xa8-\xe2\x80\xa9\xe6\x92\xad\\p{Zs}]{2,}", "\xe2\x80\xa7\xe2\x80\xa9\xe6\x92\xad \xe6\x92\xae" },
-	{ MUAP, 0, "[\\P{L&}]{2}[^\xc2\x85-\xc2\x89\\p{Ll}\\p{Lu}]{2}", "\xc3\xa9\xe6\x92\xad.a\xe6\x92\xad|\xc2\x8a#" },
+	{ MUAP, 0 | F_PROPERTY, "[\xc3\xa2-\xc3\xa6\xc3\x81-\xc3\x84\xe2\x80\xa8-\xe2\x80\xa9\xe6\x92\xad\\p{Zs}]{2,}", "\xe2\x80\xa7\xe2\x80\xa9\xe6\x92\xad \xe6\x92\xae" },
+	{ MUAP, 0 | F_PROPERTY, "[\\P{L&}]{2}[^\xc2\x85-\xc2\x89\\p{Ll}\\p{Lu}]{2}", "\xc3\xa9\xe6\x92\xad.a\xe6\x92\xad|\xc2\x8a#" },
 	{ PCRE_UCP, 0, "[a-b\\s]{2,5}[^a]", "AB  baaa" },
 
 	/* Possible empty brackets. */
@@ -406,13 +411,13 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA, 0, "(?>((?>a{32}|b+|(a*))?(?>c+|d*)?\?)+e)+?f", "aaccebbdde bbdaaaccebbdee bbdaaaccebbdeef" },
 	{ MUA, 0, "(?>(?:(?>aa|a||x)+?b|(?>aa|a||(x))+?c)?(?>[ad]{0,2})*?d)+d", "aaacdbaabdcabdbaaacd aacaabdbdcdcaaaadaabcbaadd" },
 	{ MUA, 0, "(?>(?:(?>aa|a||(x))+?b|(?>aa|a||x)+?c)?(?>[ad]{0,2})*?d)+d", "aaacdbaabdcabdbaaacd aacaabdbdcdcaaaadaabcbaadd" },
-	{ MUA, 0 | F_NOMATCH, "\\X", "\xcc\x8d\xcc\x8d" },
-	{ MUA, 0, "\\X", "\xcc\x8d\xcc\x8d#\xcc\x8d\xcc\x8d" },
-	{ MUA, 0, "\\X+..", "\xcc\x8d#\xcc\x8d#\xcc\x8d\xcc\x8d" },
-	{ MUA, 0, "\\X{2,4}", "abcdef" },
-	{ MUA, 0, "\\X{2,4}?", "abcdef" },
-	{ MUA, 0 | F_NOMATCH, "\\X{2,4}..", "#\xcc\x8d##" },
-	{ MUA, 0, "\\X{2,4}..", "#\xcc\x8d#\xcc\x8d##" },
+	{ MUA, 0 | F_NOMATCH | F_PROPERTY, "\\X", "\xcc\x8d\xcc\x8d" },
+	{ MUA, 0 | F_PROPERTY, "\\X", "\xcc\x8d\xcc\x8d#\xcc\x8d\xcc\x8d" },
+	{ MUA, 0 | F_PROPERTY, "\\X+..", "\xcc\x8d#\xcc\x8d#\xcc\x8d\xcc\x8d" },
+	{ MUA, 0 | F_PROPERTY, "\\X{2,4}", "abcdef" },
+	{ MUA, 0 | F_PROPERTY, "\\X{2,4}?", "abcdef" },
+	{ MUA, 0 | F_NOMATCH | F_PROPERTY, "\\X{2,4}..", "#\xcc\x8d##" },
+	{ MUA, 0 | F_PROPERTY, "\\X{2,4}..", "#\xcc\x8d#\xcc\x8d##" },
 	{ MUA, 0, "(c(ab)?+ab)+", "cabcababcab" },
 	{ MUA, 0, "(?>(a+)b)+aabab", "aaaabaaabaabab" },
 
@@ -471,11 +476,11 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA, 0, "(?:(aa|bb)(\\1{0,3}?)){2}(dd|)(\\3{0,3}?)b(\\1{0,3}?)(\\1{0,3})", "aaaaaaaaaaaaaaabaaaaa" },
 	{ MUA, 0, "(a(?:\\1|)a){3}b", "aaaaaaaaaaab" },
 	{ MA, 0, "(a?)b(\\1\\1*\\1+\\1?\\1*?\\1+?\\1??\\1*+\\1++\\1?+\\1{4}\\1{3,5}\\1{4,}\\1{0,5}\\1{3,5}?\\1{4,}?\\1{0,5}?\\1{3,5}+\\1{4,}+\\1{0,5}+#){2}d", "bb#b##d" },
-	{ MUAP, 0, "(\\P{N})\\1{2,}", ".www." },
-	{ MUAP, 0, "(\\P{N})\\1{0,2}", "wwwww." },
-	{ MUAP, 0, "(\\P{N})\\1{1,2}ww", "wwww" },
-	{ MUAP, 0, "(\\P{N})\\1{1,2}ww", "wwwww" },
-	{ PCRE_UCP, 0, "(\\P{N})\\1{2,}", ".www." },
+	{ MUAP, 0 | F_PROPERTY, "(\\P{N})\\1{2,}", ".www." },
+	{ MUAP, 0 | F_PROPERTY, "(\\P{N})\\1{0,2}", "wwwww." },
+	{ MUAP, 0 | F_PROPERTY, "(\\P{N})\\1{1,2}ww", "wwww" },
+	{ MUAP, 0 | F_PROPERTY, "(\\P{N})\\1{1,2}ww", "wwwww" },
+	{ PCRE_UCP, 0 | F_PROPERTY, "(\\P{N})\\1{2,}", ".www." },
 	{ CMUAP, 0, "(\xf0\x90\x90\x80)\\1", "\xf0\x90\x90\xa8\xf0\x90\x90\xa8" },
 
 	/* Assertions. */
@@ -569,8 +574,8 @@ static struct regression_test_case regression_test_cases[] = {
 	{ MUA | PCRE_NOTEMPTY_ATSTART, 0, "a\\K(*ACCEPT)b", "aa" },
 
 	/* First line. */
-	{ MUA | PCRE_FIRSTLINE, 0, "\\p{Any}a", "bb\naaa" },
-	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "\\p{Any}a", "bb\r\naaa" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_PROPERTY, "\\p{Any}a", "bb\naaa" },
+	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH | F_PROPERTY, "\\p{Any}a", "bb\r\naaa" },
 	{ MUA | PCRE_FIRSTLINE, 0, "(?<=a)", "a" },
 	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "[^a][^b]", "ab" },
 	{ MUA | PCRE_FIRSTLINE, 0 | F_NOMATCH, "a", "\na" },
@@ -580,11 +585,11 @@ static struct regression_test_case regression_test_cases[] = {
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0 | F_NOMATCH, "#", "\xc2\x85#" },
 	{ PCRE_MULTILINE | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0 | F_NOMATCH, "#", "\x85#" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_ANY | PCRE_FIRSTLINE, 0 | F_NOMATCH, "^#", "\xe2\x80\xa8#" },
-	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, "\\p{Any}", "\r\na" },
+	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0 | F_PROPERTY, "\\p{Any}", "\r\na" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, ".", "\r" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0, "a", "\ra" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0 | F_NOMATCH, "ba", "bbb\r\nba" },
-	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0 | F_NOMATCH, "\\p{Any}{4}|a", "\r\na" },
+	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 0 | F_NOMATCH | F_PROPERTY, "\\p{Any}{4}|a", "\r\na" },
 	{ PCRE_MULTILINE | PCRE_UTF8 | PCRE_NEWLINE_CRLF | PCRE_FIRSTLINE, 1, ".", "\r\n" },
 
 	/* Recurse. */
@@ -640,6 +645,12 @@ static struct regression_test_case regression_test_cases[] = {
 	{ CMA | PCRE_EXTENDED, 0 | F_FORCECONV, "\xed\xa0\x80 \xed\xb0\x80 !", "\xed\xa0\x80\xed\xb0\x80!" },
 	{ CMA, 0 | F_FORCECONV, "\xed\xa0\x80+#[^#]+\xed\xa0\x80", "\xed\xa0\x80#a\xed\xa0\x80" },
 	{ CMA, 0 | F_FORCECONV, "(\xed\xa0\x80+)#\\1", "\xed\xa0\x80\xed\xa0\x80#\xed\xa0\x80\xed\xa0\x80" },
+	{ PCRE_MULTILINE | PCRE_NEWLINE_ANY, 0 | F_NO8 | F_FORCECONV, "^-", "a--\xe2\x80\xa8--" },
+	{ PCRE_BSR_UNICODE, 0 | F_NO8 | F_FORCECONV, "\\R", "ab\xe2\x80\xa8" },
+	{ 0, 0 | F_NO8 | F_FORCECONV, "\\v", "ab\xe2\x80\xa9" },
+	{ 0, 0 | F_NO8 | F_FORCECONV, "\\h", "ab\xe1\xa0\x8e" },
+	{ 0, 0 | F_NO8 | F_FORCECONV, "\\v+?\\V+?#", "\xe2\x80\xa9\xe2\x80\xa9\xef\xbf\xbf\xef\xbf\xbf#" },
+	{ 0, 0 | F_NO8 | F_FORCECONV, "\\h+?\\H+?#", "\xe1\xa0\x8e\xe1\xa0\x8e\xef\xbf\xbf\xef\xbf\xbf#" },
 
 	/* Deep recursion. */
 	{ MUA, 0, "((((?:(?:(?:\\w)+)?)*|(?>\\w)+?)+|(?>\\w)?\?)*)?\\s", "aaaaa+ " },
@@ -714,7 +725,8 @@ static pcre_jit_stack* callback(void *arg)
 	return (pcre_jit_stack *)arg;
 }
 
-static void setstack(pcre_extra *extra)
+#ifdef SUPPORT_PCRE8
+static void setstack8(pcre_extra *extra)
 {
 	static pcre_jit_stack *stack;
 
@@ -730,6 +742,26 @@ static void setstack(pcre_extra *extra)
 	/* Extra can be NULL. */
 	pcre_assign_jit_stack(extra, callback, stack);
 }
+#endif /* SUPPORT_PCRE8 */
+
+#ifdef SUPPORT_PCRE16
+static void setstack16(pcre_extra *extra)
+{
+	static pcre_jit_stack *stack;
+
+	if (!extra) {
+		if (stack)
+			pcre16_jit_stack_free(stack);
+		stack = NULL;
+		return;
+	}
+
+	if (!stack)
+		stack = pcre16_jit_stack_alloc(1, 1024 * 1024);
+	/* Extra can be NULL. */
+	pcre16_assign_jit_stack(extra, callback, stack);
+}
+#endif /* SUPPORT_PCRE8 */
 
 #ifdef SUPPORT_PCRE16
 
@@ -803,11 +835,23 @@ static int regtest_offsetmap[REGTEST_MAX_LENGTH];
 
 #endif /* SUPPORT_PCRE16 */
 
+static int check_ascii(const char *input)
+{
+	const unsigned char *ptr = (unsigned char *)input;
+	while (*ptr) {
+		if (*ptr > 127)
+			return 0;
+		ptr++;
+	}
+	return 1;
+}
+
 static int regression_tests(void)
 {
 	struct regression_test_case *current = regression_test_cases;
 	const char *error;
-	int i, err_offs, is_successful;
+	int i, err_offs;
+	int is_successful, is_ascii_pattern, is_ascii_input;
 	int total = 0;
 	int successful = 0;
 	int counter = 0;
@@ -859,6 +903,13 @@ static int regression_tests(void)
 	while (current->pattern) {
 		/* printf("\nPattern: %s :\n", current->pattern); */
 		total++;
+		if (current->start_offset & F_PROPERTY) {
+			is_ascii_pattern = 0;
+			is_ascii_input = 0;
+		} else {
+			is_ascii_pattern = check_ascii(current->pattern);
+			is_ascii_input = check_ascii(current->input);
+		}
 
 		error = NULL;
 #ifdef SUPPORT_PCRE8
@@ -883,7 +934,7 @@ static int regression_tests(void)
 				pcre_free(re8);
 				re8 = NULL;
 			}
-		} else if (utf8 && ucp8 && !(current->start_offset & F_NO8))
+		} else if (((utf8 && ucp8) || is_ascii_pattern) && !(current->start_offset & F_NO8))
 			printf("\n8 bit: Cannot compile pattern: %s\n", current->pattern);
 #endif
 #ifdef SUPPORT_PCRE16
@@ -913,13 +964,19 @@ static int regression_tests(void)
 				pcre16_free(re16);
 				re16 = NULL;
 			}
-		} else if (utf16 && ucp16 && !(current->start_offset & F_NO16))
+		} else if (((utf16 && ucp16) || is_ascii_pattern) && !(current->start_offset & F_NO16))
 			printf("\n16 bit: Cannot compile pattern: %s\n", current->pattern);
 #endif
 
 		counter++;
-		if ((counter & 0x3) != 0)
-			setstack(NULL);
+		if ((counter & 0x3) != 0) {
+#ifdef SUPPORT_PCRE8
+			setstack8(NULL);
+#endif
+#ifdef SUPPORT_PCRE16
+			setstack16(NULL);
+#endif
+		}
 
 #ifdef SUPPORT_PCRE8
 		return_value8_1 = -1000;
@@ -929,7 +986,7 @@ static int regression_tests(void)
 		for (i = 0; i < 32; ++i)
 			ovector8_2[i] = -2;
 		if (re8) {
-			setstack(extra8);
+			setstack8(extra8);
 			return_value8_1 = pcre_exec(re8, extra8, current->input, strlen(current->input), current->start_offset & OFFSET_MASK,
 				current->flags & (PCRE_NOTBOL | PCRE_NOTEOL | PCRE_NOTEMPTY | PCRE_NOTEMPTY_ATSTART), ovector8_1, 32);
 			return_value8_2 = pcre_exec(re8, NULL, current->input, strlen(current->input), current->start_offset & OFFSET_MASK,
@@ -945,7 +1002,7 @@ static int regression_tests(void)
 		for (i = 0; i < 32; ++i)
 			ovector16_2[i] = -2;
 		if (re16) {
-			setstack(extra16);
+			setstack16(extra16);
 			if ((current->flags & PCRE_UTF8) || (current->start_offset & F_FORCECONV))
 				length16 = convert_utf8_to_utf16(current->input, regtest_buf, regtest_offsetmap, REGTEST_MAX_LENGTH);
 			else
@@ -1032,7 +1089,7 @@ static int regression_tests(void)
 
 		if (is_successful) {
 #ifdef SUPPORT_PCRE8
-			if (!(current->start_offset & F_NO8)) {
+			if (!(current->start_offset & F_NO8) && ((utf8 && ucp8) || is_ascii_input)) {
 				if (return_value8_1 < 0 && !(current->start_offset & F_NOMATCH)) {
 					printf("8 bit: Test should match: [%d] '%s' @ '%s'\n",
 						total, current->pattern, current->input);
@@ -1047,7 +1104,7 @@ static int regression_tests(void)
 			}
 #endif
 #ifdef SUPPORT_PCRE16
-			if (!(current->start_offset & F_NO16)) {
+			if (!(current->start_offset & F_NO16) && ((utf16 && ucp16) || is_ascii_input)) {
 				if (return_value16_1 < 0 && !(current->start_offset & F_NOMATCH)) {
 					printf("16 bit: Test should match: [%d] '%s' @ '%s'\n",
 						total, current->pattern, current->input);
@@ -1085,7 +1142,12 @@ static int regression_tests(void)
 		current++;
 	}
 	tables(1);
-	setstack(NULL);
+#ifdef SUPPORT_PCRE8
+	setstack8(NULL);
+#endif
+#ifdef SUPPORT_PCRE16
+	setstack16(NULL);
+#endif
 
 	if (total == successful) {
 		printf("\nAll JIT regression tests are successfully passed.\n");

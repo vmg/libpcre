@@ -213,4 +213,10 @@
 \)  )*                       # optional trailing comment
 /xSI
 
+/\h/SI
+
+/\v/SI
+
+/\R/SI
+
 /-- End of testinput17 --/

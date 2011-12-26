@@ -1004,7 +1004,12 @@ do
         }
       else
 #endif /* SUPPORT_UTF */
+        {
         SET_BIT(0xA0);
+#ifdef COMPILE_PCRE16
+        SET_BIT(0xFF);  /* For characters > 255 */
+#endif
+        }
       try_next = FALSE;
       break;
 
@@ -1028,7 +1033,12 @@ do
         }
       else
 #endif /* SUPPORT_UTF */
+        {
         SET_BIT(0x85);
+#ifdef COMPILE_PCRE16
+        SET_BIT(0xFF);  /* For characters > 255 */
+#endif
+        }
       try_next = FALSE;
       break;
 
@@ -1471,7 +1481,12 @@ if (bits_set || min > 0
   if ((options & PCRE_STUDY_JIT_COMPILE) != 0) PRIV(jit_compile)(re, extra);
   if (study->flags == 0 && (extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) == 0)
     {
+#ifdef COMPILE_PCRE8
     pcre_free_study(extra);
+#endif
+#ifdef COMPILE_PCRE16
+    pcre16_free_study(extra);
+#endif
     extra = NULL;
     }
 #endif
