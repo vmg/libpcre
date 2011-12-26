@@ -37,6 +37,7 @@ POSSIBILITY OF SUCH DAMAGE.
 -----------------------------------------------------------------------------
 */
 
+#ifndef PCRE_INCLUDED
 
 /* This module contains some fixed tables that are used by more than one of the
 PCRE code modules. The tables are also #included by the pcretest program, which
@@ -50,6 +51,7 @@ clashes with the library. */
 
 #include "pcre_internal.h"
 
+#endif /* PCRE_INCLUDED */
 
 /* Table of sizes for the fixed-length opcodes. It's defined in a macro so that
 the definition is next to the definition of the opcodes in pcre_internal.h. */

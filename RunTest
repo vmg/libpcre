@@ -77,7 +77,7 @@ while [ $# -gt 0 ] ; do
    18) do18=yes;;
    19) do19=yes;;
    -8) arg8=yes;;
-  -16) arg16=yes;;   
+  -16) arg16=yes;;
    valgrind) valgrind="valgrind -q --smc-check=all";;
    sim) shift; sim=$1;;
     *) echo "Unknown test number $1"; exit 1;;
@@ -108,57 +108,62 @@ fi
 # strips only linefeeds from the output of a `backquoted` command. Hence the
 # alternative patterns.
 
-case `$sim ./pcretest -C | $sim ./pcregrep 'Internal link size'` in
-  *2|*2[[:space:]]) link_size=2;;
-  *3|*3[[:space:]]) link_size=3;;
-  *4|*4[[:space:]]) link_size=4;;
-   *) echo "Failed to find internal link size"; exit 1;;
-esac
+$sim ./pcretest -C linksize >/dev/null
+link_size=$?
+if [ $link_size -lt 2 ] ; then
+  echo "Failed to find internal link size"
+  exit 1
+fi
+if [ $link_size -gt 4 ] ; then
+  echo "Failed to find internal link size"
+  exit 1
+fi
 
 # Both 8-bit and 16-bit character strings may be supported, but only one
 # need be.
 
-$sim ./pcretest -C | $sim ./pcregrep '8-bit and 16-bit support' >/dev/null
-if [ $? -eq 0 ] ; then
+$sim ./pcretest -C pcre8 >/dev/null
+support8=$?
+$sim ./pcretest -C pcre16 >/dev/null
+support16=$?
+if [ $(( $support8 + $support16 )) -eq 2 ] ; then
   test8=
   test16=-16
   if [ "$arg8" = yes -a "$arg16" != yes ] ; then
     test16=skip
-  fi    
+  fi
   if [ "$arg16" = yes -a "$arg8" != yes ] ; then
     test8=skip
-  fi    
+  fi
 else
-  $sim ./pcretest -C | $sim ./pcregrep '8-bit support' >/dev/null
-  if [ $? -eq 0 ] ; then
+  if [ $support8 -ne 0 ] ; then
     if [ "$arg16" = yes ] ; then
       echo "Cannot run 16-bit library tests: 16-bit library not compiled"
       exit 1
-    fi      
+    fi
     test8=
     test16=skip
   else
     if [ "$arg8" = yes ] ; then
       echo "Cannot run 8-bit library tests: 8-bit library not compiled"
       exit 1
-    fi      
+    fi
     test8=skip
     test16=-16
   fi
 fi
-           
+
 # UTF support always applies to both bit sizes if both are supported; we can't
 # have UTF-8 support without UTF-16 support (for example).
 
-$sim ./pcretest -C | $sim ./pcregrep 'No UTF-(.+?) support' >/dev/null
+$sim ./pcretest -C utf >/dev/null
 utf=$?
 
-$sim ./pcretest -C | $sim ./pcregrep 'No Unicode properties support' >/dev/null
+$sim ./pcretest -C ucp >/dev/null
 ucp=$?
 
 jitopt=
-$sim ./pcretest -C | $sim ./pcregrep 'No just-in-time compiler support' \
-  >/dev/null
+$sim ./pcretest -C jit >/dev/null
 jit=$?
 if [ $jit -ne 0 ] ; then
   jitopt=-s+

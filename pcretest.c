@@ -116,6 +116,12 @@ here before pcre_internal.h so that the PCRE_EXP_xxx macros get set
 appropriately for an application, not for building PCRE. */
 
 #include "pcre.h"
+
+#if defined SUPPORT_PCRE16 && !defined SUPPORT_PCRE8
+/* Configure internal macros to 16 bit mode. */
+#define COMPILE_PCRE16
+#endif
+
 #include "pcre_internal.h"
 
 /* The pcre_printint() function, which prints the internal form of a compiled
@@ -134,17 +140,9 @@ void pcre16_printint(pcre *external_re, FILE *f, BOOL print_lengths);
 to keep two copies, we include the source file here, changing the names of the
 external symbols to prevent clashes. */
 
-#define _pcre_ucp_gentype      ucp_gentype
-#define _pcre_ucp_typerange    ucp_typerange
-#define _pcre_utf8_table1      utf8_table1
-#define _pcre_utf8_table1_size utf8_table1_size
-#define _pcre_utf8_table2      utf8_table2
-#define _pcre_utf8_table3      utf8_table3
-#define _pcre_utf8_table4      utf8_table4
-#define _pcre_utt              utt
-#define _pcre_utt_size         utt_size
-#define _pcre_utt_names        utt_names
-#define _pcre_OP_lengths       OP_lengths
+#define PCRE_INCLUDED
+#undef PRIV
+#define PRIV(name) name
 
 #include "pcre_tables.c"
 
@@ -524,7 +522,7 @@ version is called. ----- */
 /* ----- Only 16-bit mode is supported ----- */
 
 #else
-#define CHAR_SIZE                 1
+#define CHAR_SIZE                 2
 #define PCHARS                    PCHARS16
 #define PCHARSV                   PCHARSV16
 #define READ_CAPTURE_NAME         READ_CAPTURE_NAME16
@@ -600,6 +598,8 @@ obtained and extended as required. */
 static int buffer16_size = 0;
 static pcre_uint16 *buffer16 = NULL;
 
+#ifdef SUPPORT_PCRE8
+
 /* We need the table of operator lengths that is used for 16-bit compiling, in
 order to swap bytes in a pattern for saving/reloading testing. Luckily, the
 data is defined as a macro. However, we must ensure that LINK_SIZE is adjusted
@@ -619,6 +619,8 @@ COMPILE_PCRE16 is *not* set. */
 #else
 #error LINK_SIZE must be either 2, 3, or 4
 #endif
+
+#endif /* SUPPORT_PCRE8 */
 
 static const pcre_uint16 OP_lengths16[] = { OP_LENGTHS };
 #endif  /* SUPPORT_PCRE16 */
@@ -1169,6 +1171,7 @@ if (!utf)
   while (len-- > 0) *pp++ = *p++;
   }
 
+#ifdef SUPPORT_UTF
 else
   {
   int c = 0;
@@ -1176,7 +1179,7 @@ else
     {
     int chlen = utf82ord(p, &c);
     if (chlen <= 0) return -1;
-    if (c > 0x10ffff) return -2; 
+    if (c > 0x10ffff) return -2;
     p += chlen;
     len -= chlen;
     if (c < 0x10000) *pp++ = c; else
@@ -1187,6 +1190,7 @@ else
       }
     }
   }
+#endif
 
 *pp = 0;
 return pp - buffer16;
@@ -2043,6 +2047,14 @@ printf("  -16      use 16-bit interface\n");
 #endif
 printf("  -b       show compiled code (bytecode)\n");
 printf("  -C       show PCRE compile-time options and exit\n");
+printf("  -C arg   show a specific compile-time option\n");
+printf("           and exit with its value. The arg can be:\n");
+printf("     linksize     internal link size [2, 3, 4]\n");
+printf("     pcre8        8 bit library support enabled [0, 1]\n");
+printf("     pcre16       16 bit library support enabled [0, 1]\n");
+printf("     utf          Unicode Transformation Format supported [0, 1]\n");
+printf("     ucp          Unicode Properties supported [0, 1]\n");
+printf("     jit          Just-in-time compiler supported [0, 1]\n");
 printf("  -d       debug: show compiled code and information (-b and -i)\n");
 #if !defined NODFA
 printf("  -dfa     force DFA matching for all subjects\n");
@@ -2233,6 +2245,69 @@ while (argc > 1 && argv[op][0] == '-')
     {
     int rc;
     unsigned long int lrc;
+
+    if (argc > 2)
+      {
+      if (strcmp(argv[op + 1], "linksize") == 0)
+        {
+        (void)PCRE_CONFIG(PCRE_CONFIG_LINK_SIZE, &rc);
+        printf("%d\n", rc);
+        yield = rc;
+        goto EXIT;
+        }
+      if (strcmp(argv[op + 1], "pcre8") == 0)
+        {
+#ifdef SUPPORT_PCRE8
+        printf("1\n");
+        yield = 1;
+#else
+        printf("0\n");
+        yield = 0;
+#endif
+        goto EXIT;
+        }
+      if (strcmp(argv[op + 1], "pcre16") == 0)
+        {
+#ifdef SUPPORT_PCRE16
+        printf("1\n");
+        yield = 1;
+#else
+        printf("0\n");
+        yield = 0;
+#endif
+        goto EXIT;
+        }
+      if (strcmp(argv[op + 1], "utf") == 0)
+        {
+#ifdef SUPPORT_PCRE8
+        (void)pcre_config(PCRE_CONFIG_UTF8, &rc);
+        printf("%d\n", rc);
+        yield = rc;
+#else
+        (void)pcre16_config(PCRE_CONFIG_UTF16, &rc);
+        printf("%d\n", rc);
+        yield = rc;
+#endif
+        goto EXIT;
+        }
+      if (strcmp(argv[op + 1], "ucp") == 0)
+        {
+        (void)PCRE_CONFIG(PCRE_CONFIG_UNICODE_PROPERTIES, &rc);
+        printf("%d\n", rc);
+        yield = rc;
+        goto EXIT;
+        }
+      if (strcmp(argv[op + 1], "jit") == 0)
+        {
+        (void)PCRE_CONFIG(PCRE_CONFIG_JIT, &rc);
+        printf("%d\n", rc);
+        yield = rc;
+        goto EXIT;
+        }
+      printf("Unknown option: %s\n", argv[op + 1]);
+      goto EXIT;
+      }
+
     printf("PCRE version %s\n", version);
     printf("Compiled with\n");
 
@@ -3855,7 +3930,7 @@ while (!done)
 
           PCRE_COPY_NAMED_SUBSTRING(rc, re, bptr, use_offsets, count,
             cnptr, copybuffer, sizeof(copybuffer));
-             
+
           if (rc < 0)
             {
             fprintf(outfile, "copy substring ");
@@ -4018,9 +4093,12 @@ while (!done)
               :
                    bptr[start_offset] == '\r'
                 && bptr[start_offset + 1] == '\n')
+#elif defined SUPPORT_PCRE16
+                 ((PCRE_SPTR16)bptr)[start_offset] == '\r'
+              && ((PCRE_SPTR16)bptr)[start_offset + 1] == '\n'
 #else
-              bptr[start_offset] == '\r' &&
-              bptr[start_offset + 1] == '\n'
+                 bptr[start_offset] == '\r'
+              && bptr[start_offset + 1] == '\n'
 #endif
               )
             onechar++;

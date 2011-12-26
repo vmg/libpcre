@@ -2689,7 +2689,9 @@ for (;;)
             const pcre_uchar *p = start_subject + local_offsets[rc];
             const pcre_uchar *pp = start_subject + local_offsets[rc+1];
             int charcount = local_offsets[rc+1] - local_offsets[rc];
+#ifdef SUPPORT_UTF
             while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
+#endif
             if (charcount > 0)
               {
               ADD_NEW_DATA(-(state_offset + LINK_SIZE + 1), 0, (charcount - 1));
@@ -2786,7 +2788,9 @@ for (;;)
             const pcre_uchar *p = ptr;
             const pcre_uchar *pp = local_ptr;
             charcount = (int)(pp - p);
+#ifdef SUPPORT_UTF
             while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
+#endif
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
             }
           }
@@ -2866,9 +2870,11 @@ for (;;)
             }
           else
             {
+#ifdef SUPPORT_UTF
             const pcre_uchar *p = start_subject + local_offsets[0];
             const pcre_uchar *pp = start_subject + local_offsets[1];
             while (p < pp) if (NOT_FIRSTCHAR(*p++)) charcount--;
+#endif
             ADD_NEW_DATA(-next_state_offset, 0, (charcount - 1));
             if (repeat_state_offset >= 0)
               { ADD_NEW_DATA(-repeat_state_offset, 0, (charcount - 1)); }

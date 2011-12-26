@@ -1499,6 +1499,8 @@ PCRE_EXP_DEFN void
 pcre16_free_study(pcre_extra *extra)
 #endif
 {
+if (extra == NULL)
+  return;
 #ifdef SUPPORT_JIT
 if ((extra->flags & PCRE_EXTRA_EXECUTABLE_JIT) != 0 &&
      extra->executable_jit != NULL)

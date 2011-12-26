@@ -975,9 +975,6 @@ Failed: numbers out of order in {} quantifier at offset 7
 /abc/\
 Failed: \ at end of pattern at offset 4
 
-/abc/\P
-Failed: POSIX code 9: bad escape sequence at offset 4     
-
 /abc/\i
 Failed: \ at end of pattern at offset 4
 

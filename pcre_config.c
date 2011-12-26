@@ -45,6 +45,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "config.h"
 #endif
 
+/* Keep the original link size. */
+static int real_link_size = LINK_SIZE;
+
 #include "pcre_internal.h"
 
 
@@ -75,26 +78,26 @@ switch (what)
   case PCRE_CONFIG_UTF8:
 #if defined COMPILE_PCRE16
   return PCRE_ERROR_BADOPTION;
-#else   
+#else
 #if defined SUPPORT_UTF
   *((int *)where) = 1;
 #else
   *((int *)where) = 0;
 #endif
   break;
-#endif  
+#endif
 
   case PCRE_CONFIG_UTF16:
 #if defined COMPILE_PCRE8
   return PCRE_ERROR_BADOPTION;
-#else   
+#else
 #if defined SUPPORT_UTF
   *((int *)where) = 1;
 #else
   *((int *)where) = 0;
 #endif
   break;
-#endif  
+#endif
 
   case PCRE_CONFIG_UNICODE_PROPERTIES:
 #ifdef SUPPORT_UCP
@@ -125,7 +128,7 @@ switch (what)
   break;
 
   case PCRE_CONFIG_LINK_SIZE:
-  *((int *)where) = LINK_SIZE;
+  *((int *)where) = real_link_size;
   break;
 
   case PCRE_CONFIG_POSIX_MALLOC_THRESHOLD:
