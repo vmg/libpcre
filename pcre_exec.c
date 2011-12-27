@@ -2630,9 +2630,13 @@ for (;;)
       }
 
     /* Handle repeated back references. If the length of the reference is
-    zero, just continue with the main loop. */
+    zero, just continue with the main loop. If the length is negative, it
+    means the reference is unset in non-Java-compatible mode. If the minimum is 
+    zero, we can continue at the same level without recursion. For any other 
+    minimum, carrying on will result in NOMATCH. */
 
     if (length == 0) continue;
+    if (length < 0 && min == 0) continue;
 
     /* First, ensure the minimum number of matches are present. We get back
     the length of the reference string explicitly rather than passing the

@@ -5244,4 +5244,10 @@ name were given. ---/
     ** Failers
     abpq  
 
+/(another)?(\1?)test/
+    hello world test
+
+/(another)?(\1+)test/
+    hello world test
+
 /-- End of testinput1 --/

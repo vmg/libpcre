@@ -8705,4 +8705,14 @@ No match
     abpq  
 No match
 
+/(another)?(\1?)test/
+    hello world test
+ 0: test
+ 1: <unset>
+ 2: 
+
+/(another)?(\1+)test/
+    hello world test
+No match
+
 /-- End of testinput1 --/
