@@ -2269,7 +2269,7 @@ for (;;)
             }
           else
 #endif  /* SUPPORT_UTF */
-          otherd = fcc[d];
+          otherd = TABLE_GET(d, fcc, d);
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
           {
@@ -2314,7 +2314,7 @@ for (;;)
             }
           else
 #endif  /* SUPPORT_UTF */
-          otherd = fcc[d];
+          otherd = TABLE_GET(d, fcc, d);
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
           {
@@ -2351,7 +2351,7 @@ for (;;)
             }
           else
 #endif  /* SUPPORT_UTF */
-          otherd = fcc[d];
+          otherd = TABLE_GET(d, fcc, d);
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
           {
@@ -2395,7 +2395,7 @@ for (;;)
             }
           else
 #endif  /* SUPPORT_UTF */
-          otherd = fcc[d];
+          otherd = TABLE_GET(d, fcc, d);
           }
         if ((c == d || c == otherd) == (codevalue < OP_NOTSTAR))
           {
