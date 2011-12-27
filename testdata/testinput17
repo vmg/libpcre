@@ -213,6 +213,8 @@
 \)  )*                       # optional trailing comment
 /xSI
 
+<testdata/saved8
+
 /\h/SI
 
 /\v/SI

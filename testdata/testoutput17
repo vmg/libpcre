@@ -12,11 +12,7 @@
 
 /\x{ffff}/
     A\x{ffff}B
-** Character \x{ffff} is greater than 255.
-** Because its input is first processed as 8-bit, pcretest does not
-** support such characters in 16-bit mode when UTF-16 is not set.
-** Truncation will probably give the wrong result.
-No match
+ 0: \x{ffff}
 
 /\x{10000}/ 
 Failed: character value in \x{...} sequence is too large at offset 8
@@ -243,6 +239,12 @@ Subject length lower bound = 3
 Starting byte set: \x09 \x20 ! " # $ % & ' ( * + - / 0 1 2 3 4 5 6 7 8 
   9 = ? A B C D E F G H I J K L M N O P Q R S T U V W X Y Z ^ _ ` a b c d e 
   f g h i j k l m n o p q r s t u v w x y z { | } ~ \x7f \xff 
+
+<testdata/saved8
+Compiled pattern loaded from testdata/saved8
+No study data
+Error -28 from pcre16_fullinfo(0)
+Running in 16-bit mode but pattern was compiled in 8-bit mode
 
 /\h/SI
 Capturing subpattern count = 0
