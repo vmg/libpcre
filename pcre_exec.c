@@ -6025,8 +6025,12 @@ switch (frame->Xwhere)
   LBL(35) LBL(43) LBL(47) LBL(48) LBL(49) LBL(50) LBL(51) LBL(52)
   LBL(53) LBL(54) LBL(55) LBL(56) LBL(57) LBL(58) LBL(63) LBL(64)
   LBL(65) LBL(66)
-#ifdef SUPPORT_UTF
-  LBL(16) LBL(18) LBL(20) LBL(21) LBL(22) LBL(23) LBL(28) LBL(30)
+#if defined SUPPORT_UTF || !defined COMPILE_PCRE8
+  LBL(21) 
+#endif
+#ifdef SUPPORT_UTF   
+  LBL(16) LBL(18) LBL(20) 
+  LBL(22) LBL(23) LBL(28) LBL(30)
   LBL(32) LBL(34) LBL(42) LBL(46)
 #ifdef SUPPORT_UCP
   LBL(36) LBL(37) LBL(38) LBL(39) LBL(40) LBL(41) LBL(44) LBL(45)
@@ -6035,6 +6039,9 @@ switch (frame->Xwhere)
 #endif  /* SUPPORT_UTF */
   default:
   DPRINTF(("jump error in pcre match: label %d non-existent\n", frame->Xwhere));
+  
+printf("+++jump error in pcre match: label %d non-existent\n", frame->Xwhere);
+
   return PCRE_ERROR_INTERNAL;
   }
 #undef LBL
