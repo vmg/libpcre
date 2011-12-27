@@ -17,4 +17,6 @@
 
 /[^ⱥ]/8iBZ
 
+/[[:blank:]]/WBZ
+
 /-- End of testinput19 --/ 

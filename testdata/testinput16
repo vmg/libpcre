@@ -30,4 +30,6 @@
 
 /\R/SI
 
+/[[:blank:]]/WBZ
+
 /-- End of testinput16 --/

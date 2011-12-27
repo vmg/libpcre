@@ -283,4 +283,26 @@
 \)  )*                       # optional trailing comment
 /xSI
 
+/\h/SI
+
+/\v/SI
+
+/\R/SI
+
+/[\h]/BZ
+    >\x09<
+
+/[\h]+/BZ
+    >\x09\x20\xa0<
+
+/[\v]/BZ
+
+/[\H]/BZ
+
+/[^\h]/BZ
+
+/[\V]/BZ
+
+/[\x0a\V]/BZ
+
 /-- End of testinput14 --/

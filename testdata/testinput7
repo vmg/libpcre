@@ -397,8 +397,6 @@ of case for anything other than the ASCII letters. --/
 
 /[[:ascii:]]/WBZ
 
-/[[:blank:]]/WBZ
-
 /[[:cntrl:]]/WBZ
 
 /[[:digit:]]/WBZ

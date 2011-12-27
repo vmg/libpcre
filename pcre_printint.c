@@ -114,8 +114,11 @@ print_char(FILE *f, pcre_uchar *ptr, BOOL utf)
 int c = *ptr;
 
 #ifndef SUPPORT_UTF
+
 (void)utf;  /* Avoid compiler warning */
-if (PRINTABLE(c)) fprintf(f, "%c", c); else fprintf(f, "\\x%02x", c);
+if (PRINTABLE(c)) fprintf(f, "%c", c);
+else if (c <= 0xff) fprintf(f, "\\x%02x", c);
+else fprintf(f, "\\x{%x}", c);
 return 0;
 
 #else

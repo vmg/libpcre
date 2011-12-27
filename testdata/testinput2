@@ -2173,22 +2173,6 @@ a random value. /Ix
     xabcpqrx
     xxyzx 
 
-/[\h]/BZ
-    >\x09<
-
-/[\h]+/BZ
-    >\x09\x20\xa0<
-
-/[\v]/BZ
-
-/[\H]/BZ
-
-/[^\h]/BZ
-
-/[\V]/BZ
-
-/[\x0a\V]/BZ
-
 /\H++X/BZ
     ** Failers
     XXXX

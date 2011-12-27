@@ -4023,7 +4023,22 @@ for (;; ptr++)
             SETBIT(classbits, 0x09); /* VT */
             SETBIT(classbits, 0x20); /* SPACE */
             SETBIT(classbits, 0xa0); /* NSBP */
-#ifdef SUPPORT_UTF
+#ifndef COMPILE_PCRE8
+            xclass = TRUE;
+            *class_uchardata++ = XCL_SINGLE;
+            *class_uchardata++ = 0x1680;
+            *class_uchardata++ = XCL_SINGLE;
+            *class_uchardata++ = 0x180e;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x2000;
+            *class_uchardata++ = 0x200a;
+            *class_uchardata++ = XCL_SINGLE;
+            *class_uchardata++ = 0x202f;
+            *class_uchardata++ = XCL_SINGLE;
+            *class_uchardata++ = 0x205f;
+            *class_uchardata++ = XCL_SINGLE;
+            *class_uchardata++ = 0x3000;
+#elif defined SUPPORT_UTF
             if (utf)
               {
               xclass = TRUE;
@@ -4033,7 +4048,7 @@ for (;; ptr++)
               class_uchardata += PRIV(ord2utf)(0x180e, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
               class_uchardata += PRIV(ord2utf)(0x2000, class_uchardata);
-              class_uchardata += PRIV(ord2utf)(0x200A, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x200a, class_uchardata);
               *class_uchardata++ = XCL_SINGLE;
               class_uchardata += PRIV(ord2utf)(0x202f, class_uchardata);
               *class_uchardata++ = XCL_SINGLE;
@@ -4057,8 +4072,35 @@ for (;; ptr++)
                 }
               classbits[c] |= x;
               }
-
+#ifndef COMPILE_PCRE8
+            xclass = TRUE;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x0100;
+            *class_uchardata++ = 0x167f;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x1681;
+            *class_uchardata++ = 0x180d;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x180f;
+            *class_uchardata++ = 0x1fff;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x200b;
+            *class_uchardata++ = 0x202e;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x2030;
+            *class_uchardata++ = 0x205e;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x2060;
+            *class_uchardata++ = 0x2fff;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x3001;
 #ifdef SUPPORT_UTF
+            if (utf)
+              class_uchardata += PRIV(ord2utf)(0x10ffff, class_uchardata);
+            else
+#endif
+              *class_uchardata++ = 0xffff;
+#elif defined SUPPORT_UTF
             if (utf)
               {
               xclass = TRUE;
@@ -4072,7 +4114,7 @@ for (;; ptr++)
               class_uchardata += PRIV(ord2utf)(0x180f, class_uchardata);
               class_uchardata += PRIV(ord2utf)(0x1fff, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf)(0x200B, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x200b, class_uchardata);
               class_uchardata += PRIV(ord2utf)(0x202e, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
               class_uchardata += PRIV(ord2utf)(0x2030, class_uchardata);
@@ -4093,7 +4135,12 @@ for (;; ptr++)
             SETBIT(classbits, 0x0c); /* FF */
             SETBIT(classbits, 0x0d); /* CR */
             SETBIT(classbits, 0x85); /* NEL */
-#ifdef SUPPORT_UTF
+#ifndef COMPILE_PCRE8
+            xclass = TRUE;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x2028;
+            *class_uchardata++ = 0x2029;
+#elif defined SUPPORT_UTF
             if (utf)
               {
               xclass = TRUE;
@@ -4121,7 +4168,20 @@ for (;; ptr++)
               classbits[c] |= x;
               }
 
+#ifndef COMPILE_PCRE8
+            xclass = TRUE;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x0100;
+            *class_uchardata++ = 0x2027;
+            *class_uchardata++ = XCL_RANGE;
+            *class_uchardata++ = 0x202a;
 #ifdef SUPPORT_UTF
+            if (utf)
+              class_uchardata += PRIV(ord2utf)(0x10ffff, class_uchardata);
+            else
+#endif
+              *class_uchardata++ = 0xffff;
+#elif defined SUPPORT_UTF
             if (utf)
               {
               xclass = TRUE;
@@ -4129,7 +4189,7 @@ for (;; ptr++)
               class_uchardata += PRIV(ord2utf)(0x0100, class_uchardata);
               class_uchardata += PRIV(ord2utf)(0x2027, class_uchardata);
               *class_uchardata++ = XCL_RANGE;
-              class_uchardata += PRIV(ord2utf)(0x2029, class_uchardata);
+              class_uchardata += PRIV(ord2utf)(0x202a, class_uchardata);
               class_uchardata += PRIV(ord2utf)(0x10ffff, class_uchardata);
               }
 #endif
