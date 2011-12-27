@@ -67,9 +67,10 @@ const pcre_uint8 PRIV(OP_lengths)[] = { OP_LENGTHS };
 /* These are the breakpoints for different numbers of bytes in a UTF-8
 character. */
 
-#ifdef SUPPORT_UTF
+#if (defined SUPPORT_UTF && defined COMPILE_PCRE8) \
+  || (defined PCRE_INCLUDED && defined SUPPORT_PCRE16)
 
-#ifdef COMPILE_PCRE8
+/* These tables are also required by pcretest in 16 bit mode. */
 
 const int PRIV(utf8_table1)[] =
   { 0x7f, 0x7ff, 0xffff, 0x1fffff, 0x3ffffff, 0x7fffffff};
@@ -91,7 +92,9 @@ const pcre_uint8 PRIV(utf8_table4)[] = {
   2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
   3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5 };
 
-#endif /* COMPILE_PCRE8 */
+#endif /* (SUPPORT_UTF && COMPILE_PCRE8) || (PCRE_INCLUDED && SUPPORT_PCRE16)*/
+
+#ifdef SUPPORT_UTF
 
 /* Table to translate from particular type value to the general value. */
 
@@ -119,7 +122,7 @@ const int PRIV(ucp_typerange)[] = {
   ucp_Sc, ucp_So,
   ucp_Zl, ucp_Zs,
 };
-#endif
+#endif /* SUPPORT_JIT */
 
 /* The pcre_utt[] table below translates Unicode property names into type and
 code values. It is searched by binary chop, so must be in collating sequence of

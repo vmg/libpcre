@@ -160,6 +160,11 @@ that differ in their output from isprint() even in the "C" locale. */
 
 #define PRINTOK(c) (locale_set? isprint(c) : PRINTABLE(c))
 
+/* Posix support is disabled in 16 bit only mode. */
+#if defined SUPPORT_PCRE16 && !defined SUPPORT_PCRE8 && !defined NOPOSIX
+#define NOPOSIX
+#endif
+
 /* It is possible to compile this test program without including support for
 testing the POSIX interface, though this is not available via the standard
 Makefile. */
@@ -1028,7 +1033,7 @@ return (pcre_jit_stack *)arg;
 }
 
 
-#if !defined NOUTF
+#if !defined NOUTF || defined SUPPORT_PCRE16
 /*************************************************
 *            Convert UTF-8 string to value       *
 *************************************************/
@@ -1084,11 +1089,11 @@ if (j != i) return -(i+1);
 *vptr = d;
 return i+1;
 }
-#endif  /* NOUTF */
+#endif /* NOUTF || SUPPORT_PCRE16 */
 
 
 
-#if !defined NOUTF
+#if !defined NOUTF || defined SUPPORT_PCRE16
 /*************************************************
 *       Convert character value to UTF-8         *
 *************************************************/
@@ -1118,7 +1123,7 @@ for (j = i; j > 0; j--)
 *utf8bytes = utf8_table2[i] | cvalue;
 return i + 1;
 }
-#endif
+#endif /* NOUTF || SUPPORT_PCRE16 */
 
 
 
@@ -3624,16 +3629,16 @@ while (!done)
           }
         continue;
         }
-        
+
       /* We now have a character value in c that may be greater than 255. In 
       16-bit mode, we always convert characters to UTF-8 so that values greater 
       than 255 can be passed to non-UTF 16-bit strings. In 8-bit mode we
       convert to UTF-8 if we are in UTF mode. Values greater than 127 in UTF 
       mode must have come from \x{...} or octal constructs because values from
       \x.. get this far only in non-UTF mode. */
-      
+
       if (use_pcre16 || use_utf)
-        { 
+        {
         pcre_uint8 buff8[8];
         int ii, utn;
         utn = ord2utf8(c, buff8);
