@@ -6,10 +6,10 @@
 and semantics are as close as possible to those of the Perl 5 language.
 
                        Written by Philip Hazel
-           Copyright (c) 1997-2008 University of Cambridge
+           Copyright (c) 1997-2012 University of Cambridge
 
   The machine code generator part (this module) was written by Zoltan Herczeg
-                      Copyright (c) 2010-2011
+                      Copyright (c) 2010-2012
 
 -----------------------------------------------------------------------------
 Redistribution and use in source and binary forms, with or without
