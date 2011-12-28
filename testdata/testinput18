@@ -158,6 +158,10 @@ correctly, but that messes up comparisons). --/
     \x{d800}\?
     \x{da00}
     \x{da00}\?
+    \x{dc00}
+    \x{dc00}\?
+    \x{de00}
+    \x{de00}\?
     \x{dfff}
     \x{dfff}\?
     \x{110000}

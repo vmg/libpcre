@@ -610,6 +610,14 @@ No match
 Error -10 (bad UTF-16 string) offset=0 reason=1
     \x{da00}\?
 No match
+    \x{dc00}
+Error -10 (bad UTF-16 string) offset=0 reason=3
+    \x{dc00}\?
+No match
+    \x{de00}
+Error -10 (bad UTF-16 string) offset=0 reason=3
+    \x{de00}\?
+No match
     \x{dfff}
 Error -10 (bad UTF-16 string) offset=0 reason=3
     \x{dfff}\?

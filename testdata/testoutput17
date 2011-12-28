@@ -246,30 +246,6 @@ No study data
 Error -28 from pcre16_fullinfo(0)
 Running in 16-bit mode but pattern was compiled in 8-bit mode
 
-/\h/SI
-Capturing subpattern count = 0
-No options
-No first char
-No need char
-Subject length lower bound = 1
-Starting byte set: \x09 \x20 \xa0 \xff 
-
-/\v/SI
-Capturing subpattern count = 0
-No options
-No first char
-No need char
-Subject length lower bound = 1
-Starting byte set: \x0a \x0b \x0c \x0d \x85 \xff 
-
-/\R/SI
-Capturing subpattern count = 0
-No options
-No first char
-No need char
-Subject length lower bound = 1
-Starting byte set: \x0a \x0b \x0c \x0d \x85 \xff 
-
 /[\h]/BZ
 ------------------------------------------------------------------
         Bra
@@ -329,5 +305,153 @@ Starting byte set: \x0a \x0b \x0c \x0d \x85 \xff
         Ket
         End
 ------------------------------------------------------------------
+
+/\h+/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+Starting byte set: \x09 \x20 \xa0 \xff 
+    \x{1681}\x{200b}\x{1680}\x{2000}\x{202f}\x{3000}
+ 0: \x{1680}\x{2000}\x{202f}\x{3000}
+    \x{3001}\x{2fff}\x{200a}\xa0\x{2000}
+ 0: \x{200a}\xa0\x{2000}
+
+/[\h\x{dc00}]+/BZSI
+------------------------------------------------------------------
+        Bra
+        [\x09 \xa0\x{1680}\x{180e}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{dc00}]+
+        Ket
+        End
+------------------------------------------------------------------
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+No set of starting bytes
+    \x{1681}\x{200b}\x{1680}\x{2000}\x{202f}\x{3000}
+ 0: \x{1680}\x{2000}\x{202f}\x{3000}
+    \x{3001}\x{2fff}\x{200a}\xa0\x{2000}
+ 0: \x{200a}\xa0\x{2000}
+
+/\H+/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+No set of starting bytes
+    \x{1680}\x{180e}\x{167f}\x{1681}\x{180d}\x{180f}
+ 0: \x{167f}\x{1681}\x{180d}\x{180f}
+    \x{2000}\x{200a}\x{1fff}\x{200b}
+ 0: \x{1fff}\x{200b}
+    \x{202f}\x{205f}\x{202e}\x{2030}\x{205e}\x{2060}
+ 0: \x{202e}\x{2030}\x{205e}\x{2060}
+    \xa0\x{3000}\x9f\xa1\x{2fff}\x{3001}
+ 0: \x9f\xa1\x{2fff}\x{3001}
+
+/[\H\x{d800}]+/BZSI
+------------------------------------------------------------------
+        Bra
+        [\x00-\x08\x0a-\x1f!-\x9f\xa1-\xff\x{100}-\x{167f}\x{1681}-\x{180d}\x{180f}-\x{1fff}\x{200b}-\x{202e}\x{2030}-\x{205e}\x{2060}-\x{2fff}\x{3001}-\x{ffff}\x{d800}]+
+        Ket
+        End
+------------------------------------------------------------------
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+No set of starting bytes
+    \x{1680}\x{180e}\x{167f}\x{1681}\x{180d}\x{180f}
+ 0: \x{167f}\x{1681}\x{180d}\x{180f}
+    \x{2000}\x{200a}\x{1fff}\x{200b}
+ 0: \x{1fff}\x{200b}
+    \x{202f}\x{205f}\x{202e}\x{2030}\x{205e}\x{2060}
+ 0: \x{202e}\x{2030}\x{205e}\x{2060}
+    \xa0\x{3000}\x9f\xa1\x{2fff}\x{3001}
+ 0: \x9f\xa1\x{2fff}\x{3001}
+
+/\v+/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+Starting byte set: \x0a \x0b \x0c \x0d \x85 \xff 
+    \x{2027}\x{2030}\x{2028}\x{2029}
+ 0: \x{2028}\x{2029}
+    \x09\x0e\x84\x86\x85\x0a\x0b\x0c\x0d
+ 0: \x85\x0a\x0b\x0c\x0d
+
+/[\v\x{dc00}]+/BZSI
+------------------------------------------------------------------
+        Bra
+        [\x0a-\x0d\x85\x{2028}-\x{2029}\x{dc00}]+
+        Ket
+        End
+------------------------------------------------------------------
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+No set of starting bytes
+    \x{2027}\x{2030}\x{2028}\x{2029}
+ 0: \x{2028}\x{2029}
+    \x09\x0e\x84\x86\x85\x0a\x0b\x0c\x0d
+ 0: \x85\x0a\x0b\x0c\x0d
+
+/\V+/SI
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+No set of starting bytes
+    \x{2028}\x{2029}\x{2027}\x{2030}
+ 0: \x{2027}\x{2030}
+    \x85\x0a\x0b\x0c\x0d\x09\x0e\x84\x86
+ 0: \x09\x0e\x84\x86
+
+/[\V\x{d800}]+/BZSI
+------------------------------------------------------------------
+        Bra
+        [\x00-\x09\x0e-\x84\x86-\xff\x{100}-\x{2027}\x{202a}-\x{ffff}\x{d800}]+
+        Ket
+        End
+------------------------------------------------------------------
+Capturing subpattern count = 0
+No options
+No first char
+No need char
+Subject length lower bound = 1
+No set of starting bytes
+    \x{2028}\x{2029}\x{2027}\x{2030}
+ 0: \x{2027}\x{2030}
+    \x85\x0a\x0b\x0c\x0d\x09\x0e\x84\x86
+ 0: \x09\x0e\x84\x86
+
+/\R+/SI<bsr_unicode>
+Capturing subpattern count = 0
+Options: bsr_unicode
+No first char
+No need char
+Subject length lower bound = 1
+Starting byte set: \x0a \x0b \x0c \x0d \x85 \xff 
+    \x{2027}\x{2030}\x{2028}\x{2029}
+ 0: \x{2028}\x{2029}
+    \x09\x0e\x84\x86\x85\x0a\x0b\x0c\x0d
+ 0: \x85\x0a\x0b\x0c\x0d
+
+/\x{d800}\x{d7ff}\x{dc00}\x{dc00}\x{dcff}\x{dd00}/I
+Capturing subpattern count = 0
+No options
+First char = \x{d800}
+Need char = \x{dd00}
+    \x{d800}\x{d7ff}\x{dc00}\x{dc00}\x{dcff}\x{dd00}
+ 0: \x{d800}\x{d7ff}\x{dc00}\x{dc00}\x{dcff}\x{dd00}
 
 /-- End of testinput17 --/

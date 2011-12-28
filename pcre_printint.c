@@ -630,11 +630,11 @@ for(;;)
             }
           else
             {
-            ccode += 1 + print_char(f, ccode, TRUE);
+            ccode += 1 + print_char(f, ccode, utf);
             if (ch == XCL_RANGE)
               {
               fprintf(f, "-");
-              ccode += 1 + print_char(f, ccode, TRUE);
+              ccode += 1 + print_char(f, ccode, utf);
               }
             }
           }
